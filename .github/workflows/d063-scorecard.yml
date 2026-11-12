@@ -25,7 +25,7 @@ jobs:
             "uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e",
             "if: github.ref == 'refs/heads/main' && github.event_name == 'push'",
             "publish_results: false",
-            "results_file: /github/runner_temp/d063-scorecard.json"
+            "results_file: d063-scorecard.json"
           ]) if(!s.includes(expected)) throw Error("Scorecard security contract changed");
           console.log("D063 Scorecard branch preflight passed; actual Scorecard runs only on default branch main");
           NODE
@@ -38,7 +38,7 @@ jobs:
       - name: Run upstream Scorecard read-only; do not publish
         uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e
         with:
-          results_file: /github/runner_temp/d063-scorecard.json
+          results_file: d063-scorecard.json
           results_format: json
           publish_results: false
           file_mode: archive
@@ -46,10 +46,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          trap 'rm -f -- "$RUNNER_TEMP/d063-scorecard.json"' EXIT
+          trap 'rm -f -- "$GITHUB_WORKSPACE/d063-scorecard.json"' EXIT
           node - <<'NODE'
           const fs=require('node:fs');
-          const file=process.env.RUNNER_TEMP+'/d063-scorecard.json';
+          const file=process.env.GITHUB_WORKSPACE+'/d063-scorecard.json';
           if(!fs.existsSync(file) || fs.statSync(file).size===0) throw Error('Scorecard did not produce a report');
           const r=JSON.parse(fs.readFileSync(file,'utf8'));
           if(!Array.isArray(r.checks) || typeof r.score!=='number') throw Error('Scorecard report shape not recognized');
