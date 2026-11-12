@@ -1,0 +1,57 @@
+name: D-058 Linux unprivileged verified AppImage staging preview
+on:
+  push:
+    branches: [feat/d058-linux-user-stage, main]
+    paths:
+      - scripts/suliko-stage-linux.sh
+      - scripts/suliko-setup.sh
+      - .github/workflows/d058-linux-stage.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-stage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verified official AppImage staged and removed, never executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          test_home="$RUNNER_TEMP/d058-stage-home"
+          mkdir -p "$test_home"
+          HOME="$test_home" bash scripts/suliko-setup.sh --download-verified >/dev/null
+          HOME="$test_home" bash scripts/suliko-stage-linux.sh --stage
+          app="$test_home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          alias="$test_home/.local/bin/suliko-bb-desktop"
+          test -x "$app"
+          test "$(readlink "$alias")" = "$app"
+          echo '8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770  '"$app" | sha256sum -c - >/dev/null
+          HOME="$test_home" bash scripts/suliko-stage-linux.sh --stage >/dev/null
+          HOME="$test_home" bash scripts/suliko-stage-linux.sh --remove-stage
+          test ! -e "$app"
+          test ! -L "$alias"
+          # Reject unsafe alias collision without replacing unrelated files.
+          mkdir -p "$(dirname "$alias")"
+          printf 'foreign-unowned-alias' > "$alias"
+          if HOME="$test_home" bash scripts/suliko-stage-linux.sh --stage >/dev/null 2>&1; then
+            echo 'FAIL: accepted occupied alias'; exit 1
+          fi
+          test "$(cat "$alias")" = foreign-unowned-alias
+          rm -- "$alias"
+          # Reject redirected .local without touching a foreign destination.
+          foreign="$RUNNER_TEMP/d058-foreign-local"
+          redirect="$RUNNER_TEMP/d058-redirect-home"
+          mkdir -p "$foreign/share/suliko-ide" "$redirect"
+          printf 'preserve-foreign' > "$foreign/share/suliko-ide/foreign.txt"
+          ln -s "$foreign" "$redirect/.local"
+          if HOME="$redirect" bash scripts/suliko-stage-linux.sh --stage >/dev/null 2>&1; then
+            echo 'FAIL: followed redirected .local'; exit 1
+          fi
+          test "$(cat "$foreign/share/suliko-ide/foreign.txt")" = preserve-foreign
+          test ! -f "$foreign/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          echo 'D058 staged verified official Linux asset in a disposable HOME, never executed installer or touched real BB data.' >> "$GITHUB_STEP_SUMMARY"
