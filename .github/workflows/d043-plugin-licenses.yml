@@ -32,8 +32,8 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           cd "plugins/${{ matrix.plugin }}"
-          pnpm install --lockfile-only --ignore-scripts
           test -s pnpm-lock.yaml
+          # Never dynamically regenerate in release CI; fail on dependency drift.
           pnpm install --frozen-lockfile --ignore-scripts
       - name: Produce complete production-only license inventory; fail on unknown/copyleft
         shell: bash
@@ -56,70 +56,3 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  publish-lock-evidence:
-    name: Export generated lockfiles to temporary GitHub evidence branch
-    needs: plugins
-    if: github.ref == 'refs/heads/feat/d043-plugin-licenses'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: d043-plugin-suliko-hello-licenses
-          path: ${{ runner.temp }}/d043-hello
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: d043-plugin-suliko-remote-panel-licenses
-          path: ${{ runner.temp }}/d043-remote
-      - name: Create immutable generated lock evidence on separate non-main branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-          LOCK_1: ${{ runner.temp }}/d043-hello/plugins/suliko-hello/pnpm-lock.yaml
-          LOCK_2: ${{ runner.temp }}/d043-remote/plugins/suliko-remote-panel/pnpm-lock.yaml
-        shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs=require('node:fs');
-          const pin=process.env.GITHUB_SHA;
-          const branch='ci/d043-locks-'+pin.slice(0,12);
-          const repo=process.env.GITHUB_REPOSITORY;
-          const token=process.env.GH_TOKEN;
-          const api='https://api.github.com/repos/'+repo;
-          async function call(endpoint,method,payload) {
-            const r=await fetch(api+endpoint,{
-              method,headers:{
-                Authorization:'Bearer '+token,
-                Accept:'application/vnd.github+json',
-                'X-GitHub-Api-Version':'2022-11-28',
-                'Content-Type':'application/json'
-              },
-              ...(payload===undefined?{}:{body:JSON.stringify(payload)})
-            });
-            const body=await r.json().catch(()=>({}));
-            if(!r.ok)throw Error('GitHub evidence export '+method+' '+endpoint+' HTTP '+r.status+': '+String(body.message).slice(0,160));
-            return body;
-          }
-          (async()=>{
-            await call('/git/refs','POST',{ref:'refs/heads/'+branch,sha:pin});
-            for(const [path,file] of [
-              ['plugins/suliko-hello/pnpm-lock.yaml',process.env.LOCK_1],
-              ['plugins/suliko-remote-panel/pnpm-lock.yaml',process.env.LOCK_2],
-            ]){
-              const content=fs.readFileSync(file);
-              if(content.length<100 || content.length>400000)throw Error('unexpected lockfile length');
-              const text=content.toString('utf8');
-              if(!text.includes('lockfileVersion:')||!text.includes('settings:'))throw Error('malformed lockfile evidence');
-              await call('/contents/'+path,'PUT',{
-                message:'[ChatGPT] D-043 generated lock evidence '+path,
-                content:content.toString('base64'),branch
-              });
-            }
-            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\nGenerated lockfiles on non-main GitHub evidence branch `'+branch+'`; GitLab canonical branch still requires manual import/review.\n');
-          })().catch(e=>{console.error(e);process.exitCode=1;});
-          NODE
