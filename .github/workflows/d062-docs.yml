@@ -1,7 +1,7 @@
 name: D-062 public docs build and privacy guard (NO deploy yet)
 on:
   push:
-    branches: [feat/d062-doc-site, main]
+    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, main]
     paths:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
