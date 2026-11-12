@@ -27,7 +27,12 @@ async function diagnose(page, target) {
   await observe(page, target, "initial");
   const projects = page.getByRole("link", { name: /projects?/i })
     .or(page.getByRole("button", { name: /projects?/i })).first();
-  if (await projects.isVisible().catch(() => false)) {
+  // Diagnostic only: client-side hydration can lag DOMContentLoaded. Never
+  // use this wait to skip, weaken, retry or rewrite a parity assertion.
+  const ready = await projects.waitFor({ state: "visible", timeout: 12000 })
+    .then(() => true).catch(() => false);
+  await observe(page, target, "after-hydration-wait");
+  if (ready) {
     await projects.click();
     await observe(page, target, "after-projects-nav");
   }
