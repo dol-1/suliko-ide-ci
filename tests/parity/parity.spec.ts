@@ -9,6 +9,15 @@ async function enterProviderFreeShell(page: Page) {
   await projects.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
   const skip = page.getByRole("button", { name: /skip setup/i }).first();
   if (await skip.isVisible().catch(() => false)) await skip.click();
+  // Enroll ONLY the generated qa01-* project in the client UI: BB's thread
+  // creation UI is project-scoped. No third-party provider, token or host used.
+  const projectNav = page.getByRole("button", { name: /projects?/i }).first();
+  if (await projectNav.isVisible().catch(() => false)) {
+    await projectNav.click();
+    const synthetic = page.getByText(/qa01-(desktop-)?synthetic/i).first();
+    if (await synthetic.waitFor({ state: "visible", timeout: 2500 }).then(() => true).catch(() => false))
+      await synthetic.click();
+  }
 }
 
 const test = base.extend<{ appPage: Page }>({
