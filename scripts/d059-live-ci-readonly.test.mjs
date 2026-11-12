@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { inspectLive,writeCiSafeBundle,stockVersionMatchesPin } from "./d059-live-ci-readonly.mjs";
+import { inspectLive,writeCiSafeBundle,stockVersionMatchesPin,inspectManagedProviderKeys } from "./d059-live-ci-readonly.mjs";
 import { mkdtempSync,readFileSync,writeFileSync,symlinkSync,lstatSync,rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,10 +10,10 @@ const plugins=(more=[])=>({plugins:[
 {id:"connect",enabled:false},{id:"bb--connect-next",enabled:false},
 {id:"memory",enabled:false},{id:"suliko-hello",enabled:true},...more]});
 test("real-shaped CLI data reduces to explicit safe statuses",()=>{
-  const r=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n");
+  const r=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
   assert.equal(r.status,"partial-runtime-pass");
   assert.equal(r.pluginStates["suliko-hello"],"enabled");
-  assert.equal(r.providerKeyPresence,"NOT_INSPECTED");
+  assert.deepEqual(r.providerKeyPresence,{openai:"absent",anthropic:"absent"});
   assert.equal(r.providerSettingsAndHooks,"NOT_INSPECTED");
   assert.doesNotMatch(JSON.stringify(r),/SENTINEL|\/ci\/disposable/);
 });
@@ -23,14 +23,14 @@ test("non-loopback host, port, or data directory cannot pass",()=>{
     {serverUrl:"http://127.0.0.1:38885"},
     {serverUrl:"http://0.0.0.0:38884"},
     {dataDir:"/user/home"}]){
-    const r=inspectLive(config(c),plugins(),"/ci/disposable",38884,"0.49.0\n");
+    const r=inspectLive(config(c),plugins(),"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
     assert.equal(r.status,"review-required");
   }
 });
 test("forbidden enabled and unknown statuses reject acceptance",()=>{
   for(const extra of [[{id:"memory",enabled:true}],[{id:"memory",enabled:"yes"}]]){
     const pl=plugins().plugins.filter(x=>x.id!=="memory").concat(extra);
-    assert.equal(inspectLive(config(),{plugins:pl},"/ci/disposable",38884,"0.49.0\n").status,"review-required");
+    assert.equal(inspectLive(config(),{plugins:pl},"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n").status,"review-required");
   }
 });
 test("malformed CLI shape is rejected, never serialized",()=>{
@@ -42,7 +42,7 @@ test("fixed-schema private disposable support bundle excludes untrusted fields",
   const root=mkdtempSync(join(tmpdir(),"d059-ci-test-"));
   const path=join(root,"d059-support-bundle.json");
   try{
-    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n");
+    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
     report.rawProviderToken="SENTINEL-DO-NOT-EMIT";
     report.pluginStates["unknown-user-extension"]="SENTINEL";
     const clean=writeCiSafeBundle(report,path,root);
@@ -78,15 +78,48 @@ test("preexisting symlink cannot redirect bundle write into a sentinel",()=>{
 });
 
 test("stock --version must match pinned CLI, never print attacker-supplied output",()=>{
-  assert.equal(stockVersionMatchesPin("0.49.0\n"),true);
+  assert.equal(stockVersionMatchesPin("0.49.0\n","No bb-app env set.\n"),true);
   for(const bad of ["0.49.1","0.49.0\nSENTINEL-NEVER-PRINT","0.0.0-dev","",null,{}, "0.49.0--fake"]){
     assert.equal(stockVersionMatchesPin(bad),false);
-    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,bad);
+    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,bad,"No bb-app env set.\n");
     assert.equal(report.checks.stockVersionMatchesPin,false);
     assert.equal(report.status,"review-required");
     assert.doesNotMatch(JSON.stringify(report),/SENTINEL|fake|0.49.1|0.0.0-dev/);
   }
-  const ok=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n");
+  const ok=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
   assert.equal(ok.checks.stockVersionMatchesPin,true);
   assert.equal(ok.status,"partial-runtime-pass");
+});
+
+test("redacted stock CLI environment list exposes provider key existence, never values",()=>{
+  const text="OPENAI_API_KEY=<set>\nANTHROPIC_API_KEY=<set>\nBB_SERVER_BIND_HOST=<set>\n";
+  const presence=inspectManagedProviderKeys(text);
+  assert.deepEqual(presence,{openai:"present",anthropic:"present"});
+  const report=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n",text);
+  assert.equal(report.status,"partial-runtime-pass");
+  assert.deepEqual(report.providerKeyPresence,presence);
+  assert.doesNotMatch(JSON.stringify(report),/OPENAI_API_KEY|ANTHROPIC_API_KEY|SENTINEL|\/ci\/disposable/);
+});
+test("reject raw token values, duplicate keys and corrupt managed environment listing",()=>{
+  for(const bad of [
+    "OPENAI_API_KEY=sk-SENTINEL-NO-PRINT\n",
+    "OPENAI_API_KEY=<set>\nOPENAI_API_KEY=<set>\n",
+    "ANTHROPIC_API_KEY=<set>\nX=real-value\n",
+    "OPENAI_API_KEY=<set>",
+    "OPENAI_API_KEY=<set>\nSECRET@example.test\n",
+    "No bb-app env set.\nOPENAI_API_KEY=<set>\n",
+    null,{},"x".repeat(65537)
+  ])assert.throws(()=>inspectManagedProviderKeys(bad),/Unsafe|Unredacted/);
+});
+test("bundle sanitizes tampered provider presence without reflecting unexpected keys",()=>{
+  const root=mkdtempSync(join(tmpdir(),"d059-env-"));
+  const path=join(root,"d059-support-bundle.json");
+  try{
+    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n","OPENAI_API_KEY=<set>\n");
+    report.providerKeyPresence.extra="SENTINEL-VALUE";
+    report.providerKeyPresence.anthropic="SENTINEL";
+    const clean=writeCiSafeBundle(report,path,root);
+    assert.deepEqual(clean.providerKeyPresence,{openai:"present",anthropic:"unknown"});
+    assert.doesNotMatch(readFileSync(path,"utf8"),/SENTINEL|OPENAI_API_KEY/);
+  }finally{rmSync(root,{recursive:true,force:true});}
 });
