@@ -73,11 +73,14 @@ jobs:
           web_dir="$RUNNER_TEMP/bb-parity-web"
           mkdir -p "$web_dir"
           export BB_DATA_DIR="$web_dir"
-          BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
+          BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --host-daemon-port 38889 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
           server_pid=$!
           ready=0
           for i in $(seq 1 45); do
-            # A browser-visible HTTP response is the real Web parity precondition.
+            # Stock BB 0.49.0 defaults host daemon to port 38887, exactly this
+          # test Web port; reserve distinct 38889 to avoid self-port collision.
+          # Source: get-bb/bb docs/configuration.md #startup-flags.
+          # A browser-visible HTTP response is the real Web parity precondition.
             # CLI settings can fail even when the loopback Web server is reachable.
             if curl --silent --show-error --fail --max-time 2 --output "$RUNNER_TEMP/qa01-ready.html" http://127.0.0.1:38887/ 2>/dev/null; then
               if node -e 'const s=require("node:fs").readFileSync(process.argv[1],"utf8");process.exit(/<html|<!doctype/i.test(s)?0:1)' "$RUNNER_TEMP/qa01-ready.html"; then
