@@ -23,8 +23,8 @@ function walk(suites) {
           // Synthetic CI only: record first-line Playwright error, not DOM snapshots,
           // raw stdout, provider credentials, workspace paths or archive content.
           const raw = String(bad.error?.message ?? bad.error?.value ?? bad.status ?? "unknown");
-          const first = raw.split("\n").map(x => x.trim()).find(Boolean) ?? "unknown";
-          const safe = first.replace(/\x1b\[[0-9;]*m/g, "").replace(/\b(?:https?:\/\/)[^\s]+/gi, "[url]").slice(0, 160);
+          const detail = raw.split("\n").map(x => x.trim()).filter(x => /^(?:Error:|Locator:|Expected:|Received:|Timeout:|at )/i.test(x)).slice(0, 5).join(" ; ") || raw.split("\n").map(x => x.trim()).find(Boolean) || "unknown";
+          const safe = detail.replace(/\x1b\[[0-9;]*m/g, "").replace(/\b(?:https?:\/\/)[^\s]+/gi, "[url]").slice(0, 560);
           diagnostics.set(key, safe);
         }
       }
