@@ -1,0 +1,71 @@
+# SPIKE-04 marketplace staging only: no tag release until CI and review.
+name: SPIKE-04 marketplace staged install (manual only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  marketplace:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 95
+    env:
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_TELEMETRY: 'false'
+      CI: 'true'
+    steps:
+      - name: Checkout catalog and plugin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify reviewed immutable release prerequisite
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs'), p=JSON.parse(fs.readFileSync('marketplace/marketplace.json','utf8'));
+          if(p.schemaVersion!==1||p.name!=='suliko-experimental'||p.plugins.length!==1) throw Error('invalid catalog');
+          const g=p.plugins[0].source.git;
+          if(g.url!=='https://github.com/dol-1/suliko-ide-ci.git'||g.subdir!=='plugins/suliko-hello'||g.tagPrefix!=='suliko-hello/'||g.range!=='0.1.0') throw Error('unexpected source');
+          NODE
+          # Fail closed if release tag has not been reviewed/published.
+          test -n "$(git ls-remote --tags https://github.com/dol-1/suliko-ide-ci.git refs/tags/suliko-hello/v0.1.0)"
+      - name: Checkout frozen BB source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Stock BB build and plugin harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
+          (cd plugins/suliko-hello && pnpm install --no-frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
+      - name: Marketplace CLI registration and reviewed Git install
+        shell: bash
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          export BB_DATA_DIR="$RUNNER_TEMP/spike04-mkt-data"
+          cleanup() { node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38886 --no-in-app-updates >"$RUNNER_TEMP/spike04-launch.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1
+          node stock-bb/packages/bb-app/dist/bb.js marketplace add "path:$GITHUB_WORKSPACE/marketplace"
+          node stock-bb/packages/bb-app/dist/bb.js plugin install suliko-hello@suliko-experimental --yes
+          node stock-bb/packages/bb-app/dist/bb.js plugin list --json >"$RUNNER_TEMP/spike04-plugin-list.json"
+          node -e 'const p=require(process.argv[1]);if(!p.plugins?.some(x=>x.id.includes("suliko-hello")&&x.enabled===true)) throw Error("Hello plugin not loaded")' "$RUNNER_TEMP/spike04-plugin-list.json"
+          echo "Experimental marketplace installed on disposable loopback BB. SDK harness checked panel/RPC. Actual interactive Desktop/Web mount remains a separate gate." >> "$GITHUB_STEP_SUMMARY"
