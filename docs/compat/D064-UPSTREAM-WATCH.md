@@ -1,0 +1,7 @@
+# D-064 nightly upstream SDK compatibility early warning
+
+Source: [E7 / D064 #49](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/49), [Claude E7 #36](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36). This bounded first step watches the **actual source manifest** of upstream BB main vs two own plugins' pinned public SDK, and validates the exact pinned stock source SDK 0.6.132 against unchanged plugin test suites. Every nightly main-branch run intentionally fails when upstream main moves outside the reviewed pin: this is drift early warning, **not** confirmed type/API/runtime break.
+
+As of 2026-11-12, upstream main SHA 030b1b729f28acedc6f86cd65a71cb3678da8124 declares @get-bb/plugin-sdk 0.6.141 while pinned desktop-v0.49.0 SHA 7b26cae79ec978fafd0a5db0e8517e94f12eb8f4 declares 0.6.132. The own plugin engines remain >=0.6.132 <0.6.133, so main is expected RED until a separate reviewed adapter/SDK-update MR. No automatic update, false compatibility claim or BB core modifications. Follow-up should build/test plugins **against actual upstream main SDK**, not merely inspect metadata. Closed source SDK packages must not be presumed compatible.
+
+The feature-branch pre-merge check runs pinned suite only; the upstream main watch is active after main merge/on nightly. If main RED, maintainers create or update the referenced private issue with exact head and smallest tested error, no automatic bump.

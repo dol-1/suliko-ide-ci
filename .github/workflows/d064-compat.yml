@@ -1,0 +1,80 @@
+name: D-064 pinned SDK and upstream-main compatibility watch
+on:
+  push:
+    branches: [feat/d064-upstream-compat-watch, main]
+    paths:
+      - '.github/workflows/d064-compat.yml'
+      - 'plugins/suliko-hello/**'
+      - 'plugins/suliko-remote-panel/**'
+  schedule:
+    - cron: '13 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-supported:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Check reviewed exact upstream and run SDK tests on plugin sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const sdk=require('./stock-bb/packages/plugin-sdk/package.json');
+          for (const dir of ['plugins/suliko-hello','plugins/suliko-remote-panel']) {
+            const p=JSON.parse(fs.readFileSync(dir+'/package.json','utf8'));
+            if(sdk.version !== '0.6.132'||p.devDependencies['@get-bb/plugin-sdk'] !== sdk.version||p.engines.bbPluginSdk !== '>=0.6.132 <0.6.133') throw Error('Reviewed BB SDK version gate mismatch');
+          }
+          NODE
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          for pkg in plugins/suliko-hello plugins/suliko-remote-panel; do
+            (cd "$pkg" && pnpm install --no-frozen-lockfile --ignore-scripts && pnpm run typecheck && pnpm run test)
+          done
+          echo "Reviewed pinned stock BB SDK version + both own plugin typechecks/tests passed; not a live mount or main-SDK compile." >> "$GITHUB_STEP_SUMMARY"
+  upstream-main-watch:
+    # Feature branch proves pinned regression; only main/default branch checks moving upstream.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: main
+          path: stock-bb-main
+          persist-credentials: false
+      - name: Fail visibly on unreviewed upstream SDK drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const upstream=JSON.parse(fs.readFileSync('stock-bb-main/packages/plugin-sdk/package.json','utf8'));
+          for(const path of ['plugins/suliko-hello/package.json','plugins/suliko-remote-panel/package.json']) {
+            const own=JSON.parse(fs.readFileSync(path,'utf8'));
+            if(upstream.version!==own.devDependencies['@get-bb/plugin-sdk']){
+              console.error('D064 UPCOMING SDK COMPATIBILITY DRIFT: upstream main '+upstream.version+' vs reviewed plugin pin '+own.devDependencies['@get-bb/plugin-sdk']+'; this is not proof of a runtime/API breaking change.');
+              process.exitCode=1;
+            }
+          }
+          NODE
