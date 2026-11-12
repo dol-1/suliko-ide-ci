@@ -1,0 +1,7 @@
+# E9 D066 synthetic-only Web visual snapshot capture
+
+Source: [E9 #53](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/53) and [Claude #36](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36). Stage 1 is deliberately **capture-only**: four PNG screenshots of ONLY own Hello and Remote MOCK Web panel sections, on disposable pinned stock BB 0.49.0. No full-page screenshots, users, credentials or live Remote. Stable runner Ubuntu 24.04, Playwright 1.56.0, 1180x780 viewport and light/reduced-motion/UTC browser. Enforce translated labels, no approval control, safe unresolvable demo URL, bounded text/screenshot geometry, no horizontal clipping and absence of obvious secret-like text. Public artifact contains only synthetic own-panel PNGs with 1-day retention.
+
+The test logs SHA256 digests for review. Initial baseline mode is **capture-only**, so CI green is NOT proof of visual regression stability. After reviewing the four screenshots, pin the approved hashes in tests/parity/d066-visual-baselines.json and switch to "locked"; a second completed exact-head GREEN must enforce hash matches. Hashes may vary if font rendering changes; investigate and explicitly approve a new baseline instead of ignoring mismatches.
+
+This is not Desktop rendering, real Remote approvals, persistent app language settings, full WCAG, 30-minute soak, or public beta validation. Never upload a user-provided screenshot or project to public CI.
