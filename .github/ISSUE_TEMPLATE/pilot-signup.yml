@@ -1,0 +1,68 @@
+name: "Suliko IDE — pilot signup"
+description: "Opt in to a two-week, pre-release pilot. This GitHub issue is public."
+title: "[Pilot] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your interest in testing Suliko IDE.
+        **This is a PUBLIC GitHub issue.** Do not post your email, phone number, real name, age, address, employer, access tokens, screenshots of accounts, or private work.
+        Responses and follow-ups happen through GitHub notifications on this issue. Signing up does not guarantee immediate access or imply that beta is ready.
+        You can close your issue to withdraw. A closed issue remains visible; ask maintainers if you need public text removed.
+  - type: dropdown
+    id: os
+    attributes:
+      label: Device operating system
+      description: Choose the main system you would test on.
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Preferred client
+      options:
+        - Desktop
+        - Web via private Tailscale access
+        - Both
+    validations:
+      required: true
+  - type: dropdown
+    id: usage
+    attributes:
+      label: Intended use (no confidential project details)
+      options:
+        - Coding and navigation
+        - Plugin panels
+        - Remote status review
+        - General first-time use
+    validations:
+      required: true
+  - type: dropdown
+    id: cadence
+    attributes:
+      label: Could you try it over a two-week pilot?
+      options:
+        - Yes, several days
+        - Possibly, once or twice
+        - Not yet, just interested
+    validations:
+      required: true
+  - type: textarea
+    id: goals
+    attributes:
+      label: One task you would like to try (optional)
+      description: Describe a generic task; no repository names, secrets, or account information.
+      placeholder: "For example: open an example project and view a plugin panel."
+    validations:
+      required: false
+  - type: checkboxes
+    id: public-consent
+    attributes:
+      label: Public posting acknowledgement
+      options:
+        - label: "I understand this is a public issue and I will not share personal information or secrets."
+          required: true

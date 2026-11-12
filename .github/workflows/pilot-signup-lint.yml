@@ -1,0 +1,38 @@
+name: Pilot signup template validation
+on:
+  push:
+    branches: [main, feat/pilot-signup]
+    paths:
+      - '.github/ISSUE_TEMPLATE/pilot-signup.yml'
+      - '.github/workflows/pilot-signup-lint.yml'
+      - 'site/docs/pilot.*.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate public issue form and KA/EN pages without dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e '
+            require "yaml"
+            f = YAML.safe_load_file(".github/ISSUE_TEMPLATE/pilot-signup.yml")
+            abort("title or body missing") unless f["name"].to_s != "" && f["title"].to_s.start_with?("[Pilot]") && f["body"].is_a?(Array)
+            ids = f["body"].filter_map { |x| x["id"] }
+            abort("duplicate field id") unless ids.uniq == ids
+            abort("missing OS/client/consent") unless %w[os mode public-consent].all? { |x| ids.include?(x) }
+            consent = f["body"].find { |x| x["id"] == "public-consent" }
+            abort("public opt-in must be required") unless consent["type"] == "checkboxes" && consent.dig("attributes", "options", 0, "required") == true
+            abort("too many fields") if ids.length > 8
+          '
+          for page in site/docs/pilot.ka.md site/docs/pilot.en.md; do
+            test -s "$page"
+            grep -Fq 'issues/new?template=pilot-signup.yml' "$page"
+          done
+          echo "Pilot template and KA/EN public pages: structurally valid (not an end-to-end signup test)"
