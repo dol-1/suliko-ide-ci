@@ -1,0 +1,56 @@
+# [ChatGPT] D-041 / ARCH-01: read-only weekly upstream release sentinel.
+# No automatic BB source updates, no outgoing disclosures.
+name: BB upstream latest-release sentinel
+on:
+  schedule:
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [feat/d041-upstream-watch]
+    paths: ['.github/workflows/upstream-watch.yml']
+permissions:
+  contents: read
+jobs:
+  latest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Compare latest upstream desktop release with frozen BB pin
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pinned = 'desktop-v0.49.0';
+          (async () => {
+            const api = 'https://api.github.com/repos/get-bb/bb/releases/latest';
+            const res = await fetch(api, {
+              headers: { 'Accept': 'application/vnd.github+json',
+                'Authorization': 'Bearer ' + process.env.GH_TOKEN,
+                'X-GitHub-Api-Version': '2022-11-28' }
+            });
+            if (!res.ok) throw new Error('Upstream API '+res.status);
+            const latest = await res.json();
+            const releaseUrl = latest.html_url;
+            if (!latest.tag_name || !/^https:\/\/github.com\/get-bb\/bb\/releases\//.test(releaseUrl))
+              throw new Error('Unrecognized upstream release metadata');
+            const days = Math.floor((Date.now() - new Date(latest.published_at).getTime()) / 86400000);
+            const changed = latest.tag_name !== pinned;
+            const stale = Number.isFinite(days) && days >= 60;
+            const lines = [
+              '# BB upstream watch (read-only)',
+              '',
+              'Frozen pin: `'+pinned+'`',
+              'Latest release: [`'+latest.tag_name+'`]('+releaseUrl+')',
+              'Published: '+latest.published_at,
+              'Age (days): '+days,
+              '',
+              changed ? '**ACTION: new upstream release — create private BB upstream review; inspect changelog, breaking SDK changes and security fixes; do not bump automatically.**' : 'No new upstream release.',
+              stale ? '**ACTION: 60 days without release — open private BB continuity issue.**' : '',
+              'Review release notes: '+releaseUrl
+            ].join('\n');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines+'\n');
+            if (changed || stale) process.exitCode = 1;
+          })().catch((err) => {console.error(err);process.exitCode=1;});
+          NODE
