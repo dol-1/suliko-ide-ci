@@ -77,11 +77,9 @@ jobs:
           server_pid=$!
           ready=0
           for i in $(seq 1 45); do
-            # Stock BB 0.49.0 defaults host daemon to port 38887, exactly this
-          # test Web port; reserve distinct 38889 to avoid self-port collision.
-          # Source: get-bb/bb docs/configuration.md #startup-flags.
-          # A browser-visible HTTP response is the real Web parity precondition.
-            # CLI settings can fail even when the loopback Web server is reachable.
+            # Stock BB host daemon defaults to 38887; this test's Web listener
+            # uses 38887, so host daemon is explicitly 38889 instead.
+            # A browser-visible HTTP response is the real Web precondition.
             if curl --silent --show-error --fail --max-time 2 --output "$RUNNER_TEMP/qa01-ready.html" http://127.0.0.1:38887/ 2>/dev/null; then
               if node -e 'const s=require("node:fs").readFileSync(process.argv[1],"utf8");process.exit(/<html|<!doctype/i.test(s)?0:1)' "$RUNNER_TEMP/qa01-ready.html"; then
                 ready=1; break
@@ -103,7 +101,7 @@ jobs:
           NODE
             exit 1
           fi
-          BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
       - name: Execute full 7×2 matrix and preserve result even on failure
         shell: bash
@@ -124,7 +122,9 @@ jobs:
           # Requires a pre-enrolled disposable host and Suliko Hello in both
           # data directories. Missing fixtures cause real test failures.
           set +e
-          xvfb-run -a bash -c 'cd tests/parity && npm test -- --reporter=json' >"$RUNNER_TEMP/qa01.json"
+          # npm test prints an npm banner before Playwright JSON, corrupting the
+          # machine-readable report. Invoke the already installed CLI directly.
+          xvfb-run -a bash -c 'cd tests/parity && ./node_modules/.bin/playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json" 2>"$RUNNER_TEMP/qa01-playwright.stderr"
           code=$?
           set -e
           node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" >>"$GITHUB_STEP_SUMMARY"
