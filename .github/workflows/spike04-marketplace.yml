@@ -38,18 +38,21 @@ jobs:
         run: |
           set -euo pipefail
           tag="suliko-hello-v0.1.0-rc1"
+          pin="4017b9fcfcbc2e4d8507d7942a24008b37a139bd"
+          git fetch --no-tags --depth=1 origin "$pin"
+          git diff --quiet "$pin" "$GITHUB_SHA" -- plugins/suliko-hello || { echo "Plugin source drifted from pin"; exit 1; }
           status="$(curl --silent --show-error --header "Authorization: Bearer $GH_TOKEN" --header "Accept: application/vnd.github+json" --output "$RUNNER_TEMP/tag-response.json" --write-out '%{http_code}' "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/tags/$tag")"
           if [[ "$status" == 200 ]]; then
             existing="$(node -e 'const s=require(process.argv[1]);process.stdout.write(s.object?.sha||"")' "$RUNNER_TEMP/tag-response.json")"
-            test "$existing" = "$GITHUB_SHA" || { echo "Test tag already pinned to another SHA, do not move it"; exit 1; }
+            test "$existing" = "$pin" || { echo "Test tag already pinned to another SHA, do not move it"; exit 1; }
           elif [[ "$status" == 404 ]]; then
-            node -e 'require("node:fs").writeFileSync(process.argv[1],JSON.stringify({ref:"refs/tags/"+process.argv[2],sha:process.argv[3]}))' "$RUNNER_TEMP/tag-create.json" "$tag" "$GITHUB_SHA"
+            node -e 'require("node:fs").writeFileSync(process.argv[1],JSON.stringify({ref:"refs/tags/"+process.argv[2],sha:process.argv[3]}))' "$RUNNER_TEMP/tag-create.json" "$tag" "$pin"
             curl --fail-with-body --silent --show-error --request POST --header "Authorization: Bearer $GH_TOKEN" --header "Accept: application/vnd.github+json" --header "Content-Type: application/json" --data-binary "@$RUNNER_TEMP/tag-create.json" "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs" > /dev/null
           else
             echo "Unexpected GitHub tag lookup HTTP $status"; exit 1
           fi
           test -n "$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag")"
-          echo "Experiment pin: $tag @ $GITHUB_SHA (NONRELEASE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Experiment pin: $tag @ $pin (NONRELEASE)" >> "$GITHUB_STEP_SUMMARY"
       - name: Checkout frozen BB source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
