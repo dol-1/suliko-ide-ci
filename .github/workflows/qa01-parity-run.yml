@@ -16,6 +16,9 @@ jobs:
       BB_TELEMETRY: 'false'
       BB_SERVER_BIND_HOST: '127.0.0.1'
       BB_SERVER_PORT: '38888'
+      # Desktop and Web run concurrently; Desktop host daemon must not bind
+      # Web's port 38887 (stock default). Web host daemon separately uses 38889.
+      BB_HOST_DAEMON_PORT: '38890'
       APPIMAGE_EXTRACT_AND_RUN: '1'
     steps:
       - name: Checkout isolated parity fixture and reviewed plugin
