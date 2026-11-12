@@ -2,6 +2,9 @@
 name: QA-01 seven-by-two parity run (Linux experimental)
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/qa01-dom-diagnostics]
+    paths: ['tests/parity/**', '.github/workflows/qa01-parity-run.yml']
 permissions:
   contents: read
 jobs:
@@ -79,6 +82,11 @@ jobs:
           export BB_PARITY_ELECTRON_BINARY="$GITHUB_WORKSPACE/$appimage"
           export BB_PARITY_DATA_DIR="$RUNNER_TEMP/bb-parity-desktop"
           mkdir -p "$BB_PARITY_DATA_DIR"
+          # Read-only diagnostic: only fixture UI role/label names, no full DOM/secrets.
+          # Never changes or skips any of the 14 strict journey assertions.
+          if ! xvfb-run -a node tests/parity/diagnose-controls.mjs; then
+            echo 'Diagnostic capture unavailable; full strict parity test still executes' >&2
+          fi
           # Requires a pre-enrolled disposable host and Suliko Hello in both
           # data directories. Missing fixtures cause real test failures.
           set +e
