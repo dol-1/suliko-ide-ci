@@ -1,0 +1,13 @@
+import { inspect } from "./d064-compat-watch.mjs";
+import { test } from "node:test";
+import { strict as assert } from "node:assert";
+const pin="7b26cae79ec978fafd0a5db0e8517e94f12eb8f4",head="030b1b729f28acedc6f86cd65a71cb3678da8124";
+const plugin=()=>({engines:{bbPluginSdk:">=0.6.132 <0.6.133"},devDependencies:{"@get-bb/plugin-sdk":"0.6.132"}});
+const data=(mainVersion,overrides={})=>({mainVersion,pinVersion:"0.6.132",pinSha:pin,mainSha:head,manifests:[plugin(),plugin()],...overrides});
+test("reviewed pin accepted",()=>assert.equal(inspect(data("0.6.132")).state,"same-version"));
+test("known main drift is a finding, not unsupported success",()=>assert.equal(inspect(data("0.6.141")).state,"known-drift"));
+test("unknown future upstream SDK fails closed",()=>assert.throws(()=>inspect(data("0.6.142")),/UNREVIEWED/));
+test("frozen pin divergence rejected",()=>assert.throws(()=>inspect(data("0.6.141",{pinVersion:"0.6.131"})),/Frozen SDK/));
+test("unrecognized plugin range rejected",()=>assert.throws(()=>inspect(data("0.6.141",{manifests:[{...plugin(),engines:{bbPluginSdk:">=0.6.132"}}]})),/range syntax/));
+test("unexpected dependency pin rejected",()=>assert.throws(()=>inspect(data("0.6.141",{manifests:[{...plugin(),devDependencies:{"@get-bb/plugin-sdk":"0.6.141"}}]})),/dependency pin/));
+test("invalid branch SHA rejected",()=>assert.throws(()=>inspect(data("0.6.141",{mainSha:"invalid"})),/SHA/));
