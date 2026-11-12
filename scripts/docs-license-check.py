@@ -23,6 +23,10 @@ LEGACY = {
     "Python Software Foundation License": "PSF-2.0",
     "ISC License": "ISC",
     "MPL 2.0": "MPL-2.0",
+    "MPL-2.0": "MPL-2.0",
+    "Mozilla Public License 2.0 (MPL 2.0)": "MPL-2.0",
+    "Mozilla Public License 2.0 (MPL 2.0) (MPL-2.0)": "MPL-2.0",
+    "Apache-2.0": "Apache-2.0",
 }
 TOKENS = re.compile(r"\(|\)|[A-Za-z0-9.]+(?:-[A-Za-z0-9.]+)*")
 
