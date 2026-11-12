@@ -1,0 +1,9 @@
+# D-066 30-minute localhost BB+Hello RSS soak protocol
+
+Source: [Claude E9 #36](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36), [E9 #53](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/53). This is one **Linux** 30-minute server-life and own Hello plugin-presence stress check; not proof of 3-OS/Remote/actual user workflow stability.
+
+The public free `ubuntu-24.04` runner builds unmodified exact BB 0.49.0, starts a disposable BB on HTTP **127.0.0.1:38891** (host daemon 38892), installs our own SDK Hello plugin and checks CLI plugin list. A Linux-specific Node script uses `ss -ltnp` to identify the **single** port-listening process PID and reads only that process's `/proc/<pid>/status VmRSS` (bytes). Every 15 seconds for at least **1800s**, it requires the same listener PID and a healthy loopback `/health` response. A changed PID, missing sample, wrong port or health failure **fails closed**, never skipped.
+
+Memory bound: use median RSS during seconds 60–180 (poststartup warm-up), compare with p95 RSS of final five minutes (last 300s). Fail if final minus warm-up baseline exceeds `max(30% of baseline, 64 MiB)`. Rationale: 30% flags relative sustained expansion, 64 MiB guards ordinary V8 allocation granularity for very small processes. **This is a bounded heuristic, not an absence-of-leak guarantee**. Reports include exact sample count, baseline, final p95, delta and bound, not sensitive process logs.
+
+Source-branch push runs only defensive synthetic threshold unit tests; a **real 30-minute** soak is enabled on `main` push, weekly schedule, or explicit workflow dispatch on main after reviewed green preflight merge. A green unit job and skipped live job are **NOT** a successful 30-minute run. Running on a free public runner costs no paid minutes as configured; no private Actions, larger runner, GPU, provider tokens, real user data, external BB service or upstream code modification.
