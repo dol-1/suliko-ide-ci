@@ -1,0 +1,36 @@
+name: D-067 synthetic-only privacy-safe pilot metric proof (NO REAL DATA)
+on:
+  push:
+    branches: [feat/d067-synthetic-metrics, main]
+    paths:
+      - scripts/d067-pilot-metrics.mjs
+      - scripts/d067-pilot-metrics.test.mjs
+      - tests/pilot/synthetic-empty.json
+      - .github/workflows/d067-pilot-metrics.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+      - name: Validate privacy-restricted synthetic cohort fixtures
+        run: |
+          node --test scripts/d067-pilot-metrics.test.mjs
+          node scripts/d067-pilot-metrics.mjs --synthetic-input tests/pilot/synthetic-empty.json > "$RUNNER_TEMP/d067-aggregate.json"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/d067-aggregate.json','utf8'));
+          if(r.activeSyntheticRows!==0||r.installation.minutes.p50!==null||r.remoteApproval.rate!==null)throw Error('Zero-data synthetic pilot proof failed');
+          console.log('D067 synthetic zero-row dry-run passed; NOT pilot measurements');
+          NODE
+      - name: Declare no actual pilot or collection
+        run: |
+          printf 'D067 only validates synthetic examples. No participants, telemetry, enrollment, paid activity, Remote credentials, or raw records were processed.\n' >> "$GITHUB_STEP_SUMMARY"
