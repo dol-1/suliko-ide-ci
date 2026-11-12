@@ -1,0 +1,84 @@
+name: D-065 two clean own-plugin build reproducibility check (NO release)
+on:
+  push:
+    branches: [feat/d065-dual-clean-repro, main]
+    paths:
+      - .github/workflows/d065-dual-clean-repro.yml
+      - plugins/suliko-hello/**
+      - plugins/suliko-remote-panel/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-isolated-builds:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Pin toolchain and SDK manifests; prepare two new independent source copies
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          node - <<'NODE'
+          const fs=require('node:fs');
+          for(const name of ['suliko-hello','suliko-remote-panel']) {
+            const p=JSON.parse(fs.readFileSync('plugins/'+name+'/package.json','utf8'));
+            if(p.devDependencies?.['@get-bb/plugin-sdk']!=='0.6.132'||
+               p.engines?.bb!=='>=0.49.0 <0.49.1'||
+               p.engines?.bbPluginSdk!=='>=0.6.132 <0.6.133')throw Error('Unreviewed SDK/BB pin');
+          }
+          NODE
+          for run in A B; do
+            mkdir -p "$RUNNER_TEMP/d065-repro/$run"
+            cp -a plugins/suliko-hello "$RUNNER_TEMP/d065-repro/$run/hello"
+            cp -a plugins/suliko-remote-panel "$RUNNER_TEMP/d065-repro/$run/remote"
+            test ! -d "$RUNNER_TEMP/d065-repro/$run/hello/node_modules"
+            test ! -d "$RUNNER_TEMP/d065-repro/$run/remote/node_modules"
+          done
+      - name: Build, test and hash both independent temp copies without uploading
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -rf -- "$RUNNER_TEMP/d065-repro"' EXIT
+          for run in A B; do
+            printf '%s\n' "D065 source checkout copy $run"
+            (
+              cd "$RUNNER_TEMP/d065-repro/$run/hello"
+              pnpm install --no-frozen-lockfile > "$RUNNER_TEMP/d065-repro/hello-$run.log" 2>&1
+              pnpm run typecheck >> "$RUNNER_TEMP/d065-repro/hello-$run.log" 2>&1
+              pnpm test >> "$RUNNER_TEMP/d065-repro/hello-$run.log" 2>&1
+              pnpm run build >> "$RUNNER_TEMP/d065-repro/hello-$run.log" 2>&1
+            ) || { echo 'D065 own Hello independent build failed; raw tool log retained only in ephemeral runner.' >&2; exit 1; }
+            (
+              cd "$RUNNER_TEMP/d065-repro/$run/remote"
+              pnpm install --no-frozen-lockfile --ignore-scripts > "$RUNNER_TEMP/d065-repro/remote-$run.log" 2>&1
+              pnpm run typecheck >> "$RUNNER_TEMP/d065-repro/remote-$run.log" 2>&1
+              pnpm test >> "$RUNNER_TEMP/d065-repro/remote-$run.log" 2>&1
+              pnpm exec esbuild app.tsx --bundle --platform=browser --format=esm --jsx=automatic --packages=external --outfile=dist/mock-panel.js >> "$RUNNER_TEMP/d065-repro/remote-$run.log" 2>&1
+            ) || { echo 'D065 mock Remote independent build failed; raw tool log retained only in ephemeral runner.' >&2; exit 1; }
+          done
+          node - <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');
+          const base=path.join(process.env.RUNNER_TEMP,'d065-repro');
+          const outputs=['hello/dist/server.js','hello/dist/app.js','hello/dist/app.css','hello/dist/app.meta.json','remote/dist/mock-panel.js'];
+          for(const name of outputs) {
+            const hashes=['A','B'].map(run=>{
+              const f=path.join(base,run,name);
+              const stat=fs.lstatSync(f);
+              if(!stat.isFile()||stat.isSymbolicLink()||!stat.size)throw Error('Missing regular nonempty output');
+              return crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+            });
+            if(hashes[0]!==hashes[1])throw Error('Two clean own-plugin builds are not byte-for-byte identical');
+            console.log('D065 2-build stable hash:',name,hashes[0]);
+            if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,name+' SHA256 '+hashes[0]+' (two separate ephemeral builds verified)\n');
+          }
+          NODE
+          echo 'D065 reproducibility is verified only for two independent Ubuntu copies at exact GitHub head, not cross-platform/host or an official release. No artifacts uploaded; no tag, beta, installer or BB source modification.' >> "$GITHUB_STEP_SUMMARY"
