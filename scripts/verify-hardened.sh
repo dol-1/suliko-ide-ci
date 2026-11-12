@@ -7,6 +7,8 @@ set -Eeuo pipefail
 readonly ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${ROOT_DIR}/config/hardened/.env.hardened"
 plugins_json=""
+provider_root=""
+provider_source=""
 usage() {
   printf 'Usage: %s [--env-file PATH] [--plugins-json PATH]\n' "$0"
   printf 'Without --plugins-json, reads live status from: bb plugin list --json\n'
@@ -19,6 +21,12 @@ while (($# > 0)); do
     --plugins-json)
       if (($# < 2)); then usage >&2; exit 1; fi
       plugins_json="$2"; shift 2 ;;
+    --provider-project)
+      if (($# < 2)); then usage >&2; exit 1; fi
+      provider_root="$2"; shift 2 ;;
+    --stock-provider-source)
+      if (($# < 2)); then usage >&2; exit 1; fi
+      provider_source="$2"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) printf 'SEC-02: unknown argument: %s\n' "$1" >&2; usage >&2; exit 1 ;;
   esac
@@ -123,3 +131,14 @@ for (const id of forbidden) {
 console.log("SEC-02 PASS: env/loopback values and five forbidden plugin states verified.");
 console.log("NOTE: process config checks do not replace a deployed listener/ACL reachability test.");
 NODE
+# D-046: Optional native-provider residual-risk verification. A clean fixture
+# does not claim that stock BB disabled provider-native Claude/Codex settings.
+if [[ -n "$provider_root" || -n "$provider_source" ]]; then
+  if [[ -z "$provider_root" || -z "$provider_source" ]]; then
+    printf 'SEC-02 FAIL: provider-project and stock-provider-source must be supplied together\n' >&2
+    exit 1
+  fi
+  node "${ROOT_DIR}/scripts/verify-provider-native.mjs" "$provider_root" "$provider_source"
+else
+  printf 'SEC-02 NOTE: provider-native hook/settings risk not verified (pass --provider-project + --stock-provider-source)\n' >&2
+fi
