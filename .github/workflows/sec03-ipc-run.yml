@@ -1,0 +1,54 @@
+# SEC-03 0.49.0 packaged Electron IPC negative probes, no BB source edits.
+name: SEC-03 packaged IPC negative tests (Linux)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sec03:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Build unmodified pinned stock BB Linux AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          cd stock-bb
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm --dir apps/desktop run prepare-runtime
+          pnpm --dir apps/desktop run desktop:build:linux
+      - name: Run five fail-closed foreign sender/frame tests under Xvfb
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v xvfb-run
+          appimage="$(find stock-bb/apps/desktop/release -type f -name '*.AppImage' -print -quit)"
+          test -n "$appimage" && test -s "$appimage"
+          chmod +x "$appimage"
+          export BB_SEC03_ELECTRON_BINARY="$GITHUB_WORKSPACE/$appimage"
+          cd tests/sec03
+          npm install --include=dev --no-audit --no-fund
+          xvfb-run -a npm test
+          echo "SEC-03: 5 packaged Electron sender/frame negative tests executed; a green test is not an upstream vulnerability review." >> "$GITHUB_STEP_SUMMARY"
