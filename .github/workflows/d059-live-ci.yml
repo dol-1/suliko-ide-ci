@@ -110,15 +110,7 @@ jobs:
           awk '$4 ~ /:(38884|38885)$/ {print $4}' "$RUNNER_TEMP/d059-listeners" > "$RUNNER_TEMP/d059-ports"
           grep -qx '127.0.0.1:38884' "$RUNNER_TEMP/d059-ports"
           grep -qx '127.0.0.1:38885' "$RUNNER_TEMP/d059-ports"
-          if grep -Ev '^127[.]0[.]0[.]1:(38884|38885)
-      - name: Stop disposable server and clean runner
-        if: always()
-        shell: bash
-        run: |
-          if [ -d "$RUNNER_TEMP/d059-live-data" ]; then
-            BB_DATA_DIR="$RUNNER_TEMP/d059-live-data" node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$RUNNER_TEMP/d059-live-data" >/dev/null 2>&1 || true
-          fi
- "$RUNNER_TEMP/d059-ports"; then
+          if grep -Ev '^127[.]0[.]0[.]1:(38884|38885)$' "$RUNNER_TEMP/d059-ports"; then
             echo 'D059 non-loopback listener detected; rejecting' >&2
             exit 1
           fi
