@@ -94,7 +94,11 @@ export function analyze(obj) {
 }
 function main(argv){
   must(argv.length===2&&argv[0]==="--synthetic-input","usage: --synthetic-input <local synthetic JSON>; no real data");
-  const json=JSON.parse(readFileSync(resolve(argv[1]),"utf8"));
+  // Never echo JSON parser excerpts: Node's SyntaxError may include the
+  // original malformed content, which is unacceptable for confidential input.
+  let json;
+  try { json=JSON.parse(readFileSync(resolve(argv[1]),"utf8")); }
+  catch { throw Error("synthetic JSON fixture cannot be read or parsed"); }
   console.log(JSON.stringify(analyze(json),null,2));
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){

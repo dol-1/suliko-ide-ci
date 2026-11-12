@@ -6,6 +6,7 @@ on:
       - scripts/d067-pilot-metrics.mjs
       - scripts/d067-pilot-metrics.test.mjs
       - tests/pilot/synthetic-empty.json
+      - tests/pilot/README.md
       - .github/workflows/d067-pilot-metrics.yml
   workflow_dispatch:
 permissions:
