@@ -60,14 +60,14 @@ jobs:
       - name: Public-repo attestation only (this is not a release)
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
-          subject-path: \${{ steps.build.outputs.path }}
+          subject-path: ${{ steps.build.outputs.path }}
           push-to-registry: false
           show-summary: false
       - name: Verify signed attestation against ephemeral exact same-run archive
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
-          PREVIEW: \${{ steps.build.outputs.path }}
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW: ${{ steps.build.outputs.path }}
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/d065-attestation-verify.json"
