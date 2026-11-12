@@ -1,0 +1,19 @@
+name: SEC-02 hardened contract checks
+on:
+  workflow_dispatch:
+  push:
+    paths: ['scripts/verify-hardened.sh', 'tests/test-verify-hardened.sh', 'tests/fixtures/hardened/**', '.github/workflows/sec02.yml']
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: |
+          bash -n scripts/verify-hardened.sh
+          bash -n tests/test-verify-hardened.sh
+          bash tests/test-verify-hardened.sh
