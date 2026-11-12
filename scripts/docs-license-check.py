@@ -24,7 +24,7 @@ LEGACY = {
     "ISC License": "ISC",
     "MPL 2.0": "MPL-2.0",
 }
-TOKENS = re.compile(r"\\(|\\)|[A-Za-z0-9.]+(?:-[A-Za-z0-9.]+)*")
+TOKENS = re.compile(r"\(|\)|[A-Za-z0-9.]+(?:-[A-Za-z0-9.]+)*")
 
 def declared_license(m):
     expression = (m.get("License-Expression") or "").strip()
