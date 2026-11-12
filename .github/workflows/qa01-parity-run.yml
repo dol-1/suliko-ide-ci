@@ -82,6 +82,15 @@ jobs:
             exit 1
           fi
           node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          # Verified against stock BB desktop-v0.49.0 CLI guide: an empty
+          # local Git project is a prerequisite for New thread/composer UI.
+          # This is a disposable synthetic repo, not a real user workspace.
+          fixture_root="$RUNNER_TEMP/qa01-synthetic-project"
+          mkdir -p "$fixture_root"
+          git -C "$fixture_root" init -b main >/dev/null
+          BB_DATA_DIR="$web_dir" BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-synthetic --root "$fixture_root" >/dev/null
+          BB_DATA_DIR="$web_dir" BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js project list --json >/dev/null
+          echo "Created disposable local project to satisfy documented New thread prerequisite" >> "$GITHUB_STEP_SUMMARY"
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
           echo "Loopback BB CLI and plugin-install fixture completed" >> "$GITHUB_STEP_SUMMARY"
       - name: Execute full 7×2 matrix and preserve result even on failure
