@@ -79,7 +79,7 @@ jobs:
           echo 'Four own-panel PNGs captured from synthetic Web only. Capture-only is NOT a cross-run regression gate.' >> "$GITHUB_STEP_SUMMARY"
       - name: Retain only disposable own-panel PNGs for 1 day
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: d066-synthetic-own-panels-only
           path: ${{ runner.temp }}/d066-own-panels/*.png
