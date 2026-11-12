@@ -1,0 +1,59 @@
+name: D-062 public docs build and privacy guard (NO deploy yet)
+on:
+  push:
+    branches: [feat/d062-doc-site, main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/d062-docs.yml'
+      - 'scripts/docs-check.py'
+      - 'scripts/docs-license-check.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate public-only pages, internal links and KA text
+        run: python3 scripts/docs-check.py
+      - name: Install pinned MIT documentation generator in disposable venv
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/suliko-docs-venv"
+          "$RUNNER_TEMP/suliko-docs-venv/bin/pip" install --disable-pip-version-check --no-input 'mkdocs-material==9.8.1'
+      - name: Validate installed Python documentation dependency licenses
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/suliko-docs-venv/bin/python" scripts/docs-license-check.py --self-test
+          "$RUNNER_TEMP/suliko-docs-venv/bin/python" scripts/docs-license-check.py
+      - name: Strict build, no deployment or public artifact
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/suliko-docs-venv/bin/mkdocs" build --strict --config-file site/mkdocs.yml --site-dir "$RUNNER_TEMP/suliko-docs-built"
+          test -s "$RUNNER_TEMP/suliko-docs-built/index.html"
+          test -s "$RUNNER_TEMP/suliko-docs-built/pilot.en/index.html"
+          test -s "$RUNNER_TEMP/suliko-docs-built/pilot.ka/index.html"
+          echo "Static docs build and dependency license gate passed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload public-only site for deployment on main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: ${{ runner.temp }}/suliko-docs-built
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: site
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish reviewed static docs to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
