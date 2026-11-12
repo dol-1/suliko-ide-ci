@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
+import { remoteMessages, remoteStatusLabel } from "./i18n.js";
 import {
   demoRemote,
   isSafeDemoApprovalPage,
@@ -14,6 +15,10 @@ interface Snapshot {
 }
 
 export function RemotePanel() {
+  const lang = typeof document !== "undefined" && document.documentElement.lang
+    ? document.documentElement.lang
+    : typeof navigator !== "undefined" ? navigator.language : "en";
+  const t = remoteMessages(lang);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState(false);
 
@@ -32,45 +37,45 @@ export function RemotePanel() {
   }, []);
 
   return (
-    <section aria-label="Suliko Remote panel" style={{ padding: 16 }}>
-      <h2>Suliko Remote (mock only)</h2>
-      <p role="note">Offline demo fixture. No live connection, token or permissions.</p>
-      {error ? <p role="alert">Unable to load demo data.</p> : null}
-      {!snapshot && !error ? <p role="status">Loading mock data…</p> : null}
+    <section aria-label={t.panelLabel} style={{ padding: 16 }}>
+      <h2>{t.title}</h2>
+      <p role="note">{t.demoNote}</p>
+      {error ? <p role="alert">{t.loadError}</p> : null}
+      {!snapshot && !error ? <p role="status">{t.loading}</p> : null}
       {snapshot ? (
         <>
-          <section aria-label="Devices">
-            <h3>Devices</h3>
-            {snapshot.devices.length === 0 ? <p role="status">No devices available in this snapshot.</p> : null}
-            {snapshot.devices.some(d => d.status === "offline") ? <p role="status">Some devices are offline; status is informational only.</p> : null}
+          <section aria-label={t.devices}>
+            <h3>{t.devices}</h3>
+            {snapshot.devices.length === 0 ? <p role="status">{t.noDevices}</p> : null}
+            {snapshot.devices.some(d => d.status === "offline") ? <p role="status">{t.offlineNotice}</p> : null}
             <ul>
               {snapshot.devices.map((d) => (
-                <li key={d.id}>{d.label} — {d.status}</li>
+                <li key={d.id}>{d.label} — {remoteStatusLabel(t,d.status)}</li>
               ))}
             </ul>
           </section>
-          <section aria-label="Pending approvals">
-            <h3>Pending approvals</h3>
-            {snapshot.approvals.length === 0 ? <p role="status">No pending approvals.</p> : null}
-            <p>Approval is performed only on the separate Remote secure page, never inside IDE.</p>
+          <section aria-label={t.pendingApprovals}>
+            <h3>{t.pendingApprovals}</h3>
+            {snapshot.approvals.length === 0 ? <p role="status">{t.noApprovals}</p> : null}
+            <p>{t.externalOnly}</p>
             <ul>
               {snapshot.approvals.map((a) => (
                 <li key={a.id}>
-                  {a.label} — {snapshot.approvalStatus}
+                  {a.label} — {remoteStatusLabel(t,snapshot.approvalStatus)}
                   {isSafeDemoApprovalPage(a.approvalPageUrl) ? (
                     <a href={a.approvalPageUrl} target="_blank" rel="noopener noreferrer">
-                      Open Remote approval page (demo link)
+                      {t.openApproval}
                     </a>
-                  ) : <span> Approval page unavailable</span>}
+                  ) : <span> {t.pageUnavailable}</span>}
                 </li>
               ))}
             </ul>
           </section>
-          <section aria-label="Operation outcomes">
-            <h3>Operation outcomes</h3>
-            <p>{snapshot.job.id}: {snapshot.job.status}</p>
+          <section aria-label={t.outcomes}>
+            <h3>{t.outcomes}</h3>
+            <p>{snapshot.job.id}: {remoteStatusLabel(t,snapshot.job.status)}</p>
             {snapshot.job.status === "unknown" ? (
-              <p role="status">Outcome unknown. Poll status later; never replay a write automatically.</p>
+              <p role="status">{t.unknownOutcome}</p>
             ) : null}
           </section>
         </>

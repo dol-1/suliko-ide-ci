@@ -3,7 +3,7 @@
 name: REM-04 offline Remote mock panel SDK tests
 on:
   push:
-    branches: [feat/d047-remote-mock-sdk, feat/d060-remote-mock-state]
+    branches: [feat/d047-remote-mock-sdk, feat/d060-remote-mock-state, feat/d061-remote-i18n]
     paths: ['.github/workflows/d047-remote-mock.yml', 'plugins/suliko-remote-panel/**']
   workflow_dispatch:
 permissions:
