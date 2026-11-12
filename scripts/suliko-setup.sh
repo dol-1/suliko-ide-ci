@@ -33,6 +33,15 @@ hash_file() {
   elif command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}';
   else printf '%s\n' 'No SHA-256 utility available' >&2; return 2; fi
 }
+# Never follow a redirected cache tree during download or cleanup.
+ensure_managed_cache_path() {
+  for candidate in "$HOME/.cache" "$cache"; do
+    if [[ -L "$candidate" ]]; then
+      printf '%s\n' 'Refusing symlinked Suliko cache path' >&2
+      return 1
+    fi
+  done
+}
 check_file() {
   [[ -f "$1" && ! -L "$1" ]] || { printf '%s\n' 'Missing regular file or symlink refused' >&2; return 1; }
   local digest
@@ -47,6 +56,7 @@ case "$mode" in
     ;;
   verify-file) check_file "$verify_path" ;;
   download-verified)
+    ensure_managed_cache_path
     command -v curl >/dev/null 2>&1 || { printf '%s\n' 'curl required' >&2; exit 2; }
     mkdir -p "$cache"
     tmp="$(mktemp "$cache/.bb-verified.XXXXXXXX")"
@@ -59,6 +69,7 @@ case "$mode" in
     printf '%s\n' 'It was NOT executed or installed.'
     ;;
   uninstall)
+    ensure_managed_cache_path
     # Only Suliko-managed cached installer; never remove official BB, user data, or plugins.
     if [[ -f "$destination" || -L "$destination" ]]; then rm -f -- "$destination"; fi
     if [[ -d "$cache" && ! -L "$cache" ]]; then rmdir "$cache" 2>/dev/null || true; fi
