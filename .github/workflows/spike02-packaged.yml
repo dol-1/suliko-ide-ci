@@ -18,7 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, ubuntu-24.04, windows-latest]
+        # VS2022 pin: bundled node-gyp 10.2 cannot detect VS2026 on windows-latest.
+        os: [macos-15, ubuntu-24.04, windows-2022]
     env:
       CI: "true"
       BB_SERVER_BIND_HOST: "127.0.0.1"
