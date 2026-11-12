@@ -6,6 +6,7 @@ on:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
       - 'scripts/docs-check.py'
+      - 'scripts/docs-check.test.py'
       - 'scripts/docs-license-check.py'
   workflow_dispatch:
 permissions:
@@ -19,6 +20,8 @@ jobs:
           persist-credentials: false
       - name: Validate public-only pages, internal links and KA text
         run: python3 scripts/docs-check.py
+      - name: Validate public link policy negative fixtures
+        run: python3 scripts/docs-check.test.py
       - name: Install pinned MIT documentation generator in disposable venv
         run: |
           set -euo pipefail
