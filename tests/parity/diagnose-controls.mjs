@@ -1,24 +1,26 @@
-// QA-01 read-only diagnostic against disposable synthetic BB fixtures.
-// Logs only short sanitized names of accessible controls; never raw DOM or keys.
+// QA-01 diagnostic only: no changes to the 14 journey assertions.
 import { chromium, _electron } from "@playwright/test";
 import { basename } from "node:path";
 
 function sanitize(value) {
-  return String(value ?? "").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[email]")
-    .replace(/(?:gh[ps]_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]+|Bearer\\s+\\S+)/gi, "[secret]")
-    .replace(/(?:\\/home\\/|\\/Users\\/|C:\\\\Users\\\\)[^\\s]+/g, "[home]")
-    .trim().replace(/\\s+/g, " ").slice(0, 70);
+  return String(value ?? "")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
+    .replace(/(?:gh[ps]_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]+|Bearer\s+\S+)/gi, "[secret]")
+    .replace(/(?:\/home\/|\/Users\/|C:\\Users\\)[^\s]+/g, "[home]")
+    .trim().replace(/\s+/g, " ").slice(0, 70);
 }
 async function observe(page, target, stage) {
-  const rows = await page.locator("a,button,[role=button],[role=link],h1,h2").evaluateAll((nodes) =>
-    nodes.slice(0, 60).map((element) => ({
-      role: element.getAttribute("role") || element.tagName.toLowerCase(),
-      label: element.getAttribute("aria-label") || element.getAttribute("title") || element.textContent || "",
+  const controls = await page.locator("a,button,[role=button],[role=link],h1,h2").evaluateAll((nodes) =>
+    nodes.slice(0, 60).map((node) => ({
+      role: node.getAttribute("role") || node.tagName.toLowerCase(),
+      label: node.getAttribute("aria-label") || node.getAttribute("title") || node.textContent || "",
     })),
   );
-  const names = rows.map(({ role, label }) => ({ role: sanitize(role), label: sanitize(label) }))
+  const names = controls.map(({ role, label }) => ({ role: sanitize(role), label: sanitize(label) }))
     .filter(({ label }) => label && !label.includes("[secret]")).slice(0, 40);
-  console.log("QA01_DOM_DIAGNOSTIC", JSON.stringify({ target, stage, pathname: sanitize(new URL(page.url()).pathname), names }));
+  console.log("QA01_DOM_DIAGNOSTIC", JSON.stringify({
+    target, stage, pathname: sanitize(new URL(page.url()).pathname), names,
+  }));
 }
 async function diagnose(page, target) {
   await page.waitForLoadState("domcontentloaded");
@@ -41,6 +43,9 @@ try {
 const bin = process.env.BB_PARITY_ELECTRON_BINARY;
 const data = process.env.BB_PARITY_DATA_DIR;
 if (!bin || !data || !basename(data).startsWith("bb-parity-")) throw Error("Disposable packaged Desktop required");
-const desktop = await _electron.launch({ executablePath: bin, env: { ...process.env, BB_DATA_DIR: data, BB_SERVER_BIND_HOST: "127.0.0.1", BB_TELEMETRY: "false" } });
+const desktop = await _electron.launch({
+  executablePath: bin,
+  env: { ...process.env, BB_DATA_DIR: data, BB_SERVER_BIND_HOST: "127.0.0.1", BB_TELEMETRY: "false" },
+});
 try { await diagnose(await desktop.firstWindow(), "desktop"); }
 finally { await desktop.close(); }
