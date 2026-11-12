@@ -73,3 +73,30 @@ export async function pollUnknownReceipt(
   }
   return "unknown";
 }
+
+/** Client-side read-only retry pacing; injectable wait prevents hidden timers in tests.
+ * No approval/action request is constructed or replayed by this function.
+ */
+export function boundedBackoffMs(retryIndex: number): number {
+  if (!Number.isInteger(retryIndex) || retryIndex < 0 || retryIndex > 9) {
+    throw new Error("Invalid read-only retry index");
+  }
+  return Math.min(500 * (2 ** retryIndex), 4000);
+}
+export async function pollReceiptWithBackoff(
+  jobId: string,
+  readStatus: (sameJobId: string) => Promise<Receipt>,
+  wait: (ms: number) => Promise<void>,
+  maxPolls = 4,
+): Promise<Receipt> {
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(jobId) || !Number.isInteger(maxPolls) || maxPolls < 1 || maxPolls > 10) {
+    throw new Error("Invalid read-only receipt or bounded poll count");
+  }
+  for (let attempt = 0; attempt < maxPolls; attempt++) {
+    const status = await readStatus(jobId);
+    if (status === "succeeded" || status === "failed" || status === "denied") return status;
+    if (status !== "pending" && status !== "unknown") throw new Error("Untrusted receipt status");
+    if (attempt + 1 < maxPolls) await wait(boundedBackoffMs(attempt));
+  }
+  return "unknown";
+}
