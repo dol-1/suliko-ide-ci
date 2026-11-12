@@ -1,0 +1,96 @@
+# QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
+name: QA-01 seven-by-two parity run (Linux experimental)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38888'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - name: Checkout isolated parity fixture and reviewed plugin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Checkout exact stock BB
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Build pinned stock BB and Linux packaged Electron
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          cd stock-bb
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm --dir apps/desktop run prepare-runtime
+          pnpm --dir apps/desktop run desktop:build:linux
+      - name: Install Playwright test runner/browser (non-privileged)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tests/parity
+          npm install --include=dev --no-audit --no-fund
+          npx playwright install chromium
+          command -v xvfb-run
+      - name: Disposable server with reviewed Suliko Hello fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Fail closed rather than install an unreviewed third-party plugin.
+          test "${SULIKO_HELLO_CI_APPROVED_SHA:-}" = "$GITHUB_SHA"
+          web_dir="$RUNNER_TEMP/bb-parity-web"
+          mkdir -p "$web_dir"
+          export BB_DATA_DIR="$web_dir"
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1 || { echo "BB web did not boot"; exit 1; }
+          BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
+      - name: Execute full 7×2 matrix and preserve result even on failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          appimage="$(find stock-bb/apps/desktop/release -name '*.AppImage' -type f -print -quit)"
+          test -n "$appimage" && test -s "$appimage"
+          chmod +x "$appimage"
+          export BB_PARITY_WEB_URL="http://127.0.0.1:38887"
+          export BB_PARITY_ELECTRON_BINARY="$GITHUB_WORKSPACE/$appimage"
+          export BB_PARITY_DATA_DIR="$RUNNER_TEMP/bb-parity-desktop"
+          mkdir -p "$BB_PARITY_DATA_DIR"
+          # Requires a pre-enrolled disposable host and Suliko Hello in both
+          # data directories. Missing fixtures cause real test failures.
+          set +e
+          xvfb-run -a bash -c 'cd tests/parity && npm test -- --reporter=json' >"$RUNNER_TEMP/qa01.json"
+          code=$?
+          set -e
+          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" >>"$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Stop disposable BB server
+        if: always()
+        shell: bash
+        run: |
+          if [ -s "$RUNNER_TEMP/qa01-web-dir" ]; then
+            node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/qa01-web-dir")" >/dev/null 2>&1 || true
+          fi
