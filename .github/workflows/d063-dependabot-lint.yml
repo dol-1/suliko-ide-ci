@@ -1,0 +1,37 @@
+name: D-063 controlled Dependabot config lint
+on:
+  push:
+    branches: [feat/d063-dependabot-allowlist, main]
+    paths:
+      - .github/dependabot.yml
+      - .github/workflows/d063-dependabot-lint.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Enforce allowlisted update locations and no self-merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -rpsych -e '
+            p = Psych.safe_load(File.read(".github/dependabot.yml"))
+            abort "version must be 2" unless p["version"] == 2
+            entries = p["updates"]
+            abort "expected three sources" unless entries.is_a?(Array) && entries.size == 3
+            expected = [["github-actions", "/"], ["npm", "/plugins/suliko-hello"], ["npm", "/plugins/suliko-remote-panel"]]
+            actual = entries.map { |e| [e["package-ecosystem"], e["directory"]] }
+            abort "unexpected ecosystem or path" unless actual == expected
+            entries.each do |e|
+              abort "not weekly" unless e.dig("schedule", "interval") == "weekly"
+              limit = e["open-pull-requests-limit"]
+              abort "unbounded PRs" unless limit.is_a?(Integer) && limit > 0 && limit <= 3
+              abort "unexpected external registry / updater behavior" unless (e.keys - %w[package-ecosystem directory schedule open-pull-requests-limit commit-message]).empty?
+            end
+            puts "Public CI-only bounded Dependabot sources validated; scanner gates remain separately required"
+          '
