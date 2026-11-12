@@ -1,0 +1,200 @@
+# STAGING ONLY: copy to dol-1/suliko-ide-ci/.github/workflows/spike02-packaged.yml.
+name: SPIKE-02 Stock BB packaged desktop smoke (three OS)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packaged:
+    name: ${{ matrix.os }} stock BB 0.49.0 packaged smoke
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 105
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04, windows-latest]
+    env:
+      CI: "true"
+      BB_SERVER_BIND_HOST: "127.0.0.1"
+      BB_TELEMETRY: "false"
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: "false"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout exact upstream tag (never a mutable branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install Node 22.19.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.19.0"
+          package-manager-cache: false
+      - name: Pin pnpm and source
+        run: |
+          mkdir -p evidence
+          source_sha="$(git rev-parse HEAD)"
+          printf 'tag=desktop-v0.49.0\nsha=%s\nos=%s\n' "$source_sha" "$RUNNER_OS" | tee evidence/source.txt
+          # A tag name alone is mutable: reject a moved 0.49.0 tag on every OS.
+          test "$source_sha" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          test "$(node -p 'require("./apps/desktop/package.json").version')" = "0.49.0"
+          pnpm --version
+      - name: Install frozen dependencies
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee evidence/install.log
+      - name: Build packaged BB runtime
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          pnpm --dir apps/desktop run prepare-runtime 2>&1 | tee evidence/prepare.log
+      - name: Build unsigned macOS arm64 DMG and ZIP (never publish)
+        if: runner.os == 'macOS'
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          pnpm --dir apps/desktop run build 2>&1 | tee evidence/desktop-build.log
+          node apps/desktop/scripts/run-electron-builder.mjs --mac --arm64 --publish never 2>&1 | tee evidence/packaged.log
+      - name: Build unsigned Linux x64 AppImage (never publish)
+        if: runner.os == 'Linux'
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          pnpm --dir apps/desktop run desktop:build:linux 2>&1 | tee evidence/packaged.log
+      - name: Build unsigned Windows x64 NSIS (never publish)
+        if: runner.os == 'Windows'
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          pnpm --dir apps/desktop run desktop:build:win 2>&1 | tee evidence/packaged.log
+      - name: Verify expected platform package exists and hash artifacts (no binary upload)
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const crypto = require("node:crypto");
+          const root = path.join("apps", "desktop", "release");
+          const requiredSuffixes = process.platform === "linux" ? [".AppImage"]
+            : process.platform === "darwin" ? [".dmg", ".zip"] : [".exe"];
+          const artifacts = fs.readdirSync(root).filter(name =>
+            requiredSuffixes.some(suffix => name.endsWith(suffix)) &&
+            fs.statSync(path.join(root, name)).isFile()
+          ).sort();
+          for (const suffix of requiredSuffixes) {
+            if (!artifacts.some(name => name.endsWith(suffix))) {
+              throw Error("Missing " + suffix + " installer for " + process.platform);
+            }
+          }
+          const hashArtifact = async (name) => {
+            const file = path.join(root, name);
+            const hash = crypto.createHash("sha256");
+            // Stream installer bytes; don't allocate an entire DMG/AppImage/EXE.
+            for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
+            return { name, sha256: hash.digest("hex"), bytes: fs.statSync(file).size };
+          };
+          const out = await Promise.all(artifacts.map(hashArtifact));
+          fs.writeFileSync("evidence/packages.json", JSON.stringify(out, null, 2));
+          console.log(out.map(o => o.name + " " + o.sha256).join("\n"));
+          NODE
+      - name: Official packaged Electron smoke (mock loopback server)
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            command -v xvfb-run >/dev/null
+            xvfb-run -a pnpm --dir apps/desktop run smoke:packaged 2>&1 | tee evidence/desktop-smoke.log
+          else
+            pnpm --dir apps/desktop run smoke:packaged 2>&1 | tee evidence/desktop-smoke.log
+          fi
+      - name: Official bb-app boot smoke (real loopback server)
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          pnpm --filter bb-app run smoke:boot 2>&1 | tee evidence/server-boot-smoke.log
+      - name: Independently check real server stays healthy for 30 seconds
+        timeout-minutes: 10
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawn, spawnSync } from "node:child_process";
+          import { mkdtemp, rm } from "node:fs/promises";
+          import { tmpdir } from "node:os";
+          import { join } from "node:path";
+          import { createServer } from "node:net";
+          import { setTimeout as sleep } from "node:timers/promises";
+
+          const root = await mkdtemp(join(tmpdir(), "suliko-spike02-"));
+          const reservePort = () => new Promise((resolve, reject) => {
+            const s = createServer();
+            s.once("error", reject);
+            s.listen(0, "127.0.0.1", () => {
+              const port = s.address().port;
+              s.close(() => resolve(port));
+            });
+          });
+          const port = await reservePort();
+          const daemonPort = await reservePort();
+          const url = "http://127.0.0.1:" + port + "/health";
+          const child = spawn(process.execPath, [
+            "packages/bb-app/dist/bb-app.js", "--data-dir", root,
+            "--server-port", String(port), "--host-daemon-port", String(daemonPort), "--bundled"
+          ], {
+            detached: process.platform !== "win32",
+            env: { ...process.env, NODE_ENV: "production", BB_TELEMETRY: "false", BB_SERVER_BIND_HOST: "127.0.0.1" },
+            stdio: "ignore",
+            windowsHide: true
+          });
+          const healthy = async () => {
+            try {
+              const r = await fetch(url, { signal: AbortSignal.timeout(2500) });
+              return r.ok && (await r.json()).ok === true;
+            } catch { return false; }
+          };
+          try {
+            let ready = false;
+            for (let i = 0; i < 180; ++i) {
+              if (child.exitCode !== null) throw Error("bb-app exited before health");
+              if (await healthy()) { ready = true; break; }
+              await sleep(500);
+            }
+            if (!ready) throw Error("BB loopback health never became ready");
+            await sleep(30000);
+            if (child.exitCode !== null || !(await healthy())) throw Error("BB loopback unhealthy after 30 seconds");
+            console.log("BB real loopback server remained healthy for 30 seconds");
+          } finally {
+            if (process.platform === "win32") {
+              spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
+            } else {
+              try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+            }
+            await sleep(1000);
+            await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+          }
+          NODE
+      - name: Mark checked stages for independent review
+        if: always()
+        run: |
+          {
+            echo "## SPIKE-02 source-pinned runner ${{ matrix.os }}"
+            echo "Packaged smoke and real server dwell require SUCCESS in steps above."
+            echo "Unsigned artifacts: proof only; not beta release binaries."
+            echo "WSL2: NOT TESTED IN THIS CI MATRIX."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bb-spike02-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,167 @@
+# STAGING FILE: copy into .github/workflows/spike01-build.yml in
+# dol-1/suliko-ide-ci when the owner-controlled GitHub repo exists.
+# DO NOT place BB source inside the CI repo or change the BB tag.
+name: SPIKE-01 Stock BB pinned build and SBOM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spike01-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: BB 0.49.0 independent build ${{ matrix.replica }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        replica: [1, 2]
+    env:
+      BB_TELEMETRY: "false"
+      BB_SERVER_BIND_HOST: "127.0.0.1"
+      CI: "true"
+    steps:
+      - name: Checkout exact stock BB tag (never a branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Record source revision and required platform
+        shell: bash
+        run: |
+          mkdir -p evidence
+          source_sha="$(git rev-parse HEAD)"
+          printf 'tag=desktop-v0.49.0\nsource_sha=%s\n' "$source_sha" | tee evidence/source.txt
+          # Fail closed if upstream retags desktop-v0.49.0.
+          test "$source_sha" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          test "$(node -p 'require("./package.json").packageManager')" = "pnpm@9.15.0"
+          test "$(node -p 'require("./packages/bb-app/package.json").version')" = "0.49.0"
+      - name: Node.js 22.19 (satisfies BB minimum)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.19.0"
+          package-manager-cache: false
+      - name: Install pinned package manager
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          node --version
+          pnpm --version
+      - name: Install frozen upstream dependencies
+        shell: bash
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee evidence/install.log
+      - name: Build stock BB
+        shell: bash
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          pnpm run build 2>&1 | tee evidence/build.log
+      - name: Typecheck stock BB
+        shell: bash
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          pnpm run typecheck 2>&1 | tee evidence/typecheck.log
+      - name: Test stock BB
+        shell: bash
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          pnpm run test 2>&1 | tee evidence/test.log
+      - name: Fingerprint key built outputs
+        shell: bash
+        run: |
+          test -d packages/bb-app/dist
+          test -n "$(find packages/bb-app/dist -type f -print -quit)"
+          find packages/bb-app/dist -type f ! -name '*.map' -print0 |
+            sort -z | xargs -0 sha256sum > evidence/sha256.txt
+          test -s evidence/sha256.txt
+          printf 'Built files: %s\n' "$(wc -l < evidence/sha256.txt)" >> "$GITHUB_STEP_SUMMARY"
+      - name: CycloneDX SBOM from installed workspace
+        if: ${{ matrix.replica == 1 }}
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: evidence/bb-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
+      - name: Summarize license flags (not legal clearance)
+        if: ${{ matrix.replica == 1 }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const doc = JSON.parse(fs.readFileSync("evidence/bb-sbom.cdx.json", "utf8"));
+          if (doc.bomFormat !== "CycloneDX" || !Array.isArray(doc.components)) {
+            throw new Error("Missing or invalid CycloneDX components");
+          }
+          const rows = doc.components.map((item) => {
+            const licenses = (item.licenses ?? []).map((l) =>
+              l.expression ?? l.license?.id ?? l.license?.name ?? "unknown"
+            ).join(" OR ") || "unknown";
+            return { name: item.name ?? "unknown", version: item.version ?? "unknown", licenses, flag: /\b(?:A?GPL)(?:[- .]|$)/i.test(licenses) };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          fs.writeFileSync("evidence/licenses.json", JSON.stringify({ count: rows.length, reviewRequired: rows.filter(r => r.flag).length, unknown: rows.filter(r => r.licenses === "unknown").length, components: rows }, null, 2));
+          const summary = ["# BB 0.49.0 license inventory (automated, not legal advice)", "", "Components: " + rows.length, "GPL/AGPL-review flags: " + rows.filter(r => r.flag).length, "Unknown licenses: " + rows.filter(r => r.licenses === "unknown").length, "", "Review ALL flags manually before release."].join("\n") + "\n";
+          fs.writeFileSync("evidence/license-summary.md", summary);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+          NODE
+      - name: Preserve logs, hashes, SBOM and license inventory even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bb-0.49.0-run-${{ matrix.replica }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  compare:
+    name: Compare independent output hashes (report drift)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: bb-0.49.0-run-1
+          path: first
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: bb-0.49.0-run-2
+          path: second
+      - name: Compare and report, do not hide nondeterminism
+        shell: bash
+        run: |
+          test -s first/sha256.txt
+          test -s second/sha256.txt
+          if diff -u first/sha256.txt second/sha256.txt > comparison.txt; then
+            echo 'Output SHA256 manifests match.' | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'FAIL: independent builds differ; do not claim reproducibility.' | tee -a "$GITHUB_STEP_SUMMARY"
+            cat comparison.txt >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Store comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bb-0.49.0-repro-comparison
+          path: comparison.txt
+          if-no-files-found: warn
+          retention-days: 30

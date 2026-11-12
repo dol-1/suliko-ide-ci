@@ -1,0 +1,29 @@
+{
+  "plugins": [
+    {
+      "id": "bb--mcp",
+      "enabled": false,
+      "status": "disabled"
+    },
+    {
+      "id": "account-pool",
+      "enabled": false,
+      "status": "disabled"
+    },
+    {
+      "id": "connect",
+      "enabled": false,
+      "status": "disabled"
+    },
+    {
+      "id": "bb--connect-next",
+      "enabled": false,
+      "status": "disabled"
+    },
+    {
+      "id": "memory",
+      "enabled": false,
+      "status": "disabled"
+    }
+  ]
+}
