@@ -1,0 +1,40 @@
+name: D-055 offline IDE Remote contract negative tests
+on:
+  push:
+    branches: [feat/d055-remote-contract-mock]
+    paths:
+      - ".github/workflows/d055-remote-contract.yml"
+      - "plugins/suliko-remote-panel/**"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      BB_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.19.0"
+          package-manager-cache: false
+      - name: Offline mock-only approval and status contract negatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          cd plugins/suliko-remote-panel
+          # Development-only mock runner: D-043 production lock scan is a separate exact-head gate.
+          pnpm install --no-frozen-lockfile --ignore-scripts
+          pnpm run typecheck
+          pnpm run test
+      - name: Scope reminder
+        if: success()
+        run: |
+          echo 'Ten mock-only negative contract cases and status-poll assertions passed; NOT a Remote server permission test, token issuance or Human Gate proof.' >> "$GITHUB_STEP_SUMMARY"
