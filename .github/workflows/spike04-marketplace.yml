@@ -1,7 +1,10 @@
 # SPIKE-04 marketplace staging only: no tag release until CI and review.
-name: SPIKE-04 marketplace staged install (manual only)
+name: SPIKE-04 pinned nonrelease test-tag marketplace install
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/spike04-marketplace]
+    paths: ['.github/workflows/spike04-marketplace.yml', 'marketplace/marketplace.json']
 permissions:
   contents: read
 jobs:
@@ -17,7 +20,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Verify reviewed immutable release prerequisite
+      - name: Verify reviewed immutable NONRELEASE test pin
         shell: bash
         run: |
           set -euo pipefail
@@ -25,10 +28,10 @@ jobs:
           const fs=require('node:fs'), p=JSON.parse(fs.readFileSync('marketplace/marketplace.json','utf8'));
           if(p.schemaVersion!==1||p.name!=='suliko-experimental'||p.plugins.length!==1) throw Error('invalid catalog');
           const g=p.plugins[0].source.git;
-          if(g.url!=='https://github.com/dol-1/suliko-ide-ci.git'||g.subdir!=='plugins/suliko-hello'||g.tagPrefix!=='suliko-hello/'||g.range!=='0.1.0') throw Error('unexpected source');
+          if(g.url!=='https://github.com/dol-1/suliko-ide-ci.git'||g.subdir!=='plugins/suliko-hello'||g.tagPrefix!=='suliko-hello-'||g.range!=='0.1.0-rc1') throw Error('unexpected source');
           NODE
-          # Fail closed if release tag has not been reviewed/published.
-          test -n "$(git ls-remote --tags https://github.com/dol-1/suliko-ide-ci.git refs/tags/suliko-hello/v0.1.0)"
+          # Verify exactly the previously created immutable experimental tag and its source.
+          test "$(git ls-remote --tags https://github.com/dol-1/suliko-ide-ci.git refs/tags/suliko-hello-v0.1.0-rc1 | awk '{print $1}')" = "4017b9fcfcbc2e4d8507d7942a24008b37a139bd"
       - name: Checkout frozen BB source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
