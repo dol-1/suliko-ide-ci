@@ -1,0 +1,5 @@
+# D-063 public CI OpenSSF Scorecard read-only
+
+Source: [E6 #48](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/48), official [OpenSSF Scorecard Action v2.5.0](https://github.com/ossf/scorecard-action/releases/tag/v2.5.0) and audited tag-target SHA fa7117db83c52d787ae5a89f350999701505d78e (2026-10-12 release). Workflow uses GitHub standard free public Ubuntu runner and contents:read only; no PAT, writable code-scanning permissions, privileged runner or external disclosure.
+
+Reports are parsed in transient /tmp, raw details are removed at end and not uploaded, published, or mirrored. Logs show only public check names/numeric scores (not evidence/reasons). The pinned action manifest invokes GHCR container version v2.5.0; this is a publisher-controlled image tag and a remaining reproducibility caveat. A green job means the assessment executed and produced a well-formed report; **it is NOT an all-clear**. Weak checks require reviewed fixes or documented limitations, independent security review, and public beta remains NO-GO.

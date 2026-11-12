@@ -1,0 +1,45 @@
+name: D-063 OpenSSF Scorecard public CI repo assessment
+on:
+  push:
+    branches: [feat/d063-scorecard-public, main]
+    paths: ['.github/workflows/d063-scorecard.yml']
+  schedule:
+    - cron: '29 5 * * 4'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-public-scorecard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Run upstream Scorecard read-only; do not publish
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e
+        with:
+          results_file: /tmp/d063-scorecard.json
+          results_format: json
+          publish_results: false
+          file_mode: archive
+      - name: Summarize public repository security posture without raw details
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -f -- /tmp/d063-scorecard.json' EXIT
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const file='/tmp/d063-scorecard.json';
+          if(!fs.existsSync(file) || fs.statSync(file).size===0) throw Error('Scorecard did not produce a report');
+          const r=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(!Array.isArray(r.checks) || typeof r.score!=='number') throw Error('Scorecard report shape not recognized');
+          const weak=r.checks.filter(x=>typeof x.score==='number' && x.score<5);
+          // Print only public check NAME and numeric score. No reasons, tokens or raw output.
+          console.log('D063 public Scorecard overall score:',r.score,'low-scoring checks:',weak.length);
+          weak.forEach(x=>console.log('D063 review required:',String(x.name).slice(0,50),'score',x.score));
+          const summary=process.env.GITHUB_STEP_SUMMARY;
+          if(summary) {
+            fs.appendFileSync(summary,'### E6 public Scorecard read-only evidence\n\n'+
+              '- Overall: '+r.score+' / 10\n- Low scoring checks: '+weak.length+
+              '\n- Source: official OpenSSF Scorecard v2.5.0 action at fixed Git SHA\n'+
+              '- Review individual low-score risk privately in issue #48. This is not a release gate or private repo scan.\n');
+          }
+          NODE
