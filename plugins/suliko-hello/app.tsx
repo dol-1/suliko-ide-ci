@@ -64,7 +64,7 @@ export function HelloPanel() {
         <button type="button" onClick={() => void checkServer()} disabled={status.kind === "loading"}>
           Ping server
         </button>
-      ) : null
+      ) : null}
       {status.kind === "loading" ? <p role="status">Checking…</p> : null}
       {status.kind === "success" ? (
         <div role="status">
