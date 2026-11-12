@@ -1,5 +1,5 @@
 // E9 packaged Desktop isolated Linux smoke. No Remote service, user data, tokens or approvals.
-import { _electron } from "@playwright/test";
+import { _electron, expect } from "@playwright/test";
 // AxeBuilder's Playwright multi-page helper is unsupported in Electron BrowserContext.
 // Load the same axe-core browser engine directly into the existing renderer.
 import { createRequire } from "node:module";
@@ -39,7 +39,10 @@ for(const [lang,helloLabel,remoteLabel] of [
       await nav.click();
       const panel=page.locator("section[aria-label]").filter({has:page.locator("h2")}).first();
       await panel.waitFor({state:"visible",timeout:15000});
-      if(await panel.getAttribute("aria-label")!==label)throw Error("D066 wrong Desktop localized label");
+      // Route navigation mounts panels asynchronously. Assert the exact
+      // localized label with Playwright polling instead of sampling a stale
+      // previous panel immediately after navigation (no assertion weakening).
+      await expect(panel).toHaveAttribute("aria-label",label,{timeout:15000});
       if(id==="remote"){
         const link=panel.getByRole("link",{name:/approval|თანხმობის/i}).first();
         await link.waitFor({state:"visible",timeout:12000});
