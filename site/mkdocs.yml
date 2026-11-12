@@ -1,0 +1,30 @@
+site_name: Suliko IDE — User Guide (Preview)
+site_url: https://dol-1.github.io/suliko-ide-ci/
+site_description: Pre-release public guide to BB-based Suliko plugins, privacy, Remote read-only and pilot signup
+docs_dir: docs
+site_dir: build
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.indexes
+nav:
+  - Home: index.md
+  - English:
+      - Installation: install.en.md
+      - First steps: first-steps.en.md
+      - Private Web: web.en.md
+      - Remote status: remote.en.md
+      - Privacy: privacy.en.md
+      - Troubleshooting: troubleshooting.en.md
+      - Pilot signup: pilot.en.md
+  - ქართული:
+      - დასაწყისი: index.ka.md
+      - ინსტალაცია: install.ka.md
+      - პირველი ნაბიჯები: first-steps.ka.md
+      - პირადი Web: web.ka.md
+      - Remote სტატუსი: remote.ka.md
+      - კონფიდენციალურობა: privacy.ka.md
+      - დახმარება: troubleshooting.ka.md
+      - პილოტი: pilot.ka.md
