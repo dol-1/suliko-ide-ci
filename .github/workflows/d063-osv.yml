@@ -1,0 +1,54 @@
+name: D-063 OSV pinned own-plugin lockfiles
+on:
+  push:
+    branches: [feat/d063-osv-plugin-lockfiles, main]
+    paths:
+      - '.github/workflows/d063-osv.yml'
+      - 'plugins/suliko-hello/pnpm-lock.yaml'
+      - 'plugins/suliko-remote-panel/pnpm-lock.yaml'
+  schedule:
+    - cron: '07 5 * * 3'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-plugin-lockfiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Pin OSV Scanner v2 binary by official digest, scan only resolved lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d063-osv"
+          mkdir -m 700 -p "$folder"
+          trap 'rm -rf -- "$folder"' EXIT
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$folder/osv-scanner" "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64"
+          printf '%s  %s\n' 'fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8' "$folder/osv-scanner" | sha256sum -c - >/dev/null
+          chmod 700 "$folder/osv-scanner"
+          "$folder/osv-scanner" --version
+          test -s plugins/suliko-hello/pnpm-lock.yaml
+          test -s plugins/suliko-remote-panel/pnpm-lock.yaml
+          set +e
+          "$folder/osv-scanner" scan --lockfile=plugins/suliko-hello/pnpm-lock.yaml --lockfile=plugins/suliko-remote-panel/pnpm-lock.yaml --format=json --output-file="$folder/report.json" >"$folder/scan.stdout" 2>"$folder/scan.stderr"
+          code=$?
+          set -e
+          if [ -s "$folder/report.json" ]; then
+            node - "$folder/report.json" <<'NODE'
+          const fs=require('node:fs'),file=process.argv[2];
+          const result=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(!result || typeof result!=='object' || Array.isArray(result)) throw Error('Malformed OSV report');
+          console.log('D063 OSV JSON report parsed; scanner outcome determines security status, details held ephemerally.');
+          NODE
+          else
+            echo 'D063 OSV did not produce a report (check scanner command, fail closed)' >&2
+            exit 1
+          fi
+          if [ "$code" -ne 0 ]; then
+            echo 'D063 OSV lockfile scan did not pass; do not publish raw findings or silently approve dependency versions.' >&2
+            exit "$code"
+          fi
+          echo 'D063 pinned OSV scanning of public CI own-plugin lockfiles passed; private repositories NOT scanned.'
