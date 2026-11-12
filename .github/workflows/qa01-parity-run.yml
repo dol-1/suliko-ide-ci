@@ -73,13 +73,33 @@ jobs:
           web_dir="$RUNNER_TEMP/bb-parity-web"
           mkdir -p "$web_dir"
           export BB_DATA_DIR="$web_dir"
-          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
+          BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
+          server_pid=$!
           ready=0
           for i in $(seq 1 45); do
-            if BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
+            # A browser-visible HTTP response is the real Web parity precondition.
+            # CLI settings can fail even when the loopback Web server is reachable.
+            if curl --silent --show-error --fail --max-time 2 --output "$RUNNER_TEMP/qa01-ready.html" http://127.0.0.1:38887/ 2>/dev/null; then
+              if node -e 'const s=require("node:fs").readFileSync(process.argv[1],"utf8");process.exit(/<html|<!doctype/i.test(s)?0:1)' "$RUNNER_TEMP/qa01-ready.html"; then
+                ready=1; break
+              fi
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
             sleep 2
           done
-          test "$ready" = 1 || { echo "BB web did not boot"; exit 1; }
+          if [ "$ready" != 1 ]; then
+            echo "QA-01: stock BB loopback HTTP readiness failed; never skip parity assertions." >&2
+            if kill -0 "$server_pid" 2>/dev/null; then echo "BB launcher process still alive" >&2; else echo "BB launcher exited" >&2; fi
+            # Print only known error-category indicators, never full logs, paths or secrets.
+            node - "$RUNNER_TEMP/qa01-web.log" <<'NODE'
+          const fs=require('node:fs');
+          const content=fs.existsSync(process.argv[2])?fs.readFileSync(process.argv[2],'utf8'):'';
+          for(const code of ['EADDRINUSE','EACCES','ECONNREFUSED','MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND','NODE_MODULE_VERSION']){
+            if(content.includes(code)) console.error('QA-01 BB startup category:',code);
+          }
+          NODE
+            exit 1
+          fi
           BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
       - name: Execute full 7×2 matrix and preserve result even on failure
