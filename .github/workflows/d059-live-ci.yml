@@ -1,0 +1,115 @@
+name: D-059 actual disposable BB CLI doctor partial observations (NO USER DATA)
+on:
+  push:
+    branches: [feat/d059-live-ci-observation, main]
+    paths:
+      - scripts/d059-live-ci-readonly.mjs
+      - scripts/d059-live-ci-readonly.test.mjs
+      - .github/workflows/d059-live-ci.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+      - run: |
+          node --test scripts/d059-live-ci-readonly.test.mjs
+          if node scripts/d059-live-ci-readonly.mjs --ci-disposable >/dev/null 2>&1; then
+            echo 'D059 unsafe entry allowed without disposable environment' >&2
+            exit 1
+          fi
+  live-readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38884'
+      BB_HOST_DAEMON_PORT: '38885'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Build immutable stock BB and start synthetic isolated loopback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
+          export BB_DATA_DIR="$RUNNER_TEMP/d059-live-data"
+          mkdir -p "$BB_DATA_DIR"
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38884 --host-daemon-port 38885 --no-in-app-updates > "$RUNNER_TEMP/d059-start.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if BB_DATA_DIR="$BB_DATA_DIR" node stock-bb/packages/bb-app/dist/bb.js plugin list --json > /dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then echo 'D059 disposable BB CLI not ready' >&2; exit 1; fi
+          echo 'D059 launched stock BB in synthetic disposable data directory; raw logs never uploaded' >> "$GITHUB_STEP_SUMMARY"
+      - name: Disable forbidden plugins only inside disposable test installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BB_DATA_DIR="$RUNNER_TEMP/d059-live-data"
+          node - <<'NODE' > "$RUNNER_TEMP/d059-forbidden-ids"
+          const cp=require('child_process');
+          const fs=require('fs');
+          let list;
+          try {
+            list=JSON.parse(cp.execFileSync(process.execPath,
+              ['stock-bb/packages/bb-app/dist/bb.js','plugin','list','--json'],
+              {encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15000}));
+          } catch { throw Error('Sanitized disposable plugin query failed'); }
+          const ids=new Set(['account-pool','bb--mcp','connect','bb--connect-next','memory']);
+          if(!Array.isArray(list.plugins))throw Error('Unexpected plugin state');
+          for(const x of list.plugins)if(ids.has(x.id)&&x.enabled===true)console.log(x.id);
+          NODE
+          while IFS= read -r id; do
+            test -n "$id" || continue
+            node stock-bb/packages/bb-app/dist/bb.js plugin disable "$id" > /dev/null
+          done < "$RUNNER_TEMP/d059-forbidden-ids"
+      - name: Verify actual CLI response is loopback-only and redacted
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BB_DATA_DIR="$RUNNER_TEMP/d059-live-data"
+          node scripts/d059-live-ci-readonly.mjs --ci-disposable > "$RUNNER_TEMP/d059-aggregate.json"
+          node - <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/d059-aggregate.json','utf8'));
+          if(r.status!=='partial-runtime-pass'||r.checks.serverLoopback!==true||
+             r.checks.dataDirectoryMatchesDisposable!==true||r.checks.forbiddenPluginsSafe!==true)
+            throw Error('Disposable BB live doctor assertions failed');
+          const s=JSON.stringify(r);
+          if(s.includes(process.env.RUNNER_TEMP)||s.includes('dataDir')||s.includes('token'))throw Error('Potential raw internal evidence leak');
+          console.log('D059 live disposable stock BB server config + plugin status READ-ONLY PASS; full doctor NOT COMPLETE');
+          NODE
+          echo 'D059 actual official BB CLI config/plugins parsed without printing raw responses; provider key presence, real user profile, Tailscale, token content, and hooks remain NOT INSPECTED.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop disposable server and clean runner
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/d059-live-data" ]; then
+            BB_DATA_DIR="$RUNNER_TEMP/d059-live-data" node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$RUNNER_TEMP/d059-live-data" >/dev/null 2>&1 || true
+          fi
