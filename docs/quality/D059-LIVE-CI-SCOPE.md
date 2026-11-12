@@ -1,0 +1,11 @@
+# E2 D059 — actual stock BB CLI observation in disposable public CI
+
+Source: [E2 #43](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/43), [Claude E1–E10 #36](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36), official pinned [BB settings CLI](https://github.com/get-bb/bb/blob/desktop-v0.49.0/apps/cli/src/commands/settings.ts), [plugin CLI](https://github.com/get-bb/bb/blob/desktop-v0.49.0/apps/cli/src/commands/plugin.ts), and [system config API schema](https://github.com/get-bb/bb/blob/desktop-v0.49.0/packages/server-contract/src/api/system.ts).
+
+**Partial E2 implementation only, not a real user's doctor.** The public Linux action builds exact stock BB 0.49.0, starts the server plus host daemon using **only** a disposable `$RUNNER_TEMP/d059-live-data` folder and loopback ports 38884/38885, disables known forbidden plugins only there, reads official `bb settings show --json` and `bb plugin list --json` in memory, and prints only constant-key allowlisted booleans and plugin states. No raw system config, path, tokens, provider values, identity or full plugin list is uploaded or logged. The executable refuses any environment lacking its exact disposable CI markers.
+
+The independent `ss` check requires **actual TCP LISTEN** on `127.0.0.1:38884` and `127.0.0.1:38885` with no additional bind for those two ports. It makes no claim about unrelated processes, production machines, Tailscale ACLs or Internet exposure. The read-only script performs no mutation; workflow fixture-only `bb plugin disable` operations happen only within synthetic, newly created BB data. No root/sudo/admin escalation.
+
+**What this does NOT prove:** a real installation, provider API key *presence* or value, credential source, user hardened profile, Claude/Codex hooks isolation, correct desktop/Web plugin mounts, privacy of all unknown future schema fields, meaningful support bundle consent, or beta readiness. These remain E2/SEC-02 acceptance gates. The public job never uses real participant information. Any red outcome is a defect to triage, not a reason to weaken checks.
+
+The source contract test also rejects non-loopback, mismatched data directory and enabled/unknown forbidden plugins with no secret echo; full integration needs its own exact-head CI run and premerge evidence.
