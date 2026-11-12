@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="suliko-hello-v0.1.0-rc1"
-          pin="4017b9fcfcbc2e4d8507d7942a24008b37a139bd"
+          pin="61d9d53ff0ae705fae55ea153440c61f21e2ce0d"
           git fetch --no-tags --depth=1 origin "$pin"
           git diff --name-status "$pin" "$GITHUB_SHA" -- plugins/suliko-hello
           git diff --quiet "$pin" "$GITHUB_SHA" -- plugins/suliko-hello || { echo "Plugin source drifted from pin"; exit 1; }
