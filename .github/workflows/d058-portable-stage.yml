@@ -1,0 +1,51 @@
+name: D-058 macOS Windows nonexecuting verified asset staging preview
+on:
+  push:
+    branches: [feat/d058-macos-win-stage-preview, main]
+    paths:
+      - scripts/d058-stage-portable.mjs
+      - scripts/d058-stage-portable.test.mjs
+      - scripts/suliko-setup.sh
+      - scripts/suliko-setup.ps1
+      - .github/workflows/d058-portable-stage.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable-stage:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Download official Mac arm64 DMG with existing pinned digest, no execution
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          export HOME="$RUNNER_TEMP/d058-test-home"
+          mkdir -p "$HOME"
+          bash scripts/suliko-setup.sh --download-verified >/dev/null
+          node scripts/d058-stage-portable.test.mjs
+          echo 'E1 native macOS arm64 verified staging preview (no mount/install).' >> "$GITHUB_STEP_SUMMARY"
+      - name: Download official Windows x64 EXE with existing pinned digest, no execution
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'd058-test-local'
+          New-Item -ItemType Directory -Path $env:LOCALAPPDATA -Force | Out-Null
+          ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null
+          node scripts/d058-stage-portable.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Portable staging contract failed' }
+          'E1 native Windows x64 verified staging preview; installer NOT executed and ACL NOT inspected.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
