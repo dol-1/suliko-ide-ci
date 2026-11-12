@@ -1,0 +1,52 @@
+name: D-058 safe setup preflight (no installer executed)
+on:
+  push:
+    branches: [feat/d058-safe-bootstrap, main]
+    paths:
+      - scripts/suliko-setup.sh
+      - scripts/suliko-setup.ps1
+      - .github/workflows/d058-preflight.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout public scripts, without persisting credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Bash dry-run, negative checksum, uninstall
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_home="$RUNNER_TEMP/d058-home"
+          mkdir -p "$test_home"
+          HOME="$test_home" bash scripts/suliko-setup.sh --dry-run
+          printf 'non-official-fixture' > "$RUNNER_TEMP/d058-bad.bin"
+          if HOME="$test_home" bash scripts/suliko-setup.sh --verify-file "$RUNNER_TEMP/d058-bad.bin"; then
+            echo 'FAIL: bad checksum accepted'; exit 1
+          fi
+          HOME="$test_home" bash scripts/suliko-setup.sh --uninstall
+          test ! -e "$test_home/.cache/suliko-ide"
+      - name: PowerShell dry-run, negative checksum, uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'd058-test-local'
+          New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA | Out-Null
+          ./scripts/suliko-setup.ps1 -DryRun
+          $bad = Join-Path $env:RUNNER_TEMP 'd058-bad.bin'
+          Set-Content -LiteralPath $bad -Value 'non-official-fixture' -NoNewline
+          $failed = $false
+          try { ./scripts/suliko-setup.ps1 -VerifyFile $bad } catch { $failed = $true }
+          if (-not $failed) { throw 'FAIL: bad checksum accepted' }
+          ./scripts/suliko-setup.ps1 -Uninstall
+          if (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'SulikoIDE\Cache')) { throw 'Cache survived cleanup' }
