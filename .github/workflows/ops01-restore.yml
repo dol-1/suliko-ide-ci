@@ -3,7 +3,7 @@ name: OPS-01 synthetic BB export-import restore
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feat/ops01-restore-ci]
     paths: ['.github/workflows/ops01-restore.yml']
 permissions:
   contents: read
