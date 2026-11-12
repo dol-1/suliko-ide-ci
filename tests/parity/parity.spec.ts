@@ -1,6 +1,16 @@
 import { _electron, chromium, expect, test as base, type Page } from "@playwright/test";
 import { basename } from "node:path";
 
+// Optional stock BB first-run setup offers an explicit, supported Skip setup
+// action. In a synthetic provider-free CI fixture take that path, never submit
+// provider keys, and preserve all 14 strict subsequent journey assertions.
+async function enterProviderFreeShell(page: Page) {
+  const projects = page.getByRole("button", { name: /projects?/i }).first();
+  await projects.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+  const skip = page.getByRole("button", { name: /skip setup/i }).first();
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+}
+
 const test = base.extend<{ appPage: Page }>({
   appPage: async ({}, use, info) => {
     if (info.project.name === "web") {
@@ -15,6 +25,7 @@ const test = base.extend<{ appPage: Page }>({
       try {
         const page = await context.newPage();
         await page.goto(url.toString(), { waitUntil: "domcontentloaded" });
+        await enterProviderFreeShell(page);
         await use(page);
       } finally {
         await context.close();
@@ -39,7 +50,9 @@ const test = base.extend<{ appPage: Page }>({
       },
     });
     try {
-      await use(await electronApp.firstWindow());
+      const page = await electronApp.firstWindow();
+      await enterProviderFreeShell(page);
+      await use(page);
     } finally {
       await electronApp.close();
     }
