@@ -55,6 +55,13 @@ const test = base.extend<{ appPage: Page }>({
         ...process.env,
         BB_DATA_DIR: dataDir,
         BB_SERVER_BIND_HOST: "127.0.0.1",
+        BB_SERVER_PORT: "38888",
+        BB_HOST_DAEMON_PORT: "38890",
+        // Pin the package to our already-running disposable loopback server.
+        // Stock BB supports this test-only explicit attach mode; no real user
+        // account or external server approval is bypassed.
+        BB_DESKTOP_APP_URL: "http://127.0.0.1:38888",
+        BB_DESKTOP_ATTACH_WITHOUT_PROMPT: "1",
         BB_TELEMETRY: "false",
       },
     });
