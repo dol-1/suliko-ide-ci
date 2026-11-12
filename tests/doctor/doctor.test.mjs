@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const executable = new URL("../scripts/suliko-doctor.mjs", import.meta.url);
+const executable = new URL("../../scripts/suliko-doctor.mjs", import.meta.url);
 const fixture = {
   bbVersion: "0.49.0",
   listenerHost: "127.0.0.1",
