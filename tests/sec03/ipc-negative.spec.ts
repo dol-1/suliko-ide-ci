@@ -66,10 +66,12 @@ async function foreignWindowIpc(channel: string, payload?: unknown, iframe = fal
   });
 }
 
-test("IPC-01: a foreign window must not query privileged desktop information", async () => {
-  // Source hypothesis: main.ts GET_INFO lacks explicit sender/frame verification.
+test("IPC-01 EXPECTED-FINDING: pinned stock BB exposes NONSECRET desktop metadata to a foreign synthetic renderer", async () => {
+  // Known Low residual in private IDE finding #32, NOT a patched permission check.
+  // Fail closed if the behavior changes: reviewer must reclassify, never hide the delta.
   const response = await foreignWindowIpc("bb-desktop:get-info");
-  expect(response.ok, JSON.stringify(response)).toBe(false);
+  expect(response.ok, "Known residual changed; security review required").toBe(true);
+  if (response.ok) expect(response.value, "Expected nonsecret metadata shape changed").toBeTruthy();
 });
 
 test("IPC-02: foreign window may not read available server choices", async () => {
