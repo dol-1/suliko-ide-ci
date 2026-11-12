@@ -17,6 +17,15 @@ $sha = '201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f'
 $url = "https://github.com/get-bb/bb/releases/download/desktop-v0.49.0/$asset"
 $cache = Join-Path $env:LOCALAPPDATA 'SulikoIDE\Cache'
 $dest = Join-Path $cache $asset
+function Assert-ManagedCachePath {
+  # Never follow a reparse-point/junction parent to remove unrelated data.
+  foreach ($path in @((Join-Path $env:LOCALAPPDATA 'SulikoIDE'), $cache)) {
+    $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+    if ($null -ne $item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+      throw 'Refusing redirected Suliko cache path'
+    }
+  }
+}
 function Assert-Hash([string]$Path) {
   $item = Get-Item -LiteralPath $Path -ErrorAction Stop
   if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -27,12 +36,14 @@ function Assert-Hash([string]$Path) {
   Write-Output 'Official release SHA-256 verified'
 }
 if ($Uninstall) {
+  Assert-ManagedCachePath
   if (Test-Path -LiteralPath $dest -PathType Leaf) { Remove-Item -LiteralPath $dest -Force }
   if (Test-Path -LiteralPath $cache -PathType Container) {
     if (@(Get-ChildItem -LiteralPath $cache -Force).Count -eq 0) { Remove-Item -LiteralPath $cache }
   }
   Write-Output 'Suliko download cache cleanup finished; BB user data untouched.'
 } elseif ($DownloadVerified) {
+  Assert-ManagedCachePath
   New-Item -ItemType Directory -Path $cache -Force | Out-Null
   $tmp = Join-Path $cache ([guid]::NewGuid().ToString('n') + '.download')
   try {
