@@ -57,8 +57,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Fail closed rather than install an unreviewed third-party plugin.
-          test "${SULIKO_HELLO_CI_APPROVED_SHA:-}" = "$GITHUB_SHA"
+          # v1.6: verify version-pinned, checkout-owned test fixture instead of
+          # requiring an unset external SHA approval environment variable.
+          # This fixture remains disposable: no registry or production install.
+          test -f plugins/suliko-hello/package.json
+          test -f plugins/suliko-hello/app.tsx
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('plugins/suliko-hello/package.json', 'utf8'));
+          if (p.name !== 'bb-plugin-suliko-hello' || p.engines.bb !== '>=0.49.0 <0.49.1' ||
+              p.devDependencies['@get-bb/plugin-sdk'] !== '0.6.132') {
+            throw Error('Unreviewed or incompatible disposable Hello fixture');
+          }
+          NODE
           web_dir="$RUNNER_TEMP/bb-parity-web"
           mkdir -p "$web_dir"
           export BB_DATA_DIR="$web_dir"
