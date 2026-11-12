@@ -102,3 +102,20 @@ jobs:
           ./scripts/suliko-setup.ps1 -Uninstall
           if ((Get-Content -LiteralPath (Join-Path $cacheDir 'unrelated.txt') -Raw) -cne 'synthetic-third-party') { throw 'Unrelated cache changed' }
           if ((Get-Content -LiteralPath (Join-Path $bbDir 'user-data.txt') -Raw) -cne 'synthetic-user-data') { throw 'BB user data changed' }
+          # Windows junctions can redirect a managed parent into unrelated data.
+          $foreignRoot = Join-Path $env:RUNNER_TEMP 'd058-foreign-junction'
+          $foreignCache = Join-Path $foreignRoot 'Cache'
+          $junctionLocal = Join-Path $env:RUNNER_TEMP 'd058-junction-local'
+          New-Item -ItemType Directory -Force -Path $foreignCache, $junctionLocal | Out-Null
+          $foreignAsset = Join-Path $foreignCache 'bb-0.49.0-x64.exe'
+          Set-Content -LiteralPath $foreignAsset -Value 'foreign-cache-must-survive' -NoNewline
+          New-Item -ItemType Junction -Path (Join-Path $junctionLocal 'SulikoIDE') -Target $foreignRoot | Out-Null
+          $env:LOCALAPPDATA = $junctionLocal
+          $blocked = $false
+          try { ./scripts/suliko-setup.ps1 -Uninstall } catch { $blocked = $true }
+          if (-not $blocked) { throw 'FAIL: uninstall followed foreign junction parent' }
+          if ((Get-Content -LiteralPath $foreignAsset -Raw) -cne 'foreign-cache-must-survive') { throw 'Foreign junction cache changed' }
+          $blocked = $false
+          try { ./scripts/suliko-setup.ps1 -DownloadVerified } catch { $blocked = $true }
+          if (-not $blocked) { throw 'FAIL: download followed foreign junction parent' }
+          if ((Get-Content -LiteralPath $foreignAsset -Raw) -cne 'foreign-cache-must-survive') { throw 'Foreign junction cache changed on download' }
