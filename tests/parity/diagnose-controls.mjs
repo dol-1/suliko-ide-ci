@@ -32,9 +32,20 @@ async function diagnose(page, target) {
   const ready = await projects.waitFor({ state: "visible", timeout: 12000 })
     .then(() => true).catch(() => false);
   await observe(page, target, "after-hydration-wait");
-  if (ready) {
-    await projects.click();
+  // A visible Projects control may still be DISABLED by stock onboarding.
+  // A diagnostic must never burn 30 seconds attempting that click and thereby
+  // prevent capture of the second (Desktop) client.
+  const enabled = ready && await projects.isEnabled().catch(() => false);
+  const skip = page.getByRole("button", { name: /skip setup/i }).first();
+  const skipVisible = await skip.isVisible().catch(() => false);
+  console.log("QA01_DIAG_NAV_STATE", JSON.stringify({
+    target, projectsVisible: ready, projectsEnabled: enabled, skipSetupVisible: skipVisible,
+  }));
+  if (enabled) {
+    await projects.click({ timeout: 5000 });
     await observe(page, target, "after-projects-nav");
+  } else {
+    console.log("QA01_DIAG_SKIPPED_DISABLED_NAV", target);
   }
 }
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
