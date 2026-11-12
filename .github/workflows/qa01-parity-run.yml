@@ -98,7 +98,7 @@ jobs:
           # Requires a pre-enrolled disposable host and Suliko Hello in both
           # data directories. Missing fixtures cause real test failures.
           set +e
-          xvfb-run -a bash -c 'cd tests/parity && npm test -- --reporter=json' >"$RUNNER_TEMP/qa01.json"
+          xvfb-run -a bash -c 'cd tests/parity && npx playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json"
           code=$?
           set -e
           node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" >>"$GITHUB_STEP_SUMMARY"
