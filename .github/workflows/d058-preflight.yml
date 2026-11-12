@@ -35,7 +35,8 @@ jobs:
           fi
           # Exercise the REAL pinned official asset digest; never execute the downloaded file.
           HOME="$test_home" bash scripts/suliko-setup.sh --download-verified
-          test -s "$test_home/.cache/suliko-ide/$(case "$(uname -s)" in Linux) echo bb-0.49.0-x86_64.AppImage ;; Darwin) echo bb-0.49.0-arm64.dmg ;; esac)"
+          if [[ "$(uname -s)" == Darwin ]]; then expected_asset=bb-0.49.0-arm64.dmg; else expected_asset=bb-0.49.0-x86_64.AppImage; fi
+          test -s "$test_home/.cache/suliko-ide/$expected_asset"
           HOME="$test_home" bash scripts/suliko-setup.sh --uninstall
           test ! -e "$test_home/.cache/suliko-ide"
       - name: PowerShell dry-run, negative checksum, uninstall
