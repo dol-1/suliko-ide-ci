@@ -1,7 +1,7 @@
 name: D-059 synthetic doctor redaction (NO live credentials)
 on:
   push:
-    branches: [feat/d059-synthetic-doctor, main]
+    branches: [feat/d059-synthetic-doctor, fix/d059-stock-bb-plugin-ids, main]
     paths:
       - 'scripts/suliko-doctor.mjs'
       - 'tests/doctor/**'

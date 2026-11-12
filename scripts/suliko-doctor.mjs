@@ -3,7 +3,7 @@
 // This preview never touches user credentials, BB runtime, local devices or home directories.
 import { readFileSync, writeFileSync } from "node:fs";
 
-const guarded = ["account-pool", "mcp", "connect", "connect-next", "memory"];
+const guarded = ["account-pool", "bb--mcp", "connect", "bb--connect-next", "memory"];
 const owned = ["suliko-hello", "suliko-remote-panel"];
 const allowedState = new Set(["enabled", "disabled", "absent"]);
 function inspect(source) {
