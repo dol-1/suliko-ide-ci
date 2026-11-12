@@ -1,7 +1,7 @@
 name: D-058 safe setup preflight (no installer executed)
 on:
   push:
-    branches: [feat/d058-safe-bootstrap, main]
+    branches: [feat/d058-safe-bootstrap, feat/d058-verified-download-ci, main]
     paths:
       - scripts/suliko-setup.sh
       - scripts/suliko-setup.ps1
@@ -33,6 +33,10 @@ jobs:
           if HOME="$test_home" bash scripts/suliko-setup.sh --verify-file "$RUNNER_TEMP/d058-bad.bin"; then
             echo 'FAIL: bad checksum accepted'; exit 1
           fi
+          # Exercise the REAL pinned official asset digest; never execute the downloaded file.
+          HOME="$test_home" bash scripts/suliko-setup.sh --download-verified
+          if [[ "$(uname -s)" == Darwin ]]; then expected_asset=bb-0.49.0-arm64.dmg; else expected_asset=bb-0.49.0-x86_64.AppImage; fi
+          test -s "$test_home/.cache/suliko-ide/$expected_asset"
           HOME="$test_home" bash scripts/suliko-setup.sh --uninstall
           test ! -e "$test_home/.cache/suliko-ide"
       - name: PowerShell dry-run, negative checksum, uninstall
@@ -48,5 +52,8 @@ jobs:
           $failed = $false
           try { ./scripts/suliko-setup.ps1 -VerifyFile $bad } catch { $failed = $true }
           if (-not $failed) { throw 'FAIL: bad checksum accepted' }
+          # Download official Windows x64 asset and verify pinned digest before cache cleanup.
+          ./scripts/suliko-setup.ps1 -DownloadVerified
+          if (-not (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'SulikoIDE\\Cache\\bb-0.49.0-x64.exe') -PathType Leaf)) { throw 'Verified asset not cached' }
           ./scripts/suliko-setup.ps1 -Uninstall
           if (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'SulikoIDE\Cache')) { throw 'Cache survived cleanup' }
