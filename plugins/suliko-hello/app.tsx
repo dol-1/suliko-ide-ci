@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { definePluginApp, useRpc } from "@get-bb/plugin-sdk/app";
 import type { helloContract } from "./server.js";
+import { panelMessages } from "./i18n.js";
 
 type BbCompatibility =
   | { kind: "checking" }
@@ -14,6 +15,10 @@ type HelloStatus =
   | { kind: "error" };
 
 export function HelloPanel() {
+  const lang = typeof document !== "undefined" && document.documentElement.lang
+    ? document.documentElement.lang
+    : typeof navigator !== "undefined" ? navigator.language : "en";
+  const t = panelMessages(lang);
   const rpc = useRpc<typeof helloContract>();
   const [status, setStatus] = useState<HelloStatus>({ kind: "idle" });
   const [compatibility, setCompatibility] = useState<BbCompatibility>({ kind: "checking" });
@@ -50,29 +55,29 @@ export function HelloPanel() {
   }
 
   return (
-    <section aria-label="Suliko Hello panel" style={{ padding: 16 }}>
-      <h2>Suliko Hello</h2>
-      <p>SDK panel and typed backend RPC feasibility probe.</p>
-      {compatibility.kind === "checking" ? <p role="status">Checking BB compatibility…</p> : null}
+    <section aria-label={t.panelLabel} style={{ padding: 16 }}>
+      <h2>{t.heading}</h2>
+      <p>{t.description}</p>
+      {compatibility.kind === "checking" ? <p role="status">{t.checkingCompatibility}</p> : null}
       {compatibility.kind === "unsupported" ? (
         <p role="alert">
-          Suliko Hello disabled: BB {compatibility.version ?? "version unavailable"} is unsupported.
-          Required: {compatibility.allowedRange}. Update or restore a compatible BB build.
+          {t.unsupportedPrefix} {compatibility.version ?? t.versionUnavailable} {t.unsupportedSuffix}
+          {t.required} {compatibility.allowedRange}. {t.updateOrRestore}
         </p>
       ) : null}
       {compatibility.kind === "supported" ? (
         <button type="button" onClick={() => void checkServer()} disabled={status.kind === "loading"}>
-          Ping server
+          {t.pingServer}
         </button>
       ) : null}
-      {status.kind === "loading" ? <p role="status">Checking…</p> : null}
+      {status.kind === "loading" ? <p role="status">{t.checking}</p> : null}
       {status.kind === "success" ? (
         <div role="status">
-          <p>Connected at {status.ts}</p>
-          <p>Disposable secret configured: {status.secretConfigured ? "yes" : "no"}</p>
+          <p>{t.connectedAt} {status.ts}</p>
+          <p>{t.secretConfigured} {status.secretConfigured ? t.yes : t.no}</p>
         </div>
       ) : null}
-      {status.kind === "error" ? <p role="alert">RPC check failed.</p> : null}
+      {status.kind === "error" ? <p role="alert">{t.rpcFailed}</p> : null}
     </section>
   );
 }
