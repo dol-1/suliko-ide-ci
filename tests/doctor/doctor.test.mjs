@@ -14,9 +14,9 @@ const fixture = {
   providerKeyPresent: true,
   plugins: {
     "account-pool": "disabled",
-    mcp: "absent",
+    "bb--mcp": "absent",
     connect: "disabled",
-    "connect-next": "absent",
+    "bb--connect-next": "absent",
     memory: "disabled",
     "suliko-hello": "enabled",
     "suliko-remote-panel": "disabled",
@@ -54,7 +54,7 @@ test("schema allowlist makes synthetic secrets unrepresentable in stdout and bun
   if (process.platform !== "win32") assert.equal(result.mode, 0o600);
 });
 test("malicious version and disabled plugin prevent synthetic pass without echoing values", () => {
-  const result = run({ ...fixture, bbVersion: needles[0], listenerHost: "0.0.0.0", plugins: { ...fixture.plugins, mcp: "enabled" }, error: needles[1] });
+  const result = run({ ...fixture, bbVersion: needles[0], listenerHost: "0.0.0.0", plugins: { ...fixture.plugins, "bb--mcp": "enabled" }, error: needles[1] });
   assert.equal(result.status, 1);
   assert.equal(JSON.parse(result.stdout).status, "review-required");
   for (const secret of needles) assert.ok(!result.output.includes(secret));
