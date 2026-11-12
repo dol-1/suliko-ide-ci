@@ -10,10 +10,13 @@ const locales=[
 ];
 try {
   for(const {lang,label} of locales) {
-    const context=await browser.newContext({serviceWorkers:"block",viewport:{width:1180,height:780}});
+    const context=await browser.newContext({serviceWorkers:"block",locale:lang,viewport:{width:1180,height:780}});
     const page=await context.newPage();
     try {
-      await page.addInitScript(language=>document.documentElement.setAttribute("lang",language),lang);
+      // A document-start script can run before <html> exists; BB may also
+      // hydrate its root lang after that script. Use browser locale and then
+      // set the synthetic language once DOM exists, before mounting Hello.
+      // Keep the strict exact accessible-label check in both languages.
       await page.goto(target.toString(),{waitUntil:"domcontentloaded"});
       const projects=page.getByRole("button",{name:/projects?/i}).first();
       await projects.waitFor({state:"visible",timeout:18000});
@@ -27,6 +30,13 @@ try {
       const nav=page.getByRole("link",{name:/suliko hello/i})
         .or(page.getByRole("button",{name:/suliko hello/i})).first();
       await nav.waitFor({state:"visible",timeout:18000});
+      // HelloPanel reads document.documentElement.lang on initial mount.
+      // Set it only after stock BB hydration, immediately before opening
+      // the panel. This is a synthetic locale switch, not proof of a real
+      // app-level language setting or persistence across reloads.
+      await page.evaluate(language=>{document.documentElement.lang=language;},lang);
+      if(await page.evaluate(()=>document.documentElement.lang)!==lang)
+        throw Error("D066 synthetic browser locale could not be applied");
       await nav.click();
       const panel=page.locator("section[aria-label]").filter({has:page.locator("h2")}).first();
       await panel.waitFor({state:"visible",timeout:10000});
