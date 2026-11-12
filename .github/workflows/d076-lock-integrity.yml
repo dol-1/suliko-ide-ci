@@ -38,6 +38,9 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm run typecheck
           pnpm run test
+          pnpm licenses list --prod --json > "$RUNNER_TEMP/d076-prod-licenses.json"
+          node ../../scripts/plugin-license-audit.mjs . "$RUNNER_TEMP/d076-prod-licenses.json"
+          pnpm licenses list --json > "$RUNNER_TEMP/d076-all-licenses.json"
           cd ../..
           git diff -- plugins/suliko-remote-panel/pnpm-lock.yaml > "$RUNNER_TEMP/d076-lock.patch"
           if test -s "$RUNNER_TEMP/d076-lock.patch"; then
@@ -55,5 +58,7 @@ jobs:
           path: |
             plugins/suliko-remote-panel/pnpm-lock.yaml
             ${{ runner.temp }}/d076-lock.patch
+            ${{ runner.temp }}/d076-prod-licenses.json
+            ${{ runner.temp }}/d076-all-licenses.json
           if-no-files-found: warn
           retention-days: 3
