@@ -11,7 +11,7 @@ function inspect(source) {
   const valid = source !== null && typeof source === "object" && !Array.isArray(source) ? source : {};
   const version = typeof valid.bbVersion === "string"
     && valid.bbVersion.length <= 32
-    && /^\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.-]{1,16})?$/.test(valid.bbVersion)
+    && /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]{1,16})?$/.test(valid.bbVersion)
     ? valid.bbVersion : "unknown";
   const listener = valid.listenerHost === "127.0.0.1" || valid.listenerHost === "::1" || valid.listenerHost === "localhost";
   const hardened = valid.profileHardened === true;
@@ -39,15 +39,15 @@ function inspect(source) {
 }
 function main(args) {
   if (args.includes("--help")) {
-    process.stdout.write("Usage: node scripts/suliko-doctor.mjs --fixture SYNTHETIC.json [--bundle NEWFILE.json]\\nPreview only: does not inspect live BB, personal credentials or files.\\n");
+    process.stdout.write("Usage: node scripts/suliko-doctor.mjs --fixture SYNTHETIC.json [--bundle NEWFILE.json]\nPreview only: does not inspect live BB, personal credentials or files.\n");
     return 0;
   }
   if (args.length !== 2 && args.length !== 4) {
-    process.stderr.write("Argument validation failed: use --fixture and optional --bundle.\\n");
+    process.stderr.write("Argument validation failed: use --fixture and optional --bundle.\n");
     return 2;
   }
   if (args[0] !== "--fixture" || (args.length === 4 && args[2] !== "--bundle")) {
-    process.stderr.write("Unsupported options.\\n");
+    process.stderr.write("Unsupported options.\n");
     return 2;
   }
   let source;
@@ -55,16 +55,16 @@ function main(args) {
     source = JSON.parse(readFileSync(args[1], "utf8"));
   } catch {
     // Never include operating-system error text: it may include a real private path.
-    process.stderr.write("Cannot read valid synthetic fixture.\\n");
+    process.stderr.write("Cannot read valid synthetic fixture.\n");
     return 2;
   }
   const report = inspect(source);
-  const serialized = JSON.stringify(report, null, 2) + "\\n";
+  const serialized = JSON.stringify(report, null, 2) + "\n";
   if (args.length === 4) {
     try {
       writeFileSync(args[3], serialized, { flag: "wx", mode: 0o600 });
     } catch {
-      process.stderr.write("Cannot create a new support bundle. Existing files are not overwritten.\\n");
+      process.stderr.write("Cannot create a new support bundle. Existing files are not overwritten.\n");
       return 2;
     }
   }

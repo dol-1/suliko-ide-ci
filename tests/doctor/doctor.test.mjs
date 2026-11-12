@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const executable = new URL("../scripts/suliko-doctor.mjs", import.meta.url);
 const fixture = {
@@ -34,7 +35,7 @@ function run(f, opts = {}) {
     const path = join(dir, "fake-input.json");
     const bundle = join(dir, "safe-bundle.json");
     writeFileSync(path, JSON.stringify(f));
-    const args = [String(executable.pathname), "--fixture", path, ...(opts.bundle ? ["--bundle", bundle] : [])];
+    const args = [fileURLToPath(executable), "--fixture", path, ...(opts.bundle ? ["--bundle", bundle] : [])];
     const res = spawnSync(process.execPath, args, { encoding: "utf8" });
     return { ...res, output: res.stdout + res.stderr, bundle: opts.bundle && res.status !== 2 ? readFileSync(bundle, "utf8") : null, mode: opts.bundle && res.status !== 2 ? (statSync(bundle).mode & 0o777) : null };
   } finally {
@@ -65,7 +66,7 @@ test("unknown plugin status fails closed, no false success", () => {
 });
 test("invalid file path does not leak private filesystem path in diagnostic", () => {
   const bad = join(tmpdir(), "secret-person-path-321", "missing.json");
-  const res = spawnSync(process.execPath, [String(executable.pathname), "--fixture", bad], { encoding: "utf8" });
+  const res = spawnSync(process.execPath, [fileURLToPath(executable), "--fixture", bad], { encoding: "utf8" });
   assert.equal(res.status, 2);
   assert.ok(!res.stderr.includes("secret-person-path-321"));
 });
