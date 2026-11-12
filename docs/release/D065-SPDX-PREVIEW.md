@@ -1,0 +1,5 @@
+# D-065 SPDX inventory preview (no release or attestation)
+
+Source: [Claude E8 #36](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36), [E8 #50](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/50), [official Syft v1.57.1](https://github.com/anchore/syft/releases/tag/v1.57.1) published 2026-11-09. The public CI job downloads the Linux amd64 official Syft release with pinned SHA-256 **before executing it**, then scans **two own plugin source/lockfile directories only** into SPDX 2.3 JSON. It verifies schema and a non-empty package inventory, then prints only package counts and whole-SBOM digest. Raw SPDX JSON stays in runner temp, removed at exit; no upload or release.
+
+SPDX packages discovered by static lockfile/source scanning are **not automatically guaranteed to represent all runtime/transitive bytes installed on every OS**. Validate coverage against actual production bundles, licenses, resolved versions and all 3 OS in later E8 acceptance. This dry-run is not a signed SBOM, cryptographic provenance/attestation, or release authorization; no BB upstream/core, private repo, Remote service or credentials touched.

@@ -1,0 +1,51 @@
+name: D-065 pinned Syft SPDX SBOM dry-run (NO publication)
+on:
+  push:
+    branches: [feat/d065-syft-spdx, main]
+    paths: ['.github/workflows/d065-syft-spdx.yml', 'plugins/**/pnpm-lock.yaml', 'plugins/**/package.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  own-plugin-sbom:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SYFT_CHECK_FOR_APP_UPDATE: 'false'
+      SYFT_LOG_LEVEL: 'error'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify official Syft v1.57.1 binary integrity before use
+        shell: bash
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d065-syft"
+          mkdir -m 700 -p "$folder"
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$folder/pkg.tar.gz" "https://github.com/anchore/syft/releases/download/v1.57.1/syft_1.57.1_linux_amd64.tar.gz"
+          printf '%s  %s\n' 'bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c' "$folder/pkg.tar.gz" | sha256sum -c - >/dev/null
+          tar -xzf "$folder/pkg.tar.gz" -C "$folder" syft
+          chmod 700 "$folder/syft"
+          "$folder/syft" version
+      - name: Generate ephemeral SPDX 2.3 package inventories for both own plugins
+        shell: bash
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d065-syft"
+          trap 'rm -rf -- "$folder"' EXIT
+          test -s plugins/suliko-hello/pnpm-lock.yaml
+          test -s plugins/suliko-remote-panel/pnpm-lock.yaml
+          "$folder/syft" dir:plugins/suliko-hello -o spdx-json="$folder/hello.spdx.json" >"$folder/hello.stdout" 2>"$folder/hello.stderr"
+          "$folder/syft" dir:plugins/suliko-remote-panel -o spdx-json="$folder/remote.spdx.json" >"$folder/remote.stdout" 2>"$folder/remote.stderr"
+          node - "$folder/hello.spdx.json" "$folder/remote.spdx.json" <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          for(const [key,file] of [['hello',process.argv[2]],['remote',process.argv[3]]]) {
+            const bytes=fs.readFileSync(file),report=JSON.parse(bytes.toString('utf8'));
+            if(!String(report.spdxVersion??'').startsWith('SPDX-2.3')||!Array.isArray(report.packages)||report.packages.length<1||!Array.isArray(report.relationships)) throw Error('Incomplete SPDX schema or missing packages for '+key);
+            const sha=crypto.createHash('sha256').update(bytes).digest('hex');
+            console.log('D065 SPDX 2.3',key,'packages',report.packages.length,'SHA256',sha);
+            if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'D065 SPDX draft '+key+': '+report.packages.length+' discovered packages, JSON SHA-256 '+sha+'\n');
+          }
+          NODE
+          echo 'D065 SPDX read-only dry-run completed. No SBOM uploaded, attestation or release; coverage separately audited.' >> "$GITHUB_STEP_SUMMARY"
