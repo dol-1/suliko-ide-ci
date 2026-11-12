@@ -1,4 +1,5 @@
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { experimental_scanPublicSdkOnly } from "@get-bb/plugin-sdk/testing";
@@ -7,7 +8,8 @@ import { experimental_scanPublicSdkOnly } from "@get-bb/plugin-sdk/testing";
 // React is used by the frontend; Testing Library is used only by a test.
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const scan = experimental_scanPublicSdkOnly(packageRoot, {
-  allow: [/^react$/u, /^@testing-library\/react$/u],
+  // vitest/config is only used by the test-runner configuration, never runtime code.
+  allow: [/^react$/u, /^@testing-library\/react$/u, /^vitest\/config$/u],
 });
 
 describe("Suliko Hello uses public BB plugin APIs only", () => {
@@ -16,6 +18,13 @@ describe("Suliko Hello uses public BB plugin APIs only", () => {
     expect(scan.files).toContain("server.ts");
     expect(scan.files).toContain("app.test.tsx");
     expect(scan.files).toContain("server.test.ts");
+  });
+
+  it("does not load test-runner configuration in runtime entrypoints", () => {
+    for (const entry of ["app.tsx", "server.ts"]) {
+      const source = readFileSync(join(packageRoot, entry), "utf8");
+      expect(source).not.toMatch(/(?:from|import\s*\()\s*["\x27]vitest\/config["\x27]/u);
+    }
   });
 
   it("has no private @bb/* or out-of-package import", () => {
