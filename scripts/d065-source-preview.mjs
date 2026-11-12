@@ -38,9 +38,14 @@ export function previewManifest(root) {
   const info={schema:1,channel:"beta-preview-only",status:"not-released",is_public_beta:false,source_only:true,complete_sbom:false,attested:false,manifest_source:CATALOG,plugins:pluginVersions,files};
   return{...info,manifest_sha256:sha(Buffer.from(JSON.stringify(info)))};
 }
+// Exact destination rather than unsafe string-prefix acceptance (../ and sibling dirs).
+export function safePreviewOutput(dest,runnerTemp) {
+  if(!runnerTemp||!dest||resolve(dest)!==join(resolve(runnerTemp),"d065-preview.json"))
+    throw Error("Preview output must use the exact runner-private preview filename");
+  return resolve(dest);
+}
 async function main() {
-  const dest=process.argv[2];
-  if(!dest||!dest.startsWith(process.env.RUNNER_TEMP??"/impossible/"))throw Error("Preview output must stay in CI runner temporary directory");
+  const dest=safePreviewOutput(process.argv[2],process.env.RUNNER_TEMP);
   const result=previewManifest(process.cwd());
   writeFileSync(dest,JSON.stringify(result,null,2)+"\n",{flag:"wx",mode:0o600});
   console.log("D065 PREVIEW ONLY, source files="+result.files.length+" SHA256="+result.manifest_sha256+"; no bundle/attestation/SBOM/release");

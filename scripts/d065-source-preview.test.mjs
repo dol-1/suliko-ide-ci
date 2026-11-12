@@ -1,4 +1,4 @@
-import { previewManifest } from "./d065-source-preview.mjs";
+import { previewManifest,safePreviewOutput } from "./d065-source-preview.mjs";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
@@ -40,3 +40,12 @@ test("refuse symlink inside source tree",()=>fixture(root=>{
   symlinkSync(join(root,"marketplace/marketplace.json"),join(root,"plugins/suliko-hello/unsafe.json"));
   assert.throws(()=>previewManifest(root),/unsafe/);
 }));
+
+test("exact private preview path refuses traversal, sibling-prefix and missing runner root",()=>{
+  const temp=join(tmpdir(),"d065-safe-temp");
+  assert.equal(safePreviewOutput(join(temp,"d065-preview.json"),temp),join(temp,"d065-preview.json"));
+  assert.throws(()=>safePreviewOutput(join(temp,"..","outside.json"),temp),/exact runner-private/);
+  assert.throws(()=>safePreviewOutput(join(temp+"-foreign","d065-preview.json"),temp),/exact runner-private/);
+  assert.throws(()=>safePreviewOutput(join(temp,"other.json"),temp),/exact runner-private/);
+  assert.throws(()=>safePreviewOutput(join(temp,"d065-preview.json"),""),/exact runner-private/);
+});
