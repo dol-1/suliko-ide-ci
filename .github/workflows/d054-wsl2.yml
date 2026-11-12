@@ -76,4 +76,10 @@ jobs:
           done
           if [[ "$ready" != 1 ]]; then echo "WSL2 stock BB loopback did not boot" >&2; tail -50 "$tmp/wsl-server.log" >&2; exit 1; fi
           node -e 'const fs=require("node:fs"); const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!s||typeof s!=="object")throw Error("Not a JSON status")' "$tmp/settings.json"
-          echo 'SPIKE-02 WSL2: stock BB desktop-v0.49.0 built from pinned source under Ubuntu 24.04 in Windows-2022 WSL2, loopback status queried. No production or Remote connectivity.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'SPIKE-02 WSL2: pinned stock BB built and loopback status queried in disposable WSL2 Ubuntu 24.04.'
+
+      - name: Record WSL2 test result from Windows host
+        if: success()
+        shell: pwsh
+        run: |
+          'SPIKE-02 WSL2 PASS: exact stock BB built and loopback status queried inside disposable Ubuntu 24.04 on Windows-2022 WSL2. No owner device, signature or Remote.' >> $env:GITHUB_STEP_SUMMARY
