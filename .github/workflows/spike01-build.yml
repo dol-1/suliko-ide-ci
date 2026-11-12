@@ -66,12 +66,14 @@ jobs:
           set -o pipefail
           pnpm install --frozen-lockfile 2>&1 | tee evidence/install.log
       - name: Build stock BB
+        id: build
         shell: bash
         timeout-minutes: 30
         run: |
           set -o pipefail
           pnpm run build 2>&1 | tee evidence/build.log
       - name: Typecheck stock BB
+        id: typecheck
         shell: bash
         timeout-minutes: 20
         run: |
@@ -84,6 +86,8 @@ jobs:
           set -o pipefail
           pnpm run test 2>&1 | tee evidence/test.log
       - name: Fingerprint key built outputs
+        # Preserve completed build evidence even when unrelated upstream tests fail.
+        if: ${{ always() && steps.build.outcome == 'success' && steps.typecheck.outcome == 'success' }}
         shell: bash
         run: |
           test -d packages/bb-app/dist
@@ -93,7 +97,8 @@ jobs:
           test -s evidence/sha256.txt
           printf 'Built files: %s\n' "$(wc -l < evidence/sha256.txt)" >> "$GITHUB_STEP_SUMMARY"
       - name: CycloneDX SBOM from installed workspace
-        if: ${{ matrix.replica == 1 }}
+        id: sbom
+        if: ${{ always() && matrix.replica == 1 && steps.build.outcome == 'success' && steps.typecheck.outcome == 'success' }}
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
         with:
           path: .
@@ -103,7 +108,7 @@ jobs:
           upload-release-assets: false
           dependency-snapshot: false
       - name: Summarize license flags (not legal clearance)
-        if: ${{ matrix.replica == 1 }}
+        if: ${{ always() && matrix.replica == 1 && steps.sbom.outcome == 'success' }}
         shell: bash
         run: |
           node <<'NODE'
@@ -135,6 +140,7 @@ jobs:
   compare:
     name: Compare independent output hashes (report drift)
     needs: build
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
