@@ -49,7 +49,10 @@ test("fixed-schema private disposable support bundle excludes untrusted fields",
     const bytes=readFileSync(path,"utf8");
     assert.deepEqual(JSON.parse(bytes),clean);
     assert.doesNotMatch(bytes,/SENTINEL|\/ci\/disposable|rawProviderToken|unknown-user-extension/);
-    assert.equal(lstatSync(path).mode&0o777,0o600);
+    // Windows does not expose an equivalent POSIX chmod contract via stat.mode.
+    // Linux live-readonly still enforces 0600; all OS enforce wx/no-overwrite.
+    assert.equal(lstatSync(path).isFile(),true);
+    if(process.platform!=="win32")assert.equal(lstatSync(path).mode&0o777,0o600);
     assert.throws(()=>writeCiSafeBundle(report,path,root),/could not be created/);
   }finally{rmSync(root,{recursive:true,force:true});}
 });

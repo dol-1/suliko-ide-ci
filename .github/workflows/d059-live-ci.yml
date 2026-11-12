@@ -1,7 +1,7 @@
 name: D-059 actual disposable BB CLI doctor partial observations (NO USER DATA)
 on:
   push:
-    branches: [feat/d059-live-ci-observation, feat/d059-ci-support-bundle, main]
+    branches: [feat/d059-live-ci-observation, feat/d059-ci-support-bundle, feat/d059-portable-private-bundle, main]
     paths:
       - scripts/d059-live-ci-readonly.mjs
       - scripts/d059-live-ci-readonly.test.mjs
@@ -26,6 +26,24 @@ jobs:
             echo 'D059 unsafe entry allowed without disposable environment' >&2
             exit 1
           fi
+  portable-private-bundle-contract:
+    name: Private synthetic bundle on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Fixed schema, synthetic secret, write-once and path negatives
+        run: node --test scripts/d059-live-ci-readonly.test.mjs
   live-readonly:
     runs-on: ubuntu-24.04
     timeout-minutes: 50
