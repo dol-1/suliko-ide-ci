@@ -1,0 +1,5 @@
+# D-059 Doctor preview — local synthetic data only
+
+Run `node scripts/suliko-doctor.mjs --fixture synthetic.json [--bundle new-report.json]`. The script reads ONLY the explicitly supplied synthetic fixture; it neither probes the live BB instance nor copies any logs/environment variables, local paths, credentials, provider tokens, user names, device identifiers, network endpoints or repositories. This makes private data impossible to leak through unsupported input fields. A bundle is created with `wx`, never overwrites an existing file; POSIX mode 0600. The 3-OS CI tests invented secrets and verifies no values are emitted.
+
+**This is not a live security verifier or support diagnostics integration yet.** Its generated report is labeled `synthetic-fixture-only-not-live-bb`. Unknown BB versions, plugins or non-loopback listeners fail closed. It cannot claim a real SEC-02 installation passes. Future live mode must use an approved, sanitized machine-readable CLI interface and never output raw logs or provider secret content. Source approved E2 D-059 project roadmap.
