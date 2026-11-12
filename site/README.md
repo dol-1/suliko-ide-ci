@@ -1,6 +1,6 @@
 # Docs site preview
 
-Source: [Claude D-062 E5](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36). **Public-only content**, no internal roadmap, risk matrix, private work items, BB source changes, secrets or release. Public pages in `site/docs`.
+Source: approved E5 D-062 project roadmap. **Public-only content**, no internal roadmap, risk matrix, private work items, BB source changes, secrets or release. Public pages in `site/docs`.
 
 Build system: [Material for MkDocs 9.8.1](https://pypi.org/project/mkdocs-material/9.8.1/) (MIT, pinned direct dependency; transitive lock and licenses **not yet audited**). Material will reach [end of life 2027-05-05](https://squidfunk.github.io/mkdocs-material/getting-started/), so migrate to Zensical or other maintained static site generator before support ends.
 
