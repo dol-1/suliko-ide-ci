@@ -1,4 +1,4 @@
-# SPIKE-04 experimental test tag, never a production release; this runs only on CI feature branch.
+# D-040 experimental nonrelease test tag; no published product release.
 name: SPIKE-04 marketplace test-tag install (experimental)
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Verify immutable experimental test source
+      - name: Verify immutable experimental source tag contract
         shell: bash
         run: |
           set -euo pipefail
@@ -30,118 +30,26 @@ jobs:
           const g=p.plugins[0].source.git;
           if(g.url!=='https://github.com/dol-1/suliko-ide-ci.git'||g.subdir!=='plugins/suliko-hello'||g.tagPrefix!=='suliko-hello-'||g.range!=='0.1.0-rc1') throw Error('unexpected source');
           NODE
-          test "$GITHUB_REF_NAME" = "feat/d040-experimental-runs" || test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
-      - name: Create immutable non-release test tag on GitHub mirror
+          test "$GITHUB_REF_NAME" = "feat/d040-experimental-runs"
+      - name: Create or verify immutable nonrelease experimental tag
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="suliko-hello-v0.1.0-rc1"
-          response="$(curl --silent --show-error --header "Authorization: Bearer $GH_TOKEN" --header "Accept: application/vnd.github+json" --write-out '\n%{http_code}' "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/tags/$tag")"
-          status="${response##*
-          test -n "$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag")"
-          echo "Non-release test tag $tag pins SHA $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-      - name: Checkout frozen BB source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: get-bb/bb
-          ref: desktop-v0.49.0
-          path: stock-bb
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22.19.0'
-          package-manager-cache: false
-      - name: Stock BB build and plugin harness
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
-          corepack enable
-          corepack prepare pnpm@9.15.0 --activate
-          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
-          (cd plugins/suliko-hello && pnpm install --no-frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
-      - name: Marketplace CLI registration and reviewed Git install
-        shell: bash
-        timeout-minutes: 12
-        run: |
-          set -euo pipefail
-          export BB_DATA_DIR="$RUNNER_TEMP/spike04-mkt-data"
-          cleanup() { node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true; }
-          trap cleanup EXIT
-          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38886 --no-in-app-updates >"$RUNNER_TEMP/spike04-launch.log" 2>&1 &
-          ready=0
-          for i in $(seq 1 45); do
-            if node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
-            sleep 2
-          done
-          test "$ready" = 1
-          node stock-bb/packages/bb-app/dist/bb.js marketplace add "path:$GITHUB_WORKSPACE/marketplace"
-          node stock-bb/packages/bb-app/dist/bb.js plugin install suliko-hello@suliko-experimental --yes
-          node stock-bb/packages/bb-app/dist/bb.js plugin list --json >"$RUNNER_TEMP/spike04-plugin-list.json"
-          node -e 'const p=require(process.argv[1]);if(!p.plugins?.some(x=>x.id.includes("suliko-hello")&&x.enabled===true)) throw Error("Hello plugin not loaded")' "$RUNNER_TEMP/spike04-plugin-list.json"
-          echo "Experimental marketplace installed on disposable loopback BB. SDK harness checked panel/RPC. Actual interactive Desktop/Web mount remains a separate gate." >> "$GITHUB_STEP_SUMMARY"
-\n'}"
-          body="${response%
-          test -n "$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag")"
-          echo "Non-release test tag $tag pins SHA $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-      - name: Checkout frozen BB source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: get-bb/bb
-          ref: desktop-v0.49.0
-          path: stock-bb
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22.19.0'
-          package-manager-cache: false
-      - name: Stock BB build and plugin harness
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
-          corepack enable
-          corepack prepare pnpm@9.15.0 --activate
-          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
-          (cd plugins/suliko-hello && pnpm install --no-frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
-      - name: Marketplace CLI registration and reviewed Git install
-        shell: bash
-        timeout-minutes: 12
-        run: |
-          set -euo pipefail
-          export BB_DATA_DIR="$RUNNER_TEMP/spike04-mkt-data"
-          cleanup() { node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true; }
-          trap cleanup EXIT
-          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38886 --no-in-app-updates >"$RUNNER_TEMP/spike04-launch.log" 2>&1 &
-          ready=0
-          for i in $(seq 1 45); do
-            if node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
-            sleep 2
-          done
-          test "$ready" = 1
-          node stock-bb/packages/bb-app/dist/bb.js marketplace add "path:$GITHUB_WORKSPACE/marketplace"
-          node stock-bb/packages/bb-app/dist/bb.js plugin install suliko-hello@suliko-experimental --yes
-          node stock-bb/packages/bb-app/dist/bb.js plugin list --json >"$RUNNER_TEMP/spike04-plugin-list.json"
-          node -e 'const p=require(process.argv[1]);if(!p.plugins?.some(x=>x.id.includes("suliko-hello")&&x.enabled===true)) throw Error("Hello plugin not loaded")' "$RUNNER_TEMP/spike04-plugin-list.json"
-          echo "Experimental marketplace installed on disposable loopback BB. SDK harness checked panel/RPC. Actual interactive Desktop/Web mount remains a separate gate." >> "$GITHUB_STEP_SUMMARY"
-\n'*}"
-          if [[ "$status" = 200 ]]; then
-            existing="$(printf '%s' "$body" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).object?.sha||""))')"
-            test "$existing" = "$GITHUB_SHA" || { echo "Immutable test tag points to another SHA: $existing"; exit 1; }
-          elif [[ "$status" = 404 ]]; then
-            curl --fail-with-body --silent --show-error --request POST \
-              --header "Authorization: Bearer $GH_TOKEN" \
-              --header "Accept: application/vnd.github+json" \
-              --header "Content-Type: application/json" \
-              --data "{\"ref\":\"refs/tags/$tag\",\"sha\":\"$GITHUB_SHA\"}" \
-              "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs" >/dev/null
+          status="$(curl --silent --show-error --header "Authorization: Bearer $GH_TOKEN" --header "Accept: application/vnd.github+json" --output "$RUNNER_TEMP/tag-response.json" --write-out '%{http_code}' "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/tags/$tag")"
+          if [[ "$status" == 200 ]]; then
+            existing="$(node -e 'const s=require(process.argv[1]);process.stdout.write(s.object?.sha||"")' "$RUNNER_TEMP/tag-response.json")"
+            test "$existing" = "$GITHUB_SHA" || { echo "Test tag already pinned to another SHA, do not move it"; exit 1; }
+          elif [[ "$status" == 404 ]]; then
+            node -e 'require("node:fs").writeFileSync(process.argv[1],JSON.stringify({ref:"refs/tags/"+process.argv[2],sha:process.argv[3]}))' "$RUNNER_TEMP/tag-create.json" "$tag" "$GITHUB_SHA"
+            curl --fail-with-body --silent --show-error --request POST --header "Authorization: Bearer $GH_TOKEN" --header "Accept: application/vnd.github+json" --header "Content-Type: application/json" --data-binary "@$RUNNER_TEMP/tag-create.json" "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs" > /dev/null
           else
-            echo "GitHub tag lookup unavailable (HTTP $status)"; exit 1
+            echo "Unexpected GitHub tag lookup HTTP $status"; exit 1
           fi
           test -n "$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag")"
-          echo "Non-release test tag $tag pins SHA $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Experiment pin: $tag @ $GITHUB_SHA (NONRELEASE)" >> "$GITHUB_STEP_SUMMARY"
       - name: Checkout frozen BB source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
