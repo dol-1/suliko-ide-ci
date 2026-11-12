@@ -1,0 +1,105 @@
+name: D-066 installed Remote MOCK Web a11y KA/EN axe-core smoke
+on:
+  push:
+    branches: [feat/d066-remote-mock-web-axe, main]
+    paths:
+      - '.github/workflows/d066-remote-mock-web-axe.yml'
+      - 'tests/parity/remote-mock-a11y.mjs'
+      - 'plugins/suliko-remote-panel/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  web-only-hello:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38887'
+      BB_HOST_DAEMON_PORT: '38889'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Checkout exact unmodified stock BB 0.49.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+      - name: Build checked-out frozen BB without modifying upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = 7b26cae79ec978fafd0a5db0e8517e94f12eb8f4
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
+      - name: Install pinned MPL-2.0 axe testing library for CI only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tests/parity
+          npm install --include=dev --no-audit --no-fund
+          npm install --no-save --no-package-lock --no-audit --no-fund '@axe-core/playwright@4.14.0'
+          # Package exports intentionally hides ./package.json: resolve the
+          # public entry point then read the nearest package root metadata.
+          node - <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          let dir=path.dirname(require.resolve('@axe-core/playwright')),p=null;
+          for(let i=0;i<9;i++){
+            const candidate=path.join(dir,'package.json');
+            if(fs.existsSync(candidate)){
+              const value=JSON.parse(fs.readFileSync(candidate,'utf8'));
+              if(value.name==='@axe-core/playwright'){p=value;break;}
+            }
+            const next=path.dirname(dir);
+            if(next===dir)break;
+            dir=next;
+          }
+          if(!p||p.version!=='4.14.0'||p.license!=='MPL-2.0')
+            throw Error('Axe dev-only dependency version/license not reviewed');
+          NODE
+          npx playwright install chromium
+      - name: Create only disposable loopback BB and own Remote MOCK plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          data="$RUNNER_TEMP/d066-web-data"
+          mkdir -p "$data"
+          export BB_DATA_DIR="$data"
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$data" --server-bind-host 127.0.0.1 --server-port 38887 --host-daemon-port 38889 --no-in-app-updates >"$RUNNER_TEMP/d066-web-launch.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --max-time 2 --output "$RUNNER_TEMP/d066-ready.html" http://127.0.0.1:38887/ 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1 || { echo "D066 Web BB unavailable"; exit 1; }
+          node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-remote-panel --yes
+          project="$RUNNER_TEMP/d066-synthetic-project"
+          mkdir -p "$project"
+          git -C "$project" init -b main >/dev/null
+          printf 'Disposable test only\n' > "$project/README.md"
+          git -C "$project" add README.md
+          node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-synthetic --root "$project" >/dev/null
+          echo "$data" >"$RUNNER_TEMP/d066-data-path"
+      - name: Axe-core actual installed Remote MOCK Web panel in EN and KA
+        shell: bash
+        env:
+          BB_A11Y_URL: 'http://127.0.0.1:38887'
+        run: |
+          node tests/parity/remote-mock-a11y.mjs
+          echo 'D066 checked installed own Remote MOCK Web panel EN/KA without live Remote connection, token, approvals or Desktop.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop disposable server
+        if: always()
+        shell: bash
+        run: |
+          if [ -s "$RUNNER_TEMP/d066-data-path" ]; then
+            node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/d066-data-path")" >/dev/null 2>&1 || true
+          fi

@@ -13,7 +13,8 @@
     "branding": {
       "icon": "Monitor"
     },
-    "app": "./app.tsx"
+    "app": "./app.tsx",
+    "server": "./server.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
