@@ -2,7 +2,8 @@
 // NEVER use this CLI on a user's normal BB_DATA_DIR or print BB's raw config.
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 const forbidden=["account-pool","bb--mcp","connect","bb--connect-next","memory"];
 const owned=["suliko-hello","suliko-remote-panel"];
@@ -31,6 +32,37 @@ export function inspectLive(config,plugins,expectedDir,port) {
     status:loopback&&dataDirMatches&&forbiddenSafe?"partial-runtime-pass":"review-required",
   };
 }
+
+/** Write only a fixed-schema, synthetic CI-only support bundle. Never raw CLI data. */
+export function writeCiSafeBundle(report,requestedPath,tempRoot) {
+  if(!tempRoot||!requestedPath||requestedPath!==join(tempRoot,"d059-support-bundle.json"))
+    throw Error("Refusing non-disposable support bundle path");
+  const validState=new Set(["enabled","disabled","absent","unknown"]);
+  const pluginStates=Object.fromEntries([...forbidden,...owned].map(id=>{
+    const state=report?.pluginStates?.[id];
+    return [id,validState.has(state)?state:"unknown"];
+  }));
+  const clean={
+    schema:"suliko-doctor-live-ci-v1",
+    evidence:"actual-disposable-stock-bb-cli-reads-only",
+    stockPin:"desktop-v0.49.0",
+    checks:{
+      serverLoopback:report?.checks?.serverLoopback===true,
+      dataDirectoryMatchesDisposable:report?.checks?.dataDirectoryMatchesDisposable===true,
+      forbiddenPluginsSafe:report?.checks?.forbiddenPluginsSafe===true,
+    },
+    pluginStates,
+    providerKeyPresence:"NOT_INSPECTED",
+    providerSettingsAndHooks:"NOT_INSPECTED",
+    status:report?.status==="partial-runtime-pass"?"partial-runtime-pass":"review-required",
+  };
+  // wx = exclusive create. Never overwrite a user file or follow an existing
+  // symlink; private permissions, fail closed without echoing OS paths/errors.
+  try { writeFileSync(requestedPath,JSON.stringify(clean,null,2)+"\n",{flag:"wx",mode:0o600}); }
+  catch { throw Error("Safe CI support bundle could not be created"); }
+  return clean;
+}
+
 function fromCli(bin,args) {
   try {
     // Keep all raw BB output in memory. Never print stderr, env, file paths,
@@ -43,7 +75,9 @@ function fromCli(bin,args) {
   } catch {throw Error("Sanitized stock BB CLI read failed");}
 }
 function main(argv){
-  if(argv.length!==1||argv[0]!=="--ci-disposable")throw Error("Only --ci-disposable is allowed");
+  const bundleRequested=argv.length===3&&argv[1]==="--bundle";
+  if(argv[0]!=="--ci-disposable"||!(argv.length===1||bundleRequested))
+    throw Error("Only --ci-disposable [--bundle exact-disposable-path] is allowed");
   const env=process.env,root=env.RUNNER_TEMP,port=Number(env.BB_SERVER_PORT);
   if(env.CI!=="true"||!root||env.BB_DATA_DIR!==resolve(root,"d059-live-data")||
       env.BB_SERVER_BIND_HOST!=="127.0.0.1"||
@@ -54,6 +88,7 @@ function main(argv){
   if(!existsSync(bin))throw Error("Reviewed stock BB CLI missing");
   const report=inspectLive(fromCli(bin,["settings","show","--json"]),
     fromCli(bin,["plugin","list","--json"]),env.BB_DATA_DIR,port);
+  if(bundleRequested)writeCiSafeBundle(report,argv[2],root);
   process.stdout.write(JSON.stringify(report)+"\n");
   if(report.status!=="partial-runtime-pass")process.exitCode=1;
 }

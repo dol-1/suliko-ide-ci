@@ -1,7 +1,7 @@
 name: D-059 actual disposable BB CLI doctor partial observations (NO USER DATA)
 on:
   push:
-    branches: [feat/d059-live-ci-observation, main]
+    branches: [feat/d059-live-ci-observation, feat/d059-ci-support-bundle, main]
     paths:
       - scripts/d059-live-ci-readonly.mjs
       - scripts/d059-live-ci-readonly.test.mjs
@@ -94,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           export BB_DATA_DIR="$RUNNER_TEMP/d059-live-data"
-          node scripts/d059-live-ci-readonly.mjs --ci-disposable > "$RUNNER_TEMP/d059-aggregate.json"
+          node scripts/d059-live-ci-readonly.mjs --ci-disposable --bundle "$RUNNER_TEMP/d059-support-bundle.json" > "$RUNNER_TEMP/d059-aggregate.json"
           node - <<'NODE'
           const fs=require('fs');
           const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/d059-aggregate.json','utf8'));
@@ -103,6 +103,14 @@ jobs:
             throw Error('Disposable BB live doctor assertions failed');
           const s=JSON.stringify(r);
           if(s.includes(process.env.RUNNER_TEMP)||/"dataDir"\s*:/.test(s)||/"token"\s*:/.test(s))throw Error('Potential raw internal evidence leak');
+          const path=process.env.RUNNER_TEMP+'/d059-support-bundle.json';
+          const stat=fs.lstatSync(path);
+          if(!stat.isFile()||stat.isSymbolicLink()||(stat.mode&0o777)!==0o600)
+            throw Error('D059 support bundle file permissions not private');
+          const contents=fs.readFileSync(path,'utf8');
+          const bundle=JSON.parse(contents);
+          if(JSON.stringify(bundle)!==s||contents.includes(process.env.RUNNER_TEMP))
+            throw Error('D059 support bundle differs from allowlisted aggregate');
           console.log('D059 live disposable stock BB server config + plugin status READ-ONLY PASS; full doctor NOT COMPLETE');
           NODE
           # Verify both actual listening sockets, not just the server-config URL.
