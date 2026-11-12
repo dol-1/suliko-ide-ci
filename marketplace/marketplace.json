@@ -23,6 +23,9 @@
           "range": "0.1.0-rc1",
           "tagPrefix": "suliko-hello-"
         }
+      },
+      "icon": {
+        "url": "./icons/hello.svg"
       }
     }
   ]

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Suliko Hello experimental plugin">
+  <rect width="64" height="64" rx="14" fill="#152138"/>
+  <path d="M26 16v11m12-11v11M22 27h20v10c0 7-5 12-10 12S22 44 22 37V27ZM32 49v6" fill="none" stroke="#7ed6ce" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
