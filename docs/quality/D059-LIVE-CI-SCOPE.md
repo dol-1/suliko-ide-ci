@@ -18,3 +18,7 @@ The isolated CI script also supports `--ci-disposable --bundle "$RUNNER_TEMP/d05
 ## D059 portable source-contract matrix (no real-user bundle)
 
 Additional public CI tests run the **same synthetic fixed-schema, secret-canary, path and exclusive-create tests** on Ubuntu 24.04, macOS 15 and Windows 2022, with Node 22.19.0. On POSIX systems, the test asserts mode 0600; on Windows, where `stat.mode` does not prove NTFS ACL secrecy, it asserts regular file and exclusive create but **does not claim ACL validation**. The separate Ubuntu real disposable stock BB CLI job still requires a 0600 regular file and two loopback-only TCP listeners. No end-user profile, real provider credential, credential presence check, private Windows ACL audit, or approved support sharing is tested here.
+
+## Pinned stock CLI version observation (D059)
+
+The isolated Linux runner invokes its **actual built pinned stock BB CLI** with `--version` and requires its plain output to be exactly `0.49.0` (allowing terminal whitespace). `BB_APP_VERSION` environment overrides are rejected. Only `checks.stockVersionMatchesPin: boolean` enters the redacted report/bundle; a malicious string cannot be reflected in public output. This checks the disposable CLI process version, not the user's installed BB or a remote daemon's version. Source: pinned `apps/cli/src/index.ts` Commander `.version(resolveBbCliVersion())`, `apps/cli/src/version.ts`; E2 #43.

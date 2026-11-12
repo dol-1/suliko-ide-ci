@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { inspectLive,writeCiSafeBundle } from "./d059-live-ci-readonly.mjs";
+import { inspectLive,writeCiSafeBundle,stockVersionMatchesPin } from "./d059-live-ci-readonly.mjs";
 import { mkdtempSync,readFileSync,writeFileSync,symlinkSync,lstatSync,rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +10,7 @@ const plugins=(more=[])=>({plugins:[
 {id:"connect",enabled:false},{id:"bb--connect-next",enabled:false},
 {id:"memory",enabled:false},{id:"suliko-hello",enabled:true},...more]});
 test("real-shaped CLI data reduces to explicit safe statuses",()=>{
-  const r=inspectLive(config(),plugins(),"/ci/disposable",38884);
+  const r=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n");
   assert.equal(r.status,"partial-runtime-pass");
   assert.equal(r.pluginStates["suliko-hello"],"enabled");
   assert.equal(r.providerKeyPresence,"NOT_INSPECTED");
@@ -23,14 +23,14 @@ test("non-loopback host, port, or data directory cannot pass",()=>{
     {serverUrl:"http://127.0.0.1:38885"},
     {serverUrl:"http://0.0.0.0:38884"},
     {dataDir:"/user/home"}]){
-    const r=inspectLive(config(c),plugins(),"/ci/disposable",38884);
+    const r=inspectLive(config(c),plugins(),"/ci/disposable",38884,"0.49.0\n");
     assert.equal(r.status,"review-required");
   }
 });
 test("forbidden enabled and unknown statuses reject acceptance",()=>{
   for(const extra of [[{id:"memory",enabled:true}],[{id:"memory",enabled:"yes"}]]){
     const pl=plugins().plugins.filter(x=>x.id!=="memory").concat(extra);
-    assert.equal(inspectLive(config(),{plugins:pl},"/ci/disposable",38884).status,"review-required");
+    assert.equal(inspectLive(config(),{plugins:pl},"/ci/disposable",38884,"0.49.0\n").status,"review-required");
   }
 });
 test("malformed CLI shape is rejected, never serialized",()=>{
@@ -42,7 +42,7 @@ test("fixed-schema private disposable support bundle excludes untrusted fields",
   const root=mkdtempSync(join(tmpdir(),"d059-ci-test-"));
   const path=join(root,"d059-support-bundle.json");
   try{
-    const report=inspectLive(config(),plugins(),"/ci/disposable",38884);
+    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n");
     report.rawProviderToken="SENTINEL-DO-NOT-EMIT";
     report.pluginStates["unknown-user-extension"]="SENTINEL";
     const clean=writeCiSafeBundle(report,path,root);
@@ -75,4 +75,18 @@ test("preexisting symlink cannot redirect bundle write into a sentinel",()=>{
     assert.throws(()=>writeCiSafeBundle({},link,root),/could not be created/);
     assert.equal(readFileSync(target,"utf8"),"DO-NOT-OVERWRITE");
   }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test("stock --version must match pinned CLI, never print attacker-supplied output",()=>{
+  assert.equal(stockVersionMatchesPin("0.49.0\n"),true);
+  for(const bad of ["0.49.1","0.49.0\nSENTINEL-NEVER-PRINT","0.0.0-dev","",null,{}, "0.49.0--fake"]){
+    assert.equal(stockVersionMatchesPin(bad),false);
+    const report=inspectLive(config(),plugins(),"/ci/disposable",38884,bad);
+    assert.equal(report.checks.stockVersionMatchesPin,false);
+    assert.equal(report.status,"review-required");
+    assert.doesNotMatch(JSON.stringify(report),/SENTINEL|fake|0.49.1|0.0.0-dev/);
+  }
+  const ok=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n");
+  assert.equal(ok.checks.stockVersionMatchesPin,true);
+  assert.equal(ok.status,"partial-runtime-pass");
 });
