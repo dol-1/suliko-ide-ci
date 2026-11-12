@@ -41,6 +41,8 @@ export function RemotePanel() {
         <>
           <section aria-label="Devices">
             <h3>Devices</h3>
+            {snapshot.devices.length === 0 ? <p role="status">No devices available in this snapshot.</p> : null}
+            {snapshot.devices.some(d => d.status === "offline") ? <p role="status">Some devices are offline; status is informational only.</p> : null}
             <ul>
               {snapshot.devices.map((d) => (
                 <li key={d.id}>{d.label} — {d.status}</li>
@@ -49,6 +51,7 @@ export function RemotePanel() {
           </section>
           <section aria-label="Pending approvals">
             <h3>Pending approvals</h3>
+            {snapshot.approvals.length === 0 ? <p role="status">No pending approvals.</p> : null}
             <p>Approval is performed only on the separate Remote secure page, never inside IDE.</p>
             <ul>
               {snapshot.approvals.map((a) => (
