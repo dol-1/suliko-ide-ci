@@ -23,6 +23,11 @@ jobs:
           set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/suliko-docs-venv"
           "$RUNNER_TEMP/suliko-docs-venv/bin/pip" install --disable-pip-version-check --no-input 'mkdocs-material==9.8.1'
+      - name: Gate: installed Python documentation dependency license declarations
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/suliko-docs-venv/bin/python" scripts/docs-license-check.py --self-test
+          "$RUNNER_TEMP/suliko-docs-venv/bin/python" scripts/docs-license-check.py
       - name: Strict build, no deployment or public artifact
         run: |
           set -euo pipefail
