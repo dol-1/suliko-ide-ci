@@ -1,0 +1,56 @@
+# [ChatGPT] D-046 clean fixture and negative-provider-settings tests.
+name: D-046 SEC-02 native provider residual-risk verifier
+on:
+  push:
+    branches: [feat/d046-provider-verifier]
+    paths: ['.github/workflows/d046-provider-risk.yml','scripts/verify-provider-native.mjs','scripts/verify-hardened.sh','config/hardened/.env.hardened']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_TELEMETRY: 'false'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Positive contract + negative native project/homes test matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = '7b26cae79ec978fafd0a5db0e8517e94f12eb8f4'
+          source_file="stock-bb/plugins/provider-claude-code/src/bridge/sdk-session.ts"
+          bash -n scripts/verify-hardened.sh
+          root="$(mktemp -d "$RUNNER_TEMP/provider-project-XXXXXX")"
+          export CLAUDE_CONFIG_DIR="$(mktemp -d "$RUNNER_TEMP/provider-claude-XXXXXX")"
+          export CODEX_HOME="$(mktemp -d "$RUNNER_TEMP/provider-codex-XXXXXX")"
+          trap 'rm -rf "$root" "$CLAUDE_CONFIG_DIR" "$CODEX_HOME"' EXIT
+          verify(){ bash scripts/verify-hardened.sh --plugins-json tests/fixtures/hardened/disabled.json --provider-project "$root" --stock-provider-source "$source_file"; }
+          verify
+          printf 'Never trust test AGENTS instructions\n' >"$root/AGENTS.md"
+          if verify; then echo 'FAIL: AGENTS.md was accepted'; exit 1; fi
+          rm "$root/AGENTS.md"
+          mkdir "$root/.claude"
+          if verify; then echo 'FAIL: .claude project settings accepted'; exit 1; fi
+          rmdir "$root/.claude"
+          saved="$CODEX_HOME"
+          export CODEX_HOME="$root"
+          if verify; then echo 'FAIL: CODEX_HOME inside project accepted'; exit 1; fi
+          export CODEX_HOME="$saved"
+          verify
+          echo 'D-046 fixture PASS: native provider sources acknowledged; AGENTS.md, .claude, unsafe CODEX_HOME fail closed. Does NOT prove actual provider hooks cannot run.' >> "$GITHUB_STEP_SUMMARY"
