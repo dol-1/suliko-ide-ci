@@ -1,7 +1,7 @@
 import { previewManifest,safePreviewOutput } from "./d065-source-preview.mjs";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 function fixture(fn) {
@@ -49,3 +49,17 @@ test("exact private preview path refuses traversal, sibling-prefix and missing r
   assert.throws(()=>safePreviewOutput(join(temp,"other.json"),temp),/exact runner-private/);
   assert.throws(()=>safePreviewOutput(join(temp,"d065-preview.json"),""),/exact runner-private/);
 });
+
+test("catalog leaf symlink rejected before JSON parsing",()=>fixture(root=>{
+  const leaf=join(root,"marketplace/marketplace.json");
+  rmSync(leaf);
+  symlinkSync(join(root,"plugins/suliko-hello/package.json"),leaf);
+  assert.throws(()=>previewManifest(root),/unsafe preview marketplace catalog/);
+}));
+test("catalog parent symlink cannot redirect preview to external tree",()=>fixture(root=>{
+  const oldDir=join(root,"marketplace");
+  const target=join(root,"marketplace-target");
+  renameSync(oldDir,target);
+  symlinkSync(target,oldDir,"dir");
+  assert.throws(()=>previewManifest(root),/unsafe preview marketplace catalog/);
+}));

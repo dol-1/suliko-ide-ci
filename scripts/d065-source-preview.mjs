@@ -22,7 +22,14 @@ function collect(root,where,items) {
 }
 export function previewManifest(root) {
   const abs=resolve(root);
-  const catalog=JSON.parse(readFileSync(join(abs,CATALOG),"utf8"));
+  // Validate both directory and leaf before parsing. Otherwise JSON errors
+  // from a symlinked catalog can echo private external file snippets.
+  const catalogParent=join(abs,"marketplace"),catalogFile=join(abs,CATALOG);
+  const parentStat=lstatSync(catalogParent),leafStat=lstatSync(catalogFile);
+  if(parentStat.isSymbolicLink()||!parentStat.isDirectory()||
+     leafStat.isSymbolicLink()||!leafStat.isFile())
+    throw Error("Reject unsafe preview marketplace catalog path");
+  const catalog=JSON.parse(readFileSync(catalogFile,"utf8"));
   if(catalog.schemaVersion!==1||catalog.name!=="suliko-experimental"||
       catalog.plugins?.length!==1||catalog.plugins[0]?.id!=="suliko-hello")throw Error("Unreviewed marketplace catalog");
   if(catalog.plugins[0].source?.git?.url!=="https://github.com/dol-1/suliko-ide-ci.git")throw Error("Unreviewed marketplace origin");
