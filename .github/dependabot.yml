@@ -1,0 +1,27 @@
+# D-063 / E6: public CI dependency-update requests only, not automatic merges.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
+  - package-ecosystem: "npm"
+    directory: "/plugins/suliko-hello"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(hello)"
+  - package-ecosystem: "npm"
+    directory: "/plugins/suliko-remote-panel"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(remote)"
