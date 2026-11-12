@@ -16,9 +16,17 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22.19.0'
-      - working-directory: plugins/suliko-hello
+      # npm 10.9.3 Arborist crashed on this package's dependency graph (edgesOut);
+      # use BB's own pinned pnpm 9.15.0, without skipping any checks.
+      - name: Install pinned pnpm
         run: |
-          npm install --include=dev --no-audit --no-fund
-          npm run typecheck
-          npm test
-          npm run build
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm --version
+      - name: Full plugin SDK checks
+        working-directory: plugins/suliko-hello
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm run typecheck
+          pnpm test
+          pnpm run build
