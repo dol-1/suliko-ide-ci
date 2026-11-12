@@ -1,8 +1,9 @@
 name: D-063 redacted full-public-git-history Gitleaks
 on:
   push:
-    branches: [feat/d063-gitleaks-public-history, main]
-    paths: [.github/workflows/d063-gitleaks.yml]
+    branches: [feat/d063-gitleaks-public-history, feat/d063-gitleaks-all-prs, main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: '17 4 * * *'
   workflow_dispatch:
@@ -28,9 +29,12 @@ jobs:
           printf '%s  %s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' "$folder/pkg.tar.gz" | sha256sum -c - >/dev/null
           tar -xzf "$folder/pkg.tar.gz" -C "$folder/bin" gitleaks
           "$folder/bin/gitleaks" version
+          test "$(git rev-parse --is-shallow-repository)" = false
           git rev-list --all --count >/dev/null
+          # On pull_request, explicitly include the detached merge HEAD as
+          # well as all fetched refs. No report text or matching line emitted.
           set +e
-          "$folder/bin/gitleaks" git . --log-opts='--all' --redact=100 --no-banner --log-level error --report-format json --report-path "$folder/findings.json" >"$folder/tool.stdout" 2>"$folder/tool.stderr"
+          "$folder/bin/gitleaks" git . --log-opts='--all HEAD' --redact=100 --no-banner --log-level error --report-format json --report-path "$folder/findings.json" >"$folder/tool.stdout" 2>"$folder/tool.stderr"
           code=$?
           set -e
           node - "$folder/findings.json" <<'NODE'
