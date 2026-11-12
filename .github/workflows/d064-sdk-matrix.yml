@@ -1,4 +1,4 @@
-name: D-064 real published upstream SDK compile matrix (NON-RELEASE)
+name: D-064 pinned vs upstream Git source SDK compile matrix (NON-RELEASE)
 on:
   push:
     branches: [feat/d064-real-sdk-matrix, main]
@@ -50,7 +50,7 @@ jobs:
           echo "SDK_VERSION=$SDK_VERSION" >> "$GITHUB_ENV"
           echo "UPSTREAM_MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
           echo "D064 context=$SDK_CONTEXT upstream_sha=$MAIN_SHA source_sdk=$MAIN_SDK tested_sdk=$SDK_VERSION"
-          printf '### D064 actual published SDK test (NOT runtime compatibility)\n\n- Upstream main SHA: %s\n- SDK version declared there: %s\n- Tested published SDK version: %s (%s)\n- Pinned desktop-v0.49.0 SDK: %s\n- All edits occur ONLY in disposable runner copies. No BB source is edited.\n- A published SDK can differ from the exact Git source; full upstream-main build remains a separate gate.\n' "$MAIN_SHA" "$MAIN_SDK" "$SDK_VERSION" "$SDK_CONTEXT" "$PIN_SDK" >> "$GITHUB_STEP_SUMMARY"
+          printf '### D064 SDK test against pinned npm or actual upstream Git source (NOT runtime compatibility)\n\n- Upstream main SHA: %s\n- SDK version declared there: %s\n- SDK version tested: %s (%s; upstream mode builds and packs verified Git main SHA)\n- Pinned desktop-v0.49.0 SDK: %s\n- All edits occur ONLY in disposable runner copies. No BB source is edited.\n- Upstream-main mode requires a successful build of SDK from that exact Git commit; NOT a live BB app runtime test.\n' "$MAIN_SHA" "$MAIN_SDK" "$SDK_VERSION" "$SDK_CONTEXT" "$PIN_SDK" >> "$GITHUB_STEP_SUMMARY"
       - name: Typecheck, test and bundle Hello against selected published SDK
         shell: bash
         run: |
@@ -63,9 +63,24 @@ jobs:
           const fs=require('fs'),p=JSON.parse(fs.readFileSync('package.json','utf8'));
           if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132'||p.engines.bbPluginSdk!=='>=0.6.132 <0.6.133')throw Error('Unexpected source manifest; do not widen support automatically');
           NODE
+          if [ "$SDK_CONTEXT" = 'upstream-main' ]; then
+            # The SDK version declared at upstream main may be unpublished on npm.
+            # Build and pack the SDK from its *actual checked SHA* in an isolated clone.
+            git clone --depth 1 --filter=blob:none --branch main https://github.com/get-bb/bb.git "$RUNNER_TEMP/d064/upstream"
+            test "$(git -C "$RUNNER_TEMP/d064/upstream" rev-parse HEAD)" = "$UPSTREAM_MAIN_SHA" || { echo 'Upstream main advanced mid-run; fail closed' >&2; exit 1; }
+            ( cd "$RUNNER_TEMP/d064/upstream"
+              pnpm install --frozen-lockfile
+              pnpm exec turbo run build --filter='@get-bb/plugin-sdk...'
+              cd packages/plugin-sdk
+              pnpm pack --pack-destination "$RUNNER_TEMP/d064"
+            )
+            SDK_ARCHIVE="$(find "$RUNNER_TEMP/d064" -maxdepth 1 -type f -name 'get-bb-plugin-sdk-*.tgz' -print -quit)"
+            test -s "$SDK_ARCHIVE" || { echo 'Actual upstream SDK pack missing' >&2; exit 1; }
+            echo "SDK_ARCHIVE=$SDK_ARCHIVE" >> "$GITHUB_ENV"
+          fi
           pnpm install --no-frozen-lockfile
           if [ "$SDK_CONTEXT" = 'upstream-main' ]; then
-            pnpm add -D -E "@get-bb/plugin-sdk@$SDK_VERSION"
+            pnpm add -D -E "$SDK_ARCHIVE"
           fi
           node - <<'NODE'
           const fs=require('fs');
@@ -88,7 +103,7 @@ jobs:
           NODE
           pnpm install --no-frozen-lockfile --ignore-scripts
           if [ "$SDK_CONTEXT" = 'upstream-main' ]; then
-            pnpm add -D -E --ignore-scripts "@get-bb/plugin-sdk@$SDK_VERSION"
+            pnpm add -D -E --ignore-scripts "$SDK_ARCHIVE"
           fi
           node - <<'NODE'
           const fs=require('fs');
@@ -103,4 +118,4 @@ jobs:
         if: always()
         shell: bash
         run: |
-          printf '\nD064 compiles and tests plugin sources against npm published SDK %s. This does NOT override engine ranges, prove compatibility with upstream Git main at runtime, or authorize a version bump.\n' "${SDK_VERSION:-unresolved}" >> "$GITHUB_STEP_SUMMARY"
+          printf '\nD064 compiles/tests own plugins against installed SDK %s; upstream-main source built from recorded Git SHA when selected. Does NOT override engine ranges, prove running BB compatibility, or authorize a version bump.\n' "${SDK_VERSION:-unresolved}" >> "$GITHUB_STEP_SUMMARY"
