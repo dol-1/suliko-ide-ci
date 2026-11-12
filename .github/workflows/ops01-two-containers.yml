@@ -1,0 +1,65 @@
+# [ChatGPT] OPS-01: sequential independent, fully disposable Docker containers.
+# Only an ephemeral synthetic export file is bind-mounted. NEVER upload artifact.
+name: OPS-01 two-container synthetic BB restore (no public artifacts)
+on:
+  push:
+    branches: [feat/d051-ops01-two-containers]
+    paths:
+      - ".github/workflows/ops01-two-containers.yml"
+      - "tests/ops01/**"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-containers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 115
+    env:
+      CI: "true"
+      BB_TELEMETRY: "false"
+    steps:
+      - name: Checkout CI workflow (no credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Checkout immutable upstream stock BB
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - name: Confirm stock source and Docker source isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          docker info >/dev/null
+          test -s tests/ops01/container-phase.sh
+          if grep -Eq '^[[:space:]]*uses:[[:space:]]*actions/upload-artifact@' .github/workflows/ops01-two-containers.yml; then
+            echo "Public BB archive artifacts are forbidden" >&2
+            exit 1
+          fi
+          docker build --pull -f tests/ops01/Dockerfile -t suliko-bb-ops01:disposable stock-bb
+      - name: Create synthetic source and restore on separate disposable containers
+        shell: bash
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/ops01-only-shared-file.tar.gz"
+          test ! -e "$archive"
+          umask 077
+          : > "$archive"
+          cleanup() { rm -f "$archive" "$RUNNER_TEMP/ops01-source.cid" "$RUNNER_TEMP/ops01-target.cid"; }
+          trap cleanup EXIT
+          base=(--rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,size=1536m -e BB_TELEMETRY=false -e BB_SERVER_BIND_HOST=127.0.0.1 -e BB_SERVER_PORT=38886 -e BB_HOST_DAEMON_PORT=38889)
+          docker run "${base[@]}" --cidfile "$RUNNER_TEMP/ops01-source.cid" -e OPS01_PHASE=export -e HOME=/tmp/ops01-source-home -e BB_DATA_DIR=/tmp/ops01-source-data \
+            --mount "type=bind,src=$archive,dst=/transfer/archive.tar.gz" \
+            suliko-bb-ops01:disposable bash -c "$(cat tests/ops01/container-phase.sh)"
+          test -s "$archive"
+          digest="$(sha256sum "$archive" | cut -d' ' -f1)"
+          docker run "${base[@]}" --cidfile "$RUNNER_TEMP/ops01-target.cid" -e OPS01_PHASE=import -e HOME=/tmp/ops01-target-home -e BB_DATA_DIR=/tmp/ops01-target-data \
+            -e "OPS01_ARCHIVE_SHA=$digest" --mount "type=bind,src=$archive,dst=/transfer/archive.tar.gz,readonly" \
+            suliko-bb-ops01:disposable bash -c "$(cat tests/ops01/container-phase.sh)"
+          test "$(cat "$RUNNER_TEMP/ops01-source.cid")" != "$(cat "$RUNNER_TEMP/ops01-target.cid")"
+          echo 'OPS-01 PASS: two distinct rootless runtime containers, no network, private synthetic archive handed off via ONE file mount on SAME hosted runner; archive securely deleted, never uploaded.' >> "$GITHUB_STEP_SUMMARY"
