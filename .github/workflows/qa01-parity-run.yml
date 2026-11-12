@@ -130,7 +130,9 @@ jobs:
           xvfb-run -a bash -c 'cd tests/parity && ./node_modules/.bin/playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json" 2>"$RUNNER_TEMP/qa01-playwright.stderr"
           code=$?
           set -e
-          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" >>"$GITHUB_STEP_SUMMARY"
+          # Summarize only synthetic journey statuses/categories to GitHub log
+          # AND step summary; preserve exit code and all 14 strict assertions.
+          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$code"
       - name: Stop disposable BB server
         if: always()
