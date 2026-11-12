@@ -65,15 +65,17 @@ jobs:
           web_dir="$RUNNER_TEMP/bb-parity-web"
           mkdir -p "$web_dir"
           export BB_DATA_DIR="$web_dir"
+          export BB_SERVER_PORT=38887
           node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
           ready=0
           for i in $(seq 1 45); do
             if BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
             sleep 2
           done
-          test "$ready" = 1 || { echo "BB web did not boot"; exit 1; }
-          BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          test "$ready" = 1 || { echo "BB web did not boot"; tail -100 "$RUNNER_TEMP/qa01-web.log" || true; exit 1; }
+          node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
+          echo "Loopback BB CLI and plugin-install fixture completed" >> "$GITHUB_STEP_SUMMARY"
       - name: Execute full 7×2 matrix and preserve result even on failure
         shell: bash
         run: |
@@ -100,3 +102,12 @@ jobs:
           if [ -s "$RUNNER_TEMP/qa01-web-dir" ]; then
             node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/qa01-web-dir")" >/dev/null 2>&1 || true
           fi
+
+      - name: Preserve disposable server startup log on test failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d040-parity-web-startup-log
+          path: ${{ runner.temp }}/qa01-web.log
+          if-no-files-found: warn
+          retention-days: 7
