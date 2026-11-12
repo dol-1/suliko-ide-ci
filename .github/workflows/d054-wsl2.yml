@@ -1,0 +1,79 @@
+# [ChatGPT] D-054 WSL2 disposable stock BB smoke, Windows runner, no owner host.
+name: SPIKE-02 pinned stock BB WSL2 Ubuntu loopback smoke
+on:
+  push:
+    branches: [feat/d054-spike02-wsl2]
+    paths: ['.github/workflows/d054-wsl2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  wsl2-linux-server:
+    runs-on: windows-2022
+    timeout-minutes: 110
+    env:
+      CI: "true"
+      BB_TELEMETRY: "false"
+    steps:
+      - name: Checkout public CI (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Checkout immutable stock BB
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - name: Install disposable WSL2 Ubuntu 24.04
+        uses: Vampire/setup-wsl@4c48163d9f981914dd8caa0fc335fe19cca5bff4
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: "2"
+          use-cache: "false"
+          additional-packages: "ca-certificates curl git xz-utils build-essential"
+          wsl-shell-user: "suliko"
+      - name: Build stock BB inside WSL2 filesystem and smoke local server
+        shell: wsl-bash {0}
+        run: |
+          set -euo pipefail
+          uname -r | grep -qi 'wsl2'
+          tmp="$(mktemp -d)"
+          cleanup() {
+            if [[ -n "${BB_DATA_DIR:-}" && -n "${tmp:-}" && -d "$tmp/repo" ]]; then
+              node "$tmp/repo/packages/bb-app/dist/bb-app.js" stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$tmp"
+          }
+          trap cleanup EXIT
+          version="v22.19.0"
+          package="node-v22.19.0-linux-x64.tar.xz"
+          curl --fail --location --retry 2 --silent --show-error "https://nodejs.org/dist/$version/$package" -o "$tmp/$package"
+          curl --fail --location --retry 2 --silent --show-error "https://nodejs.org/dist/$version/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
+          grep "  $package$" "$tmp/SHASUMS256.txt" >"$tmp/node.sha256"
+          (cd "$tmp" && sha256sum -c node.sha256)
+          mkdir -p "$tmp/node"
+          tar -xJf "$tmp/$package" -C "$tmp/node" --strip-components=1
+          export PATH="$tmp/node/bin:$PATH"
+          test "$(node --version)" = "v22.19.0"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          cp -a stock-bb "$tmp/repo"
+          test "$(git -C "$tmp/repo" rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          cd "$tmp/repo"
+          pnpm install --frozen-lockfile
+          pnpm run build
+          export BB_DATA_DIR="$tmp/wsldata"
+          export BB_SERVER_BIND_HOST=127.0.0.1
+          export BB_SERVER_PORT=38886
+          export BB_HOST_DAEMON_PORT=38889
+          node packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38886 --host-daemon-port 38889 --no-in-app-updates >"$tmp/wsl-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if node packages/bb-app/dist/bb.js settings show --json >"$tmp/settings.json" 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [[ "$ready" != 1 ]]; then echo "WSL2 stock BB loopback did not boot" >&2; tail -50 "$tmp/wsl-server.log" >&2; exit 1; fi
+          node -e 'const fs=require("node:fs"); const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!s||typeof s!=="object")throw Error("Not a JSON status")' "$tmp/settings.json"
+          echo 'SPIKE-02 WSL2: stock BB desktop-v0.49.0 built from pinned source under Ubuntu 24.04 in Windows-2022 WSL2, loopback status queried. No production or Remote connectivity.' >> "$GITHUB_STEP_SUMMARY"
