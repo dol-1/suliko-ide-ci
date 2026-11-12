@@ -1,0 +1,81 @@
+name: D-065 signed own-plugin rehearsal provenance (NO release)
+on:
+  push:
+    branches: [feat/d065-attested-preview, main]
+    paths: ['.github/workflows/d065-attested-preview.yml', 'plugins/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+      - name: Verify reviewed own plugin pins and build outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          node - <<'NODE'
+          const fs=require('node:fs');
+          for(const name of ['suliko-hello','suliko-remote-panel']) {
+            const p=JSON.parse(fs.readFileSync('plugins/'+name+'/package.json','utf8'));
+            if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132'||p.engines.bb!=='>=0.49.0 <0.49.1')
+              throw Error('Unreviewed plugin SDK/BB dependency');
+          }
+          NODE
+          (cd plugins/suliko-hello && pnpm install --no-frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
+          (cd plugins/suliko-remote-panel && pnpm install --no-frozen-lockfile --ignore-scripts && pnpm run typecheck && pnpm test && pnpm exec esbuild app.tsx --bundle --platform=browser --format=esm --jsx=automatic --packages=external --outfile=dist/mock-panel.js)
+      - name: Normalize and hash ephemeral rehearsal output; no upload
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/d065-provenance-stage"
+          mkdir -p "$stage/hello" "$stage/remote"
+          for name in server.js app.js app.css app.meta.json; do
+            test -s "plugins/suliko-hello/dist/$name"
+            cp -- "plugins/suliko-hello/dist/$name" "$stage/hello/$name"
+          done
+          test -s plugins/suliko-remote-panel/dist/mock-panel.js
+          cp -- plugins/suliko-remote-panel/dist/mock-panel.js "$stage/remote/mock-panel.js"
+          archive="$RUNNER_TEMP/d065-own-plugins-preview.tar"
+          (cd "$stage" && tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf "$archive" hello remote)
+          gzip -n "$archive"
+          test -s "$archive.gz"
+          printf 'path=%s\n' "$archive.gz" >> "$GITHUB_OUTPUT"
+          echo "NONRELEASE preview bundle SHA256 $(sha256sum "$archive.gz" | cut -d' ' -f1); archive not uploaded or published." >> "$GITHUB_STEP_SUMMARY"
+      - name: Public-repo attestation only (this is not a release)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: \${{ steps.build.outputs.path }}
+          push-to-registry: false
+          show-summary: false
+      - name: Verify signed attestation against ephemeral exact same-run archive
+        shell: bash
+        env:
+          GH_TOKEN: \${{ github.token }}
+          PREVIEW: \${{ steps.build.outputs.path }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/d065-attestation-verify.json"
+          trap 'rm -f -- "$report" "$PREVIEW"; rm -rf -- "$RUNNER_TEMP/d065-provenance-stage"' EXIT
+          gh attestation verify "$PREVIEW" --repo "$GITHUB_REPOSITORY" --format=json >"$report"
+          node - "$report" <<'NODE'
+          const fs=require('node:fs'), data=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(data)||data.length===0)throw Error('No verifiable GitHub provenance attestation');
+          console.log('D065 signed provenance successfully verified for ephemeral own-plugin bundle; repository attestation record exists.');
+          NODE
+          echo 'D065 verified signed preview only; no release, package upload, public beta or BB core changes.' >> "$GITHUB_STEP_SUMMARY"
