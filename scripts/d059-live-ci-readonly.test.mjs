@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { inspectLive,writeCiSafeBundle } from "./d059-live-ci-readonly.mjs";
-import { mkdtempSync,readFileSync,lstatSync,rmSync } from "node:fs";
+import { mkdtempSync,readFileSync,writeFileSync,symlinkSync,lstatSync,rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const config=(overrides={})=>({serverUrl:"http://127.0.0.1:38884",dataDir:"/ci/disposable",secrets:"SENTINEL-NEVER-PRINT",...overrides});
@@ -61,5 +61,18 @@ test("bundle rejects arbitrary outside and traversal targets before writing",()=
   try{
     assert.throws(()=>writeCiSafeBundle({},join(root,"..","outside.json"),root),/Refusing/);
     assert.throws(()=>writeCiSafeBundle({},"/tmp/another.json",root),/Refusing/);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test("preexisting symlink cannot redirect bundle write into a sentinel",()=>{
+  // Windows symlink creation requires host-specific privilege; no ACL claim.
+  if(process.platform==="win32")return;
+  const root=mkdtempSync(join(tmpdir(),"d059-ci-test-"));
+  const target=join(root,"sentinel.json"),link=join(root,"d059-support-bundle.json");
+  try{
+    writeFileSync(target,"DO-NOT-OVERWRITE",{mode:0o600});
+    symlinkSync(target,link);
+    assert.throws(()=>writeCiSafeBundle({},link,root),/could not be created/);
+    assert.equal(readFileSync(target,"utf8"),"DO-NOT-OVERWRITE");
   }finally{rmSync(root,{recursive:true,force:true});}
 });
