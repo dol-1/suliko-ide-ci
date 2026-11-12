@@ -116,6 +116,42 @@ jobs:
           BB_DATA_DIR="$web_dir" BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb.js project list --json >/dev/null
           echo "QA-01 disposable Web project created; no real provider credentials." >> "$GITHUB_STEP_SUMMARY"
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
+      - name: Pre-enroll disposable Desktop BB server, test project and Hello plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          desktop_dir="$RUNNER_TEMP/bb-parity-desktop"
+          mkdir -p "$desktop_dir"
+          export BB_DATA_DIR="$desktop_dir"
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$desktop_dir" --server-bind-host 127.0.0.1 --server-port 38888 --host-daemon-port 38890 --no-in-app-updates >"$RUNNER_TEMP/qa01-desktop-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --max-time 2 --output "$RUNNER_TEMP/qa01-desktop-ready.html" http://127.0.0.1:38888/ 2>/dev/null; then
+              if node -e 'const s=require("node:fs").readFileSync(process.argv[1],"utf8");process.exit(/<html|<!doctype/i.test(s)?0:1)' "$RUNNER_TEMP/qa01-desktop-ready.html"; then ready=1; break; fi
+            fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            echo "Desktop disposable BB loopback preflight failed; no Desktop journey may be claimed." >&2
+            node - "$RUNNER_TEMP/qa01-desktop-server.log" <<'NODE'
+          const fs=require('node:fs'),p=process.argv[2];
+          const s=fs.existsSync(p)?fs.readFileSync(p,'utf8'):'';
+          for(const code of ['EADDRINUSE','EACCES','ECONNREFUSED','MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND','NODE_MODULE_VERSION']) {
+            if(s.includes(code)) console.error('Desktop fixture startup category:',code);
+          }
+          NODE
+            exit 1
+          fi
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          desktop_project="$RUNNER_TEMP/qa01-desktop-synthetic-project"
+          mkdir -p "$desktop_project"
+          git -C "$desktop_project" init -b main >/dev/null
+          printf 'Desktop QA-01 disposable local project only.\n' > "$desktop_project/README.md"
+          git -C "$desktop_project" add README.md
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-desktop-synthetic --root "$desktop_project" >/dev/null
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js project list --json >/dev/null
+          echo "$desktop_dir" >"$RUNNER_TEMP/qa01-desktop-dir"
+          echo "Disposable Desktop loopback BB, project and reviewed Hello plugin were prepared." >> "$GITHUB_STEP_SUMMARY"
       - name: Execute full 7×2 matrix and preserve result even on failure
         shell: bash
         run: |
@@ -150,4 +186,7 @@ jobs:
         run: |
           if [ -s "$RUNNER_TEMP/qa01-web-dir" ]; then
             node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/qa01-web-dir")" >/dev/null 2>&1 || true
+          fi
+          if [ -s "$RUNNER_TEMP/qa01-desktop-dir" ]; then
+            node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/qa01-desktop-dir")" >/dev/null 2>&1 || true
           fi
