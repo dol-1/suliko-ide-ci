@@ -67,7 +67,7 @@ jobs:
             throw Error('Axe dev-only dependency version/license not reviewed');
           NODE
           npx playwright install chromium
-      - name: Create only disposable loopback BB and Hello plugin
+      - name: Create only disposable loopback BB and own Remote MOCK plugin
         shell: bash
         run: |
           set -euo pipefail
@@ -95,7 +95,7 @@ jobs:
           BB_A11Y_URL: 'http://127.0.0.1:38887'
         run: |
           node tests/parity/remote-mock-a11y.mjs
-          echo 'D066 checked real installed own Remote MOCK Web panel English and Georgian; not Desktop or Remote.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'D066 checked installed own Remote MOCK Web panel EN/KA without live Remote connection, token, approvals or Desktop.' >> "$GITHUB_STEP_SUMMARY"
       - name: Stop disposable server
         if: always()
         shell: bash
