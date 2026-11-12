@@ -6,7 +6,12 @@ import { basename } from "node:path";
 // provider keys, and preserve all 14 strict subsequent journey assertions.
 async function enterProviderFreeShell(page: Page) {
   const projects = page.getByRole("button", { name: /projects?/i }).first();
-  await projects.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+  // In real packaged Linux Desktop QA run 43266035103, the renderer still
+  // displayed the "Opening bb" splash after 12 seconds. The old catch
+  // silently continued into J03/J04/J07 without a hydrated app shell.
+  // Require the actual Projects control before every journey, preserving
+  // strict assertions: an unready client now FAILS explicitly.
+  await projects.waitFor({ state: "visible", timeout: 45000 });
   const skip = page.getByRole("button", { name: /skip setup/i }).first();
   if (await skip.isVisible().catch(() => false)) await skip.click();
   // Enroll ONLY the generated qa01-* project in the client UI: BB's thread

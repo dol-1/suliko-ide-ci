@@ -3,7 +3,7 @@ name: QA-01 seven-by-two parity run (Linux experimental)
 on:
   workflow_dispatch:
   push:
-    branches: [feat/qa01-dom-diagnostics]
+    branches: [feat/qa01-dom-diagnostics, feat/qa01-desktop-ready-gate]
     paths: ['tests/parity/**', '.github/workflows/qa01-parity-run.yml']
 permissions:
   contents: read
