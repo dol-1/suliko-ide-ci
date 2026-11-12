@@ -26,10 +26,16 @@ for(const [lang,helloLabel,remoteLabel] of [
     await projects.waitFor({state:"visible",timeout:40000});
     const skip=page.getByRole("button",{name:/skip setup/i}).first();
     if(await skip.isVisible().catch(()=>false))await skip.click();
-    if(await projects.isEnabled().catch(()=>false)){
+    // This disposable BB profile is reused across locales. The EN visit
+    // already opens the synthetic project. Re-clicking its project label
+    // during the second Electron attach targets a stale overlay (real
+    // Desktop 43278630115: <html> intercepts pointer events for 30s).
+    // This only avoids duplicate test setup, never skips any own panel gate.
+    if(lang==="en" && await projects.isEnabled().catch(()=>false)){
       await projects.click();
       const project=page.getByText(/d066-desktop-synthetic/i).first();
-      if(await project.waitFor({state:"visible",timeout:4000}).then(()=>true).catch(()=>false))await project.click();
+      if(await project.waitFor({state:"visible",timeout:4000}).then(()=>true).catch(()=>false))
+        await project.click();
     }
     for(const [id,label] of [["hello",helloLabel],["remote",remoteLabel]]){
       const pattern=id==="hello"?/suliko hello/i:/suliko remote/i;
