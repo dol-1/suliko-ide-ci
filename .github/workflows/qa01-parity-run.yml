@@ -2,7 +2,7 @@
 name: QA-01 seven-by-two parity run (Linux experimental)
 on:
   push:
-    branches: [feat/d040-experimental-runs]
+    branches: [feat/d040-experimental-runs, feat/d040-parity-daemon-port-fix]
     paths: ['.github/workflows/qa01-parity-run.yml', 'tests/parity/**', 'plugins/suliko-hello/**']
   workflow_dispatch:
 permissions:
