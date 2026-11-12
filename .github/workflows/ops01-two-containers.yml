@@ -36,7 +36,7 @@ jobs:
           test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
           docker info >/dev/null
           test -s tests/ops01/container-phase.sh
-          if grep -q 'upload-artifact' .github/workflows/ops01-two-containers.yml; then
+          if grep -Eq '^[[:space:]]*uses:[[:space:]]*actions/upload-artifact@' .github/workflows/ops01-two-containers.yml; then
             echo "Public BB archive artifacts are forbidden" >&2
             exit 1
           fi
