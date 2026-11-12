@@ -1,0 +1,86 @@
+# D-053 true stock BB runtime verification; never use owner data or credentials.
+name: SEC-02 installed stock BB live loopback and plugin-state verify
+on:
+  push:
+    branches: [feat/d053-sec02-live]
+    paths:
+      - ".github/workflows/d053-sec02-live.yml"
+      - "scripts/verify-hardened.sh"
+      - "config/hardened/.env.hardened"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-hardening:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 95
+    env:
+      CI: "true"
+      BB_TELEMETRY: "false"
+      BB_SERVER_BIND_HOST: "127.0.0.1"
+      BB_SERVER_PORT: "38886"
+      BB_HOST_DAEMON_PORT: "38889"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.19.0"
+          package-manager-cache: false
+      - name: Exact stock BB build without upstream modifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
+      - name: Start stock BB, disable forbidden plugins and run LIVE verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BB_DATA_DIR="$RUNNER_TEMP/sec02-live-data"
+          mkdir -p "$BB_DATA_DIR" "$RUNNER_TEMP/sec02-bin"
+          cat >"$RUNNER_TEMP/sec02-bin/bb" <<'WRAPPER'
+          #!/usr/bin/env bash
+          exec node "$GITHUB_WORKSPACE/stock-bb/packages/bb-app/dist/bb.js" "$@"
+          WRAPPER
+          chmod 700 "$RUNNER_TEMP/sec02-bin/bb"
+          export PATH="$RUNNER_TEMP/sec02-bin:$PATH"
+          cleanup() { node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38886 --host-daemon-port 38889 --no-in-app-updates >"$RUNNER_TEMP/sec02-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if bb plugin list --json >"$RUNNER_TEMP/sec02-live-before.json" 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [[ "$ready" != 1 ]]; then echo "Stock BB live plugin list unavailable" >&2; tail -60 "$RUNNER_TEMP/sec02-server.log" >&2; exit 1; fi
+          node - "$RUNNER_TEMP/sec02-live-before.json" <<'NODE' >"$RUNNER_TEMP/sec02-ids"
+          const s=require(process.argv[2]);
+          const forbidden=new Set(["bb--mcp","account-pool","connect","bb--connect-next","memory"]);
+          if(!Array.isArray(s.plugins)) throw Error("Unexpected plugin list");
+          for(const x of s.plugins) if(forbidden.has(x.id)&&x.enabled===true) console.log(x.id);
+          NODE
+          while IFS= read -r plugin; do
+            [[ -n "$plugin" ]] || continue
+            bb plugin disable "$plugin"
+          done < "$RUNNER_TEMP/sec02-ids"
+          bash scripts/verify-hardened.sh
+          # Require actual TCP LISTEN bindings on loopback for both independent ports.
+          ss -ltnp >"$RUNNER_TEMP/sec02-listeners"
+          awk '$4 ~ /:(38886|38889)$/ {print $4}' "$RUNNER_TEMP/sec02-listeners" >"$RUNNER_TEMP/sec02-ports"
+          grep -qx '127.0.0.1:38886' "$RUNNER_TEMP/sec02-ports"
+          grep -qx '127.0.0.1:38889' "$RUNNER_TEMP/sec02-ports"
+          if grep -Ev '^127\.0\.0\.1:(38886|38889)$' "$RUNNER_TEMP/sec02-ports"; then
+            echo "Unsafe stock BB listener address" >&2
+            exit 1
+          fi
+          echo 'SEC-02 PASS: real pinned stock BB server + host daemon LISTEN only on 127.0.0.1, forbidden plugin states verified LIVE, BB_TELEMETRY=false. Does not prove actual tailnet ACL or provider hook isolation.' >> "$GITHUB_STEP_SUMMARY"
