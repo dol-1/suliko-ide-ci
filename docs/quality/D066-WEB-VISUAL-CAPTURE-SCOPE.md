@@ -1,0 +1,11 @@
+# E9 D066 synthetic-only Web visual snapshot capture
+
+Source: [E9 #53](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/53) and [Claude #36](https://gitlab.com/dol-1-group/suliko-ide/-/work_items/36). Stage 1 is deliberately **capture-only**: four PNG screenshots of ONLY own Hello and Remote MOCK Web panel sections, on disposable pinned stock BB 0.49.0. No full-page screenshots, users, credentials or live Remote. Stable runner Ubuntu 24.04, Playwright 1.56.0, 1180x780 viewport and light/reduced-motion/UTC browser. Enforce translated labels, no approval control, safe unresolvable demo URL, bounded text/screenshot geometry, no horizontal clipping and absence of obvious secret-like text. Public artifact contains only synthetic own-panel PNGs with 1-day retention.
+
+The test logs SHA256 digests for review. Initial baseline mode is **capture-only**, so CI green is NOT proof of visual regression stability. After reviewing the four screenshots, pin the approved hashes in tests/parity/d066-visual-baselines.json and switch to "locked"; a second completed exact-head GREEN must enforce hash matches. Hashes may vary if font rendering changes; investigate and explicitly approve a new baseline instead of ignoring mismatches.
+
+This is not Desktop rendering, real Remote approvals, persistent app language settings, full WCAG, 30-minute soak, or public beta validation. Never upload a user-provided screenshot or project to public CI.
+
+## Automated candidate baseline (2026-11-12)
+
+Actual [GH 43275286811 GREEN](https://github.com/dol-1/suliko-ide-ci/actions/runs/43275286811), SHA `dd951f1bba3f734545d43987bd4e161384a07aee`, captured exactly four own-panel PNGs and uploaded short-lived artifact `13971570131` (4 images, 104,238 bytes). Job log 131381953722 provided each SHA256; all passed synthetic allowlist, bounds, safe mock link and clipping guards. These **mechanically derived candidate** hashes are now pinned under `mode=locked` for a second independent exact-head CI run. **No visual human review or WCAG approval has occurred**, and hashes are not proof of high-quality layout. The artifact is visible to authorized GitHub reviewers for separate signoff. Any pixel mismatch in the new CI run is a FAIL to analyze, not bypass. Source actual run, GitLab MR and manual v1.10.
