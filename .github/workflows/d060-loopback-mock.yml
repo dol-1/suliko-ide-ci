@@ -1,0 +1,51 @@
+name: D-060 synthetic loopback-only Remote read contract
+on:
+  push:
+    branches: [feat/d060-remote-loopback-reader, main]
+    paths:
+      - '.github/workflows/d060-loopback-mock.yml'
+      - 'plugins/suliko-remote-panel/loopback-test-reader.ts'
+      - 'plugins/suliko-remote-panel/loopback-test-reader.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  loopback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Exact pinned own MOCK dependency graph and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          cd plugins/suliko-remote-panel
+          # Existing source manifest pins esbuild 0.28.2 but the legacy mock
+          # pnpm-lock importer omits it (GH 43321965812). This TEST-ONLY,
+          # disposable runner follows the already reviewed D047 mock install.
+          # Never treat this as a reproducible production dependency gate.
+          node - <<'NODE'
+          const p=require('./package.json');
+          if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132'||
+             p.devDependencies.esbuild!=='0.28.2'||
+             p.engines.bbPluginSdk!=='>=0.6.132 <0.6.133')
+            throw Error('Unreviewed MOCK SDK/dependency pin');
+          NODE
+          pnpm install --no-frozen-lockfile --ignore-scripts
+          pnpm run typecheck
+          pnpm run test
+      - name: No real Remote boundary
+        if: success()
+        run: |
+          echo 'D060 disposable 127.0.0.1 HTTP GET fixture only; no real Remote, tokens, approval mutations, Desktop/Web runtime connection or beta claim.' >> "$GITHUB_STEP_SUMMARY"
