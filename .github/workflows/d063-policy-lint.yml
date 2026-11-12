@@ -1,0 +1,33 @@
+name: D-063 security policy and no-fake-license docs lint
+on:
+  push:
+    branches: [feat/d063-security-policy, main]
+    paths: [SECURITY.md, CONTRIBUTING.md, .github/workflows/d063-policy-lint.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate responsible disclosure, scope and no-beta promises
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const security=fs.readFileSync('SECURITY.md','utf8');
+          const contribute=fs.readFileSync('CONTRIBUTING.md','utf8');
+          for(const value of ['Report a vulnerability','if the maintainer has enabled','do not','synthetic','not','BB upstream']) {
+            if(!security.toLowerCase().includes(value.toLowerCase())) throw Error('Missing security policy safeguard');
+          }
+          for(const value of ['exact source-head','UTC completion','before merging','SECURITY.md','No automatic publishing','license']) {
+            if(!contribute.toLowerCase().includes(value.toLowerCase())) throw Error('Missing contribution safeguard');
+          }
+          if(/\bmailto:\s*\S+/i.test(security)||/\b(sk-[a-z0-9_-]{12,}|ghp_[a-z0-9]{12,})/i.test(security+contribute))
+            throw Error('Unexpected contact address or token-like text');
+          console.log('D063 security policy & contributor guidance validated; not proof of a response channel or score increase.');
+          NODE
