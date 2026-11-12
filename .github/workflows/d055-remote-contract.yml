@@ -30,7 +30,8 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           cd plugins/suliko-remote-panel
-          # Development-only mock runner: D-043 production lock scan is a separate exact-head gate.\n          pnpm install --no-frozen-lockfile --ignore-scripts
+          # Development-only mock runner: D-043 production lock scan is a separate exact-head gate.
+          pnpm install --no-frozen-lockfile --ignore-scripts
           pnpm run typecheck
           pnpm run test
       - name: Scope reminder
