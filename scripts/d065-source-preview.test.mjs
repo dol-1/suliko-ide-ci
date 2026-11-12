@@ -1,7 +1,7 @@
-import { previewManifest } from "./d065-source-preview.mjs";
+import { previewManifest,safePreviewOutput } from "./d065-source-preview.mjs";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 function fixture(fn) {
@@ -39,4 +39,34 @@ test("unreviewed SDK dependency rejected",()=>fixture(root=>{
 test("refuse symlink inside source tree",()=>fixture(root=>{
   symlinkSync(join(root,"marketplace/marketplace.json"),join(root,"plugins/suliko-hello/unsafe.json"));
   assert.throws(()=>previewManifest(root),/unsafe/);
+}));
+
+test("exact private preview path refuses traversal, sibling-prefix and missing runner root",()=>{
+  const temp=join(tmpdir(),"d065-safe-temp");
+  assert.equal(safePreviewOutput(join(temp,"d065-preview.json"),temp),join(temp,"d065-preview.json"));
+  assert.throws(()=>safePreviewOutput(join(temp,"..","outside.json"),temp),/exact runner-private/);
+  assert.throws(()=>safePreviewOutput(join(temp+"-foreign","d065-preview.json"),temp),/exact runner-private/);
+  assert.throws(()=>safePreviewOutput(join(temp,"other.json"),temp),/exact runner-private/);
+  assert.throws(()=>safePreviewOutput(join(temp,"d065-preview.json"),""),/exact runner-private/);
+});
+
+test("catalog leaf symlink rejected before JSON parsing",()=>fixture(root=>{
+  const leaf=join(root,"marketplace/marketplace.json");
+  rmSync(leaf);
+  symlinkSync(join(root,"plugins/suliko-hello/package.json"),leaf);
+  assert.throws(()=>previewManifest(root),/unsafe preview marketplace catalog/);
+}));
+test("catalog parent symlink cannot redirect preview to external tree",()=>fixture(root=>{
+  const oldDir=join(root,"marketplace");
+  const target=join(root,"marketplace-target");
+  renameSync(oldDir,target);
+  symlinkSync(target,oldDir,"dir");
+  assert.throws(()=>previewManifest(root),/unsafe preview marketplace catalog/);
+}));
+
+test("plugin ancestor symlink cannot redirect source tree preview",()=>fixture(root=>{
+  const original=join(root,"plugins"),target=join(root,"plugins-target");
+  renameSync(original,target);
+  symlinkSync(target,original,"dir");
+  assert.throws(()=>previewManifest(root),/unsafe preview plugins directory/);
 }));

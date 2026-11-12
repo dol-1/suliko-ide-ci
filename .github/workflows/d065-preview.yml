@@ -1,7 +1,7 @@
 name: D-065 source-only beta release preview (NOT published)
 on:
   push:
-    branches: [feat/d065-source-preview, main]
+    branches: [feat/d065-source-preview, feat/d065-preview-path-boundary, main]
     paths: ['scripts/d065-*', '.github/workflows/d065-preview.yml', 'plugins/**', 'marketplace/marketplace.json']
   workflow_dispatch:
 permissions:
