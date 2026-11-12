@@ -63,3 +63,10 @@ test("catalog parent symlink cannot redirect preview to external tree",()=>fixtu
   symlinkSync(target,oldDir,"dir");
   assert.throws(()=>previewManifest(root),/unsafe preview marketplace catalog/);
 }));
+
+test("plugin ancestor symlink cannot redirect source tree preview",()=>fixture(root=>{
+  const original=join(root,"plugins"),target=join(root,"plugins-target");
+  renameSync(original,target);
+  symlinkSync(target,original,"dir");
+  assert.throws(()=>previewManifest(root),/unsafe preview plugins directory/);
+}));

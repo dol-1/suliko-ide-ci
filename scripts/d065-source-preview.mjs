@@ -33,6 +33,9 @@ export function previewManifest(root) {
   if(catalog.schemaVersion!==1||catalog.name!=="suliko-experimental"||
       catalog.plugins?.length!==1||catalog.plugins[0]?.id!=="suliko-hello")throw Error("Unreviewed marketplace catalog");
   if(catalog.plugins[0].source?.git?.url!=="https://github.com/dol-1/suliko-ide-ci.git")throw Error("Unreviewed marketplace origin");
+  const pluginsDir=lstatSync(join(abs,"plugins"));
+  if(pluginsDir.isSymbolicLink()||!pluginsDir.isDirectory())
+    throw Error("Reject unsafe preview plugins directory");
   const files=[];
   for(const item of ROOTS)collect(abs,item,files);
   collect(abs,CATALOG,files);
