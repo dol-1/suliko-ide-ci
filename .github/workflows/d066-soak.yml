@@ -20,7 +20,8 @@ jobs:
           node-version: '22.19.0'
       - run: node --test scripts/d066-soak.test.mjs
   live-soak:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'workflow_dispatch' || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    # Real 1800-second verification must run at exact feature SHA BEFORE main merge.
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/d066-soak-30min'
     needs: bound-test
     runs-on: ubuntu-24.04
     timeout-minutes: 55
