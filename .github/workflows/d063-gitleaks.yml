@@ -1,0 +1,47 @@
+name: D-063 redacted full-public-git-history Gitleaks
+on:
+  push:
+    branches: [feat/d063-gitleaks-public-history, main]
+    paths: [.github/workflows/d063-gitleaks.yml]
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-git-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan public CI history with pinned redacting binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d063-gitleaks"
+          mkdir -m 700 -p "$folder/bin"
+          trap 'rm -rf -- "$folder"' EXIT
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$folder/pkg.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+          printf '%s  %s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' "$folder/pkg.tar.gz" | sha256sum -c - >/dev/null
+          tar -xzf "$folder/pkg.tar.gz" -C "$folder/bin" gitleaks
+          "$folder/bin/gitleaks" version
+          git rev-list --all --count >/dev/null
+          set +e
+          "$folder/bin/gitleaks" git . --log-opts='--all' --redact=100 --no-banner --log-level error --report-format json --report-path "$folder/findings.json" >"$folder/tool.stdout" 2>"$folder/tool.stderr"
+          code=$?
+          set -e
+          node - "$folder/findings.json" <<'NODE'
+          const fs=require('node:fs'), file=process.argv[2];
+          if (!fs.existsSync(file)) { console.log('D063: no readable finding report; return code governs'); process.exit(0); }
+          const v=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(!Array.isArray(v)) throw Error('Malformed scanner report');
+          console.log('D063 redacted public-history finding count:', v.length);
+          NODE
+          if [ "$code" -ne 0 ]; then
+            echo 'D063 public history scan did not pass; raw findings stay ephemeral, never uploaded.' >&2
+            exit "$code"
+          fi
+          echo 'D063 full public CI Git history scanned; private IDE repo NOT scanned.'
