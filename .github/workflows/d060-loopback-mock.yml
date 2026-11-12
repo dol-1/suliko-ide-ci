@@ -31,7 +31,18 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           cd plugins/suliko-remote-panel
-          pnpm install --frozen-lockfile --ignore-scripts
+          # Existing source manifest pins esbuild 0.28.2 but the legacy mock
+          # pnpm-lock importer omits it (GH 43321965812). This TEST-ONLY,
+          # disposable runner follows the already reviewed D047 mock install.
+          # Never treat this as a reproducible production dependency gate.
+          node - <<'NODE'
+          const p=require('./package.json');
+          if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132'||
+             p.devDependencies.esbuild!=='0.28.2'||
+             p.engines.bbPluginSdk!=='>=0.6.132 <0.6.133')
+            throw Error('Unreviewed MOCK SDK/dependency pin');
+          NODE
+          pnpm install --no-frozen-lockfile --ignore-scripts
           pnpm run typecheck
           pnpm run test
       - name: No real Remote boundary
