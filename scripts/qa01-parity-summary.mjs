@@ -5,6 +5,7 @@ const path = process.argv[2];
 if (!path) throw Error("Playwright JSON report path required");
 const root = JSON.parse(fs.readFileSync(path, "utf8"));
 const found = new Map();
+const diagnostics = new Map();
 function walk(suites) {
   for (const suite of suites ?? []) {
     for (const spec of suite.specs ?? []) {
@@ -17,6 +18,15 @@ function walk(suites) {
         if (found.has(key)) throw Error("Duplicate journey/project: " + key);
         const outcomes = trial.results ?? [];
         found.set(key, outcomes.length ? String(outcomes.at(-1).status) : "not-run");
+        const bad = outcomes.find(x => x.status !== "passed");
+        if (bad) {
+          // Synthetic CI only: record first-line Playwright error, not DOM snapshots,
+          // raw stdout, provider credentials, workspace paths or archive content.
+          const raw = String(bad.error?.message ?? bad.error?.value ?? bad.status ?? "unknown");
+          const first = raw.split("\n").map(x => x.trim()).find(Boolean) ?? "unknown";
+          const safe = first.replace(/\x1b\[[0-9;]*m/g, "").replace(/\b(?:https?:\/\/)[^\s]+/gi, "[url]").slice(0, 160);
+          diagnostics.set(key, safe);
+        }
       }
     }
     walk(suite.suites);
@@ -29,5 +39,7 @@ for (let i = 1; i <= 7; i++) {
   lines.push("| " + id + " | " + (found.get(id + ":web") ?? "MISSING") + " | " + (found.get(id + ":desktop") ?? "MISSING") + " |");
 }
 lines.push("", "Expected 14 test executions; found " + found.size + ". Failures are preserved; no skips are accepted.");
+lines.push("", "Synthetic CI error first-lines (not a root-cause finding):");
+for (const [key, error] of diagnostics.entries()) lines.push("- " + key + ": " + error);
 console.log(lines.join("\n"));
 if (found.size !== 14 || [...found.values()].some(x => x !== "passed")) process.exitCode = 1;
