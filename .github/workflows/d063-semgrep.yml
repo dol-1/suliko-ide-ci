@@ -1,0 +1,49 @@
+name: D-063 Semgrep pinned plugin and CLI security scan
+on:
+  push:
+    branches: [feat/d063-semgrep-own-code, main]
+    paths:
+      - '.github/workflows/d063-semgrep.yml'
+      - 'plugins/**'
+      - 'scripts/**'
+  schedule:
+    - cron: '47 4 * * 2'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan-own-code:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Pinned open Semgrep CLI, privacy-minimal security rules
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: 'off'
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d063-semgrep"
+          mkdir -m 700 -p "$folder"
+          trap 'rm -rf -- "$folder"' EXIT
+          python3 -m venv "$folder/venv"
+          "$folder/venv/bin/pip" install --disable-pip-version-check --no-input 'semgrep==1.185.0' >"$folder/install.log" 2>&1 || { echo 'Pinned Semgrep installation failed' >&2; exit 1; }
+          "$folder/venv/bin/semgrep" --version
+          set +e
+          "$folder/venv/bin/semgrep" scan --config p/security-audit --config p/javascript --metrics off --error --json --output "$folder/findings.json" --exclude '**/node_modules/**' --exclude '**/dist/**' plugins/suliko-hello plugins/suliko-remote-panel scripts >"$folder/scan.stdout" 2>"$folder/scan.stderr"
+          code=$?
+          set -e
+          node - "$folder/findings.json" <<'NODE'
+          const fs = require('node:fs'), file=process.argv[2];
+          if(!fs.existsSync(file)) { console.log('D063 Semgrep report absent; scanner exit code governs'); process.exit(0); }
+          const v=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(!Array.isArray(v.results)||!Array.isArray(v.errors)) throw Error('Malformed scanner report');
+          console.log('D063 plugin/CLI Semgrep findings:',v.results.length,'scanner errors:',v.errors.length);
+          NODE
+          if [ "$code" -ne 0 ]; then
+            echo 'D063 Semgrep scan did not pass; raw findings stay private to ephemeral runner, not uploaded.' >&2
+            exit "$code"
+          fi
+          echo 'D063 Semgrep own-plugin and CLI security rules passed; BB core and private IDE repo not scanned.'
