@@ -72,7 +72,14 @@ jobs:
             if BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
             sleep 2
           done
-          test "$ready" = 1 || { echo "BB web did not boot"; tail -100 "$RUNNER_TEMP/qa01-web.log" || true; exit 1; }
+          if [[ "$ready" != 1 ]]; then
+            echo "BB web did not fully boot; collect synthetic disposable daemon diagnostics"
+            tail -100 "$RUNNER_TEMP/qa01-web.log" || true
+            if [[ -d "$web_dir/logs" ]]; then
+              find "$web_dir/logs" -maxdepth 1 -type f -print -exec tail -80 {} \;
+            fi
+            exit 1
+          fi
           node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
           echo "Loopback BB CLI and plugin-install fixture completed" >> "$GITHUB_STEP_SUMMARY"
@@ -108,6 +115,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: d040-parity-web-startup-log
-          path: ${{ runner.temp }}/qa01-web.log
+          path: |
+            ${{ runner.temp }}/qa01-web.log
+            ${{ runner.temp }}/bb-parity-web/logs/
           if-no-files-found: warn
           retention-days: 7
