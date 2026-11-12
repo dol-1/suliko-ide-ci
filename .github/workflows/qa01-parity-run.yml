@@ -101,7 +101,7 @@ jobs:
           xvfb-run -a bash -c 'cd tests/parity && npx playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json"
           code=$?
           set -e
-          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" >>"$GITHUB_STEP_SUMMARY"
+          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$code"
       - name: Stop disposable BB server
         if: always()
