@@ -5,6 +5,9 @@ name: SPIKE-01 Stock BB pinned build and SBOM
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/spike01-build.yml']
 
 permissions:
   contents: read
