@@ -51,7 +51,10 @@ jobs:
           done
           test -s plugins/suliko-remote-panel/dist/mock-panel.js
           cp -- plugins/suliko-remote-panel/dist/mock-panel.js "$stage/remote/mock-panel.js"
-          archive="$RUNNER_TEMP/d065-own-plugins-preview.tar"
+          # GitHub attestation action discovers subject-path from checkout
+          # workspace; a RUNNER_TEMP absolute path was not resolved by its glob.
+          # This workspace file is never uploaded and is deleted after verification.
+          archive="$GITHUB_WORKSPACE/d065-own-plugins-preview.tar"
           (cd "$stage" && tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf "$archive" hello remote)
           gzip -n "$archive"
           test -s "$archive.gz"
