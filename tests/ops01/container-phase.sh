@@ -40,7 +40,12 @@ if [ "$ready" != 1 ]; then
 fi
 if [[ "$OPS01_PHASE" == "export" ]]; then
   node packages/bb-app/dist/bb.js settings experiment serverMove true >/dev/null
-  node packages/bb-app/dist/bb.js server export --out "$archive" >/dev/null
+  node packages/bb-app/dist/bb.js server export --out /tmp/ops01-private-stage.tar.gz >/dev/null
+  test -s /tmp/ops01-private-stage.tar.gz
+  # Stock BB writes an atomic sibling temp file, so export inside the private
+  # tmpfs first. Copy only the finished archive into the one allowed file bind.
+  cp -- /tmp/ops01-private-stage.tar.gz "$archive"
+  rm -f /tmp/ops01-private-stage.tar.gz
   test -s "$archive"
   echo "Source synthetic data fixture exported inside container (archive stays on runner only)"
 else
