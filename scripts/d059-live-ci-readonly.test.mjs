@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { inspectLive } from "./d059-live-ci-readonly.mjs";
+import { inspectLive,writeCiSafeBundle } from "./d059-live-ci-readonly.mjs";
+import { mkdtempSync,readFileSync,lstatSync,rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 const config=(overrides={})=>({serverUrl:"http://127.0.0.1:38884",dataDir:"/ci/disposable",secrets:"SENTINEL-NEVER-PRINT",...overrides});
 const plugins=(more=[])=>({plugins:[
 {id:"bb--mcp",enabled:false},{id:"account-pool",enabled:false},
@@ -33,4 +36,27 @@ test("forbidden enabled and unknown statuses reject acceptance",()=>{
 test("malformed CLI shape is rejected, never serialized",()=>{
   assert.throws(()=>inspectLive({serverUrl:"invalid"},{plugins:[]},"/ci/disposable",38884));
   assert.throws(()=>inspectLive(config(),{plugins:null},"/ci/disposable",38884));
+});
+
+test("fixed-schema private disposable support bundle excludes untrusted fields",()=>{
+  const root=mkdtempSync(join(tmpdir(),"d059-ci-test-"));
+  const path=join(root,"d059-support-bundle.json");
+  try{
+    const report=inspectLive(config(),plugins(),"/ci/disposable",38884);
+    report.rawProviderToken="SENTINEL-DO-NOT-EMIT";
+    report.pluginStates["unknown-user-extension"]="SENTINEL";
+    const clean=writeCiSafeBundle(report,path,root);
+    const bytes=readFileSync(path,"utf8");
+    assert.deepEqual(JSON.parse(bytes),clean);
+    assert.doesNotMatch(bytes,/SENTINEL|\/ci\/disposable|rawProviderToken|unknown-user-extension/);
+    assert.equal(lstatSync(path).mode&0o777,0o600);
+    assert.throws(()=>writeCiSafeBundle(report,path,root),/could not be created/);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+test("bundle rejects arbitrary outside and traversal targets before writing",()=>{
+  const root=mkdtempSync(join(tmpdir(),"d059-ci-test-"));
+  try{
+    assert.throws(()=>writeCiSafeBundle({},join(root,"..","outside.json"),root),/Refusing/);
+    assert.throws(()=>writeCiSafeBundle({},"/tmp/another.json",root),/Refusing/);
+  }finally{rmSync(root,{recursive:true,force:true});}
 });
