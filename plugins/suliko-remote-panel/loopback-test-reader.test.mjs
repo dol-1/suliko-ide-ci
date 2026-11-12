@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createServer, type Server } from "node:http";
-import { type AddressInfo } from "node:net";
-import { createTestOnlyLoopbackReader } from "./loopback-test-reader.js";
+import { createServer } from "node:http";
+import { createTestOnlyLoopbackReader } from "./loopback-test-reader.ts";
 
 describe("D060 isolated actual HTTP read-only synthetic Remote transport", () => {
-  let server: Server;
-  let url: string;
-  let mode: "normal" | "redirect" | "oversize" | "forged-job" | "unsafe-link";
-  let seen: Array<{ method: string | undefined; url: string | undefined; authorization: string | undefined }>;
+  let server;
+  let url;
+  let mode;
+  let seen;
 
   beforeEach(async () => {
     mode = "normal";
@@ -44,16 +43,16 @@ describe("D060 isolated actual HTTP read-only synthetic Remote transport", () =>
       const payload = JSON.stringify(mode === "oversize" ? { ...response, padding: "X".repeat(10000) } : response);
       res.writeHead(200, { "content-type": "application/json", "content-length": Buffer.byteLength(payload) }).end(payload);
     });
-    await new Promise<void>((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       server.once("error", reject);
       server.listen(0, "127.0.0.1", () => resolve());
     });
-    const addr = server.address() as AddressInfo;
+    const addr = server.address();
     url = "http://127.0.0.1:" + addr.port + "/";
   });
 
   afterEach(async () => {
-    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   });
 
   it("reads exactly four allowlisted synthetic GET endpoints and never sends credentials or writes", async () => {

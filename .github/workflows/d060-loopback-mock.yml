@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/workflows/d060-loopback-mock.yml'
       - 'plugins/suliko-remote-panel/loopback-test-reader.ts'
-      - 'plugins/suliko-remote-panel/loopback-test-reader.test.ts'
+      - 'plugins/suliko-remote-panel/loopback-test-reader.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read
