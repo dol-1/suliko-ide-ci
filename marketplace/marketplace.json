@@ -20,8 +20,8 @@
         "git": {
           "url": "https://github.com/dol-1/suliko-ide-ci.git",
           "subdir": "plugins/suliko-hello",
-          "range": "0.1.0",
-          "tagPrefix": "suliko-hello/"
+          "range": "0.1.0-rc1",
+          "tagPrefix": "suliko-hello-"
         }
       }
     }

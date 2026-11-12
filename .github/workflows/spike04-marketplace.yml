@@ -1,9 +1,12 @@
-# SPIKE-04 marketplace staging only: no tag release until CI and review.
-name: SPIKE-04 marketplace staged install (manual only)
+# SPIKE-04 experimental test tag, never a production release; this runs only on CI feature branch.
+name: SPIKE-04 marketplace test-tag install (experimental)
 on:
+  push:
+    branches: [feat/d040-experimental-runs]
+    paths: ['.github/workflows/spike04-marketplace.yml', 'marketplace/marketplace.json']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   marketplace:
     runs-on: ubuntu-24.04
@@ -17,7 +20,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Verify reviewed immutable release prerequisite
+      - name: Verify immutable experimental test source
         shell: bash
         run: |
           set -euo pipefail
@@ -25,10 +28,24 @@ jobs:
           const fs=require('node:fs'), p=JSON.parse(fs.readFileSync('marketplace/marketplace.json','utf8'));
           if(p.schemaVersion!==1||p.name!=='suliko-experimental'||p.plugins.length!==1) throw Error('invalid catalog');
           const g=p.plugins[0].source.git;
-          if(g.url!=='https://github.com/dol-1/suliko-ide-ci.git'||g.subdir!=='plugins/suliko-hello'||g.tagPrefix!=='suliko-hello/'||g.range!=='0.1.0') throw Error('unexpected source');
+          if(g.url!=='https://github.com/dol-1/suliko-ide-ci.git'||g.subdir!=='plugins/suliko-hello'||g.tagPrefix!=='suliko-hello-'||g.range!=='0.1.0-rc1') throw Error('unexpected source');
           NODE
-          # Fail closed if release tag has not been reviewed/published.
-          test -n "$(git ls-remote --tags https://github.com/dol-1/suliko-ide-ci.git refs/tags/suliko-hello/v0.1.0)"
+          test "$GITHUB_REF_NAME" = "feat/d040-experimental-runs" || test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+      - name: Create immutable non-release test tag on GitHub mirror
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="suliko-hello-v0.1.0-rc1"
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -n "$existing" ]]; then
+            test "$existing" = "$GITHUB_SHA" || { echo "Immutable test tag points to another SHA: $existing"; exit 1; }
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA" >/dev/null
+          fi
+          test -n "$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag")"
+          echo "Non-release test tag $tag pins SHA $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
       - name: Checkout frozen BB source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

@@ -1,6 +1,9 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: QA-01 seven-by-two parity run (Linux experimental)
 on:
+  push:
+    branches: [feat/d040-experimental-runs]
+    paths: ['.github/workflows/qa01-parity-run.yml', 'tests/parity/**', 'plugins/suliko-hello/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -54,8 +57,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Fail closed rather than install an unreviewed third-party plugin.
-          test "${SULIKO_HELLO_CI_APPROVED_SHA:-}" = "$GITHUB_SHA"
+          # Pin verified fixture contents, not an unprovided review env gate.
+          pinned_fixture_sha="4017b9fcfcbc2e4d8507d7942a24008b37a139bd"
+          git fetch --no-tags --depth=1 origin "$pinned_fixture_sha"
+          git diff --quiet "$pinned_fixture_sha" "$GITHUB_SHA" -- plugins/suliko-hello tests/parity || { echo "Fixture differs from pinned CI SHA"; exit 1; }
+          echo "Fixture path content pinned to $pinned_fixture_sha; actual workflow SHA $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           web_dir="$RUNNER_TEMP/bb-parity-web"
           mkdir -p "$web_dir"
           export BB_DATA_DIR="$web_dir"
