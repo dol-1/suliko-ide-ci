@@ -4,16 +4,17 @@ import { basename, resolve } from 'node:path';
 const [project, file] = process.argv.slice(2);
 if (!project || !file) throw new Error('usage: node plugin-license-audit.mjs <plugin-dir> <pnpm-license-json>');
 const manifest = JSON.parse(readFileSync(resolve(project, 'package.json'), 'utf8'));
-const catalog = JSON.parse(readFileSync(resolve(file), 'utf8'));
+const raw = readFileSync(resolve(file), 'utf8').trim();
+const catalog = raw === 'No licenses in packages found' ? {} : JSON.parse(raw);
 if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw Error('pnpm license output must group packages by license');
 const results = [];
 for (const [license, entries] of Object.entries(catalog)) {
   if (!Array.isArray(entries)) throw Error('Malformed pnpm license group: ' + license);
   for (const p of entries) {
-    if (!p || typeof p !== 'object' || typeof p.name !== 'string' || typeof p.version !== 'string') {
+    if (!p || typeof p !== 'object' || typeof p.name !== 'string' || !Array.isArray(p.versions) || !p.versions.length || p.versions.some(v=>typeof v !== 'string')) {
       throw Error('Malformed pnpm license package metadata: ' + license);
     }
-    results.push({ name: p.name, version: p.version, license: license.trim() });
+    for (const version of p.versions) results.push({ name: p.name, version, license: license.trim() });
   }
 }
 const depCount = Object.keys(manifest.dependencies || {}).length + Object.keys(manifest.optionalDependencies || {}).length;
