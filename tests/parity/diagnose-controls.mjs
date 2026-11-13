@@ -130,6 +130,34 @@ async function diagnose(page, target) {
   console.log("QA01_DIAG_SHORTCUTS", JSON.stringify({
     target, quickOpen, diff, terminal, strictJourneyCountUnchanged: 14,
   }));
+  // The pinned stock "file.quickOpen" command promises workspace-file
+  // navigation in a panel tab. Measure that actual synthetic README file,
+  // not just generic dialog presence. Diagnostics remain AFTER strict 7x2.
+  let readmeListed = false;
+  let readmeOpenActionSucceeded = false;
+  let syntheticReadmeContentVisible = false;
+  try {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+p");
+    await page.waitForTimeout(500);
+    const readme = page.getByText(/^README\\.md$/i).first();
+    readmeListed = await readme.isVisible().catch(() => false);
+    if (readmeListed) {
+      readmeOpenActionSucceeded = await readme.click({ timeout: 5000 })
+        .then(() => true).catch(() => false);
+      if (readmeOpenActionSucceeded) {
+        syntheticReadmeContentVisible = await page.getByText(/disposable (test )?project only/i)
+          .first().isVisible().catch(() => false);
+      }
+    }
+    await page.keyboard.press("Escape");
+  } catch {
+    // No raw Playwright error, data-path, synthetic content or DOM output.
+  }
+  console.log("QA01_DIAG_QUICK_FILE", JSON.stringify({
+    target, readmeListed, readmeOpenActionSucceeded,
+    syntheticReadmeContentVisible, strictJourneyCountUnchanged: 14,
+  }));
 }
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
