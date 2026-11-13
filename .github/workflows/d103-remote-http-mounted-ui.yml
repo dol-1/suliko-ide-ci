@@ -1,0 +1,37 @@
+name: D-103 mounted Remote mock React UI through actual disposable HTTP GET (NO Remote)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d103-remote-http-mounted-ui]
+    paths:
+      - 'plugins/suliko-remote-panel/**'
+      - '.github/workflows/d103-remote-http-mounted-ui.yml'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  mounted-http-ui:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Verify frozen source, run real localhost mock to mounted React states
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd plugins/suliko-remote-panel && pnpm install --frozen-lockfile --ignore-scripts >/dev/null &&
+            pnpm run typecheck && pnpm test)
+          echo 'D103 actual localhost GET->injected React panel: offline, empty, unknown, failure, forged outcome, bad external link, KA+EN; NO live Remote/auth/writes.' >>"$GITHUB_STEP_SUMMARY"
