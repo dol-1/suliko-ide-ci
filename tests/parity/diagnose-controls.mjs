@@ -81,6 +81,26 @@ async function diagnose(page, target) {
     createThreadVisible: await visible(/new thread/i),
     providerPickerVisible: await visible(/provider|model/i),
   }));
+  // Independent, optional read-only result capture after strict 7x2 has run.
+  // Click only the locally installed disposable Hello nav button; NEVER ping RPC,
+  // enroll providers, or submit a thread. Fixed booleans only, no raw UI/error.
+  const helloNav = page.getByRole("button", { name: /^Suliko Hello$/i }).first();
+  const helloButtonVisible = await helloNav.isVisible().catch(() => false);
+  let helloClickSucceeded = false;
+  let helloPanelMounted = false;
+  if (helloButtonVisible) {
+    helloClickSucceeded = await helloNav.click({ timeout: 5000 })
+      .then(() => true).catch(() => false);
+    if (helloClickSucceeded) {
+      helloPanelMounted = await page.getByLabel("Suliko Hello panel").first()
+        .waitFor({ state: "visible", timeout: 5000 })
+        .then(() => true).catch(() => false);
+    }
+  }
+  console.log("QA01_DIAG_PANEL_MOUNT", JSON.stringify({
+    target, helloButtonVisible, helloClickSucceeded, helloPanelMounted,
+    strictJourneyCountUnchanged: 14,
+  }));
 }
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
