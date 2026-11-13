@@ -1,0 +1,130 @@
+name: D-085 E8 consolidated source-only beta release dry-run (NO publication)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d085-release-dry-run]
+    paths: ['.github/workflows/d085-release-dry-run.yml', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+      - name: Validate unreleased changelog, changeset and beta marketplace manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const text=fs.readFileSync('CHANGELOG.md','utf8');
+          if(!text.includes('## Unreleased')||!text.includes('No public release')) throw Error('Missing explicit unreleased changelog');
+          const changeset=fs.readFileSync('.changeset/suliko-beta-rehearsal.md','utf8');
+          if(!changeset.includes('"bb-plugin-suliko-hello": patch')||!changeset.includes('"bb-plugin-suliko-remote-mock": patch')) throw Error('Unreviewed changeset');
+          const p=JSON.parse(fs.readFileSync('marketplace/marketplace.beta-preview.json','utf8'));
+          if(p.schemaVersion!==1||p.name!=='suliko-beta-dry-run'||p.plugins?.length!==1) throw Error('Unreviewed dry-run catalog');
+          const git=p.plugins[0].source?.git;
+          if(p.plugins[0].id!=='suliko-hello'||git?.url!=='https://github.com/dol-1/suliko-ide-ci.git'||git?.subdir!=='plugins/suliko-hello'||git?.tagPrefix!=='suliko-hello/'||git?.range!=='0.1.0-rc.1') throw Error('Invalid RC-only marketplace git reference');
+          const h=crypto.createHash('sha256').update(fs.readFileSync('marketplace/marketplace.beta-preview.json')).digest('hex');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'D085 unreleased beta RC candidate manifest SHA256 '+h+'; no test RC tag assumed to exist yet.\n');
+          console.log('D085 unreleased changelog/changeset and beta-only candidate manifest checked');
+          NODE
+      - name: Verify reviewed own plugin pins and build outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          node - <<'NODE'
+          const fs=require('node:fs');
+          for(const name of ['suliko-hello','suliko-remote-panel']) {
+            const p=JSON.parse(fs.readFileSync('plugins/'+name+'/package.json','utf8'));
+            if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132'||p.engines.bb!=='>=0.49.0 <0.49.1')
+              throw Error('Unreviewed plugin SDK/BB dependency');
+          }
+          NODE
+          (cd plugins/suliko-hello && pnpm install --frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
+          (cd plugins/suliko-remote-panel && pnpm install --frozen-lockfile --ignore-scripts && pnpm run typecheck && pnpm test && pnpm exec esbuild app.tsx --bundle --platform=browser --format=esm --jsx=automatic --packages=external --outfile=dist/mock-panel.js)
+      - name: Normalize and hash ephemeral rehearsal output; no upload
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/d065-provenance-stage"
+          mkdir -p "$stage/hello" "$stage/remote"
+          for name in server.js app.js app.css app.meta.json; do
+            test -s "plugins/suliko-hello/dist/$name"
+            cp -- "plugins/suliko-hello/dist/$name" "$stage/hello/$name"
+          done
+          test -s plugins/suliko-remote-panel/dist/mock-panel.js
+          cp -- plugins/suliko-remote-panel/dist/mock-panel.js "$stage/remote/mock-panel.js"
+          # GitHub attestation action discovers subject-path from checkout
+          # workspace; a RUNNER_TEMP absolute path was not resolved by its glob.
+          # This workspace file is never uploaded and is deleted after verification.
+          archive="$GITHUB_WORKSPACE/d065-own-plugins-preview.tar"
+          (cd "$stage" && tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf "$archive" hello remote)
+          gzip -n "$archive"
+          test -s "$archive.gz"
+          printf 'path=%s\n' "$archive.gz" >> "$GITHUB_OUTPUT"
+          echo "NONRELEASE preview bundle SHA256 $(sha256sum "$archive.gz" | cut -d' ' -f1); archive not uploaded or published." >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify pinned Syft and generate own-plugin SPDX 2.3 inventories
+        shell: bash
+        env:
+          SYFT_CHECK_FOR_APP_UPDATE: 'false'
+          SYFT_LOG_LEVEL: 'error'
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d085-syft"
+          mkdir -m 700 -p "$folder"
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$folder/pkg.tar.gz" "https://github.com/anchore/syft/releases/download/v1.57.1/syft_1.57.1_linux_amd64.tar.gz"
+          printf '%s  %s\n' 'bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c' "$folder/pkg.tar.gz" | sha256sum -c - >/dev/null
+          tar -xzf "$folder/pkg.tar.gz" -C "$folder" syft
+          chmod 700 "$folder/syft"
+          "$folder/syft" dir:plugins/suliko-hello -o spdx-json="$folder/hello.spdx.json" >/dev/null
+          "$folder/syft" dir:plugins/suliko-remote-panel -o spdx-json="$folder/remote.spdx.json" >/dev/null
+          node - "$folder/hello.spdx.json" "$folder/remote.spdx.json" <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          for(const [label,file] of [['hello',process.argv[2]],['remote',process.argv[3]]]){
+            const bytes=fs.readFileSync(file),j=JSON.parse(bytes.toString('utf8'));
+            if(!String(j.spdxVersion||'').startsWith('SPDX-2.3')||!Array.isArray(j.packages)||!j.packages.length||!Array.isArray(j.relationships)) throw Error('Missing SPDX draft inventory for '+label);
+            const hash=crypto.createHash('sha256').update(bytes).digest('hex');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'D085 draft SPDX 2.3 '+label+': '+j.packages.length+' packages, SHA256 '+hash+'; transitive completeness NOT independently certified.\n');
+          }
+          NODE
+          rm -rf -- "$folder"
+      - name: Public-repo attestation only (this is not a release)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: ${{ steps.build.outputs.path }}
+          push-to-registry: false
+          show-summary: false
+      - name: Verify signed attestation against ephemeral exact same-run archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW: ${{ steps.build.outputs.path }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/d065-attestation-verify.json"
+          trap 'rm -f -- "$report" "$PREVIEW"; rm -rf -- "$RUNNER_TEMP/d065-provenance-stage"' EXIT
+          gh attestation verify "$PREVIEW" --repo "$GITHUB_REPOSITORY" --format=json >"$report"
+          node - "$report" <<'NODE'
+          const fs=require('node:fs'), data=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(data)||data.length===0)throw Error('No verifiable GitHub provenance attestation');
+          console.log('D065 signed provenance successfully verified for ephemeral own-plugin bundle; repository attestation record exists.');
+          NODE
+          echo 'D065 verified signed preview only; no release, package upload, public beta or BB core changes.' >> "$GITHUB_STEP_SUMMARY"
