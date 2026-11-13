@@ -38,8 +38,19 @@ jobs:
           mkdir -m 700 -p "$home" "$extract" "$home/bb-disposable"
           export HOME="$home" BB_DATA_DIR="$home/bb-disposable"
           start="$(date +%s)"
-          cleanup() {
+          pgid=""
+          stop_app() {
             set +e
+            if [[ -n "$pgid" ]]; then
+              kill -TERM -- "-$pgid" >/dev/null 2>&1
+              sleep 2
+              kill -KILL -- "-$pgid" >/dev/null 2>&1
+              wait "$pgid" >/dev/null 2>&1
+              pgid=""
+            fi
+          }
+          cleanup() {
+            stop_app
             HOME="$home" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1
             HOME="$home" bash scripts/suliko-setup.sh --uninstall >/dev/null 2>&1
           }
@@ -57,11 +68,12 @@ jobs:
           # Require an actual 20s windowed runtime lifespan; this is not proof
           # of a ready UI, installed profile hardening or marketplace success.
           # No unsafe --no-sandbox, sudo, provider token or production account.
-          set +e
-          timeout --signal=TERM --kill-after=5s 20s xvfb-run -a "$app" >"$RUNNER_TEMP/d084-window.log" 2>&1
-          code=$?
+          setsid xvfb-run -a "$app" >"$RUNNER_TEMP/d084-window.log" 2>&1 &
+          pgid=$!
+          sleep 20
+          kill -0 "$pgid" 2>/dev/null || { echo 'D084 GUI exited before 20s liveness smoke' >&2; exit 1; }
+          stop_app
           set -e
-          test "$code" = 124 || { echo 'D084 GUI failed 20s liveness smoke (no raw diagnostics emitted)' >&2; exit 1; }
           # Uninstall only Suliko-owned files, preserving all unrelated data.
           bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null
           bash scripts/suliko-setup.sh --uninstall >/dev/null
@@ -70,6 +82,7 @@ jobs:
           test -d "$home/bb-disposable"
           stop="$(date +%s)"
           elapsed="$((stop-start))"
+          echo "SETUP_ELAPSED_SECONDS=$elapsed"
           echo "SETUP_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
           printf 'D084 verified Linux user-level AppImage unpack/20s liveness/remove completed; elapsed=%s seconds; SEC-02/marketplace/Hello/full E1 NOT yet checked.\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"
           test "$elapsed" -lt 900
