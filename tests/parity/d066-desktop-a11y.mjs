@@ -6,10 +6,14 @@ import { createRequire } from "node:module";
 const require=createRequire(import.meta.url);
 const axeBrowserPath=(()=>{try{return require.resolve("axe-core/axe.min.js");}catch{return require.resolve("axe-core");}})();
 import { basename, join, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdirSync } from "node:fs";
 const bin=process.env.BB_DESKTOP_BINARY, tmp=process.env.RUNNER_TEMP, data=process.env.BB_DATA_DIR;
 if(process.env.CI!=="true"||!bin||!tmp||data!==join(tmp,"d066-desktop-data")||
    !basename(bin).endsWith(".AppImage")||process.env.BB_TELEMETRY!=="false")
   throw Error("D066 refused non-disposable desktop fixture");
+const screenshots=join(tmp,"d088-desktop-own-panels");
+mkdirSync(screenshots,{recursive:true,mode:0o700});
 for(const [lang,helloLabel,remoteLabel] of [
   ["en","Suliko Hello panel","Suliko Remote panel"],
   ["ka-GE","სულიკო ჰელოს პანელი","სულიკო Remote პანელი"]
@@ -73,6 +77,17 @@ for(const [lang,helloLabel,remoteLabel] of [
       console.log("D066 packaged Desktop own panel",id,lang,"critical",counts.critical,
         "serious",counts.serious,"incomplete",counts.incomplete,"clipping",clipped);
       if(counts.critical||clipped)throw Error("D066 Desktop own panel accessibility/clipping gate failed");
+      // D088: only synthetic panel pixels; never screenshot entire BB workspace.
+      const visibleText=await panel.innerText();
+      if(visibleText.length>2000||/(?:[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}|sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9]{16,}|bearer\\s+\\S+)/i.test(visibleText))
+        throw Error("D088 refused non-synthetic Desktop screenshot content");
+      const bounds=await panel.boundingBox();
+      if(!bounds||bounds.width<170||bounds.width>1400||bounds.height<70||bounds.height>900)
+        throw Error("D088 invalid own-panel screenshot bounds");
+      const key=id+"-"+(lang==="en"?"en":"ka");
+      const pixels=await panel.screenshot({path:join(screenshots,key+".png"),type:"png",animations:"disabled",caret:"hide",scale:"css"});
+      if(pixels.length<1000||pixels.length>1000000)throw Error("D088 bounded screenshot bytes invalid");
+      console.log("D088 packaged Desktop synthetic own panel",key,"SHA256",createHash("sha256").update(pixels).digest("hex"),"bytes",pixels.length);
     }
   }finally{await electron.close();}
 }

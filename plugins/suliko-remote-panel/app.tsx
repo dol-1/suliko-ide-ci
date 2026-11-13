@@ -4,6 +4,7 @@ import { remoteMessages, remoteStatusLabel } from "./i18n.js";
 import {
   demoRemote,
   isSafeDemoApprovalPage,
+  type RemoteReadOnlyMockPort,
   type TestApproval, type TestDevice, type TestJob,
 } from "./mock-remote.js";
 
@@ -14,7 +15,7 @@ interface Snapshot {
   approvalStatus: string;
 }
 
-export function RemotePanel() {
+export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOnlyMockPort } = {}) {
   const lang = typeof document !== "undefined" && document.documentElement.lang
     ? document.documentElement.lang
     : typeof navigator !== "undefined" ? navigator.language : "en";
@@ -26,15 +27,15 @@ export function RemotePanel() {
     let active = true;
     // Stubbed promise calls only. No network is contacted by this prototype.
     void Promise.all([
-      demoRemote.list_devices(),
-      demoRemote.list_pending_approvals(),
-      demoRemote.get_approval_status("demo-approval-1"),
-      demoRemote.job_status("demo-job-1"),
+      readPort.list_devices(),
+      readPort.list_pending_approvals(),
+      readPort.get_approval_status("demo-approval-1"),
+      readPort.job_status("demo-job-1"),
     ]).then(([devices, approvals, status, job]) => {
       if (active) setSnapshot({ devices, approvals, approvalStatus: status.status, job });
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; };
-  }, []);
+  }, [readPort]);
 
   return (
     <section aria-label={t.panelLabel} style={{ padding: 16 }}>
