@@ -1,0 +1,63 @@
+name: D-099 Linux single-command SHA-owned staging preview negative test
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d099-linux-one-command-staging-preview]
+    paths:
+      - 'scripts/suliko-linux-preview.sh'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-stage-linux.sh'
+      - '.github/workflows/d099-linux-staging-preview.yml'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  preview-staging-only:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Non-root synthetic one-command staging, idempotence and fail-closed cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" -ne 0
+          test "$(uname -m)" = x86_64
+          export HOME="$RUNNER_TEMP/d099-disposable"
+          mkdir -m 700 -p "$HOME" "$HOME/bb-test-data"
+          echo 'preserve synthetic BB user data' > "$HOME/bb-test-data/foreign.txt"
+          test ! -e "$HOME/.cache"
+          bash scripts/suliko-linux-preview.sh --dry-run >/dev/null
+          test ! -e "$HOME/.cache"
+          start="$(date +%s)"
+          bash scripts/suliko-linux-preview.sh --install-preview >/dev/null
+          app="$HOME/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          marker="$HOME/.local/share/suliko-ide/.suliko-owned-stage-bb-0.49.0-x86_64.AppImage.sha256"
+          cache="$HOME/.cache/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          launcher="$HOME/.local/bin/suliko-bb-desktop"
+          test -f "$marker" && test -f "$cache" && test -x "$app"
+          test "$(readlink "$launcher")" = "$app"
+          printf '%s  %s\n' '8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770' "$app" | sha256sum -c - >/dev/null
+          bash scripts/suliko-linux-preview.sh --install-preview >/dev/null
+          original="$(cat "$marker")"
+          printf '%s\n' 'FORGED-UNOWNED-STAGE' > "$marker"
+          if bash scripts/suliko-linux-preview.sh --uninstall-preview >/dev/null 2>&1; then
+            echo 'D099 failed: forged ownership allowed removal' >&2; exit 1
+          fi
+          test -s "$app" && test -s "$cache"
+          printf '%s\n' "$original" > "$marker"
+          bash scripts/suliko-linux-preview.sh --uninstall-preview >/dev/null
+          test ! -e "$app" && test ! -e "$marker" && test ! -L "$launcher" && test ! -e "$cache"
+          grep -qx 'preserve synthetic BB user data' "$HOME/bb-test-data/foreign.txt"
+          elapsed="$(($(date +%s)-start))"
+          echo "D099_PREVIEW_ELAPSED_SECONDS=$elapsed"
+          echo "D099_PREVIEW_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          echo 'D099 verified only one-command staged SHA-owned Linux AppImage and safe cleanup, NO launch/plugin/SEC02/tag/3OS or beta GO.' >> "$GITHUB_STEP_SUMMARY"
+          test "$elapsed" -lt 900
