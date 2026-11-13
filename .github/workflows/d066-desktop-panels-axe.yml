@@ -4,10 +4,11 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d066-desktop-panels-axe, feat/d088-desktop-visual-and-remote-states, main]
+    branches: [feat/d066-desktop-panels-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
     paths:
       - '.github/workflows/d066-desktop-panels-axe.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'
+      - 'plugins/suliko-remote-panel/**'
   workflow_dispatch:
 permissions:
   contents: read
