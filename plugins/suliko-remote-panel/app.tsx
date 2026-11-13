@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
 import { remoteMessages, remoteStatusLabel } from "./i18n.js";
+import { pollingDelay } from "./polling.js";
 import {
   demoRemote,
   isSafeDemoApprovalPage,
@@ -25,16 +26,33 @@ export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOn
 
   useEffect(() => {
     let active = true;
-    // Stubbed promise calls only. No network is contacted by this prototype.
-    void Promise.all([
-      readPort.list_devices(),
-      readPort.list_pending_approvals(),
-      readPort.get_approval_status("demo-approval-1"),
-      readPort.job_status("demo-job-1"),
-    ]).then(([devices, approvals, status, job]) => {
-      if (active) setSnapshot({ devices, approvals, approvalStatus: status.status, job });
-    }).catch(() => { if (active) setError(true); });
-    return () => { active = false; };
+    let failures = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Only four read-only, no-network mock calls. Never retry or replay a write.
+    async function refresh() {
+      try {
+        const [devices, approvals, status, job] = await Promise.all([
+          readPort.list_devices(),
+          readPort.list_pending_approvals(),
+          readPort.get_approval_status("demo-approval-1"),
+          readPort.job_status("demo-job-1"),
+        ]);
+        if (!active) return;
+        failures = 0;
+        setSnapshot({ devices, approvals, approvalStatus: status.status, job });
+        setError(false);
+      } catch {
+        if (!active) return;
+        // Fail closed: never render stale device/approval/outcome data as current.
+        failures = Math.min(failures + 1, 3);
+        setSnapshot(null);
+        setError(true);
+      } finally {
+        if (active) timer = setTimeout(() => { void refresh(); }, pollingDelay(failures));
+      }
+    }
+    void refresh();
+    return () => { active = false; if (timer !== undefined) clearTimeout(timer); };
   }, [readPort]);
 
   return (
