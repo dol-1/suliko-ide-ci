@@ -22,7 +22,7 @@
     "build": "bb plugin build"
   },
   "devDependencies": {
-    "@get-bb/plugin-sdk": "0.6.132",
+    "@get-bb/plugin-sdk": "0.6.136",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.2.3",
