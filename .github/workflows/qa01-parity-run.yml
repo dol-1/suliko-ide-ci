@@ -1,12 +1,14 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: QA-01 seven-by-two parity run (Linux experimental)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   workflow_dispatch:
   push:
     branches: [feat/qa01-dom-diagnostics, feat/qa01-desktop-ready-gate]
     paths: ['tests/parity/**', '.github/workflows/qa01-parity-run.yml']
-permissions:
-  contents: read
+permissions: read-all
 jobs:
   parity:
     runs-on: ubuntu-24.04
