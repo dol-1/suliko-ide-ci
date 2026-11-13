@@ -1,6 +1,9 @@
 # [ChatGPT] OPS-01: sequential independent, fully disposable Docker containers.
 # Only an ephemeral synthetic export file is bind-mounted. NEVER upload artifact.
 name: OPS-01 two-container synthetic BB restore (no public artifacts)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d051-ops01-two-containers]
