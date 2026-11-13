@@ -1,0 +1,75 @@
+name: D-081 public-only rescue patch regressions
+on:
+  push:
+    branches:
+      - fix/d058-cache-ownership
+      - fix/d059-version-output
+      - fix/d078-qa01-summary-redaction
+      - feat/d076-lock-integrity
+      - fix/d080-e4-version-display
+    paths:
+      - '.github/workflows/d081-ports.yml'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'plugins/suliko-remote-panel/**'
+      - 'plugins/suliko-hello/**'
+  workflow_dispatch:
+permissions: read-all
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    steps:
+      - name: Checkout only the public CI repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up pinned Node 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Run branch-specific regression without personal credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            fix/d058-cache-ownership)
+              bash tests/e1/setup-contract.test.sh
+              ;;
+            fix/d059-version-output)
+              node --test tests/doctor/doctor.test.mjs
+              ;;
+            fix/d078-qa01-summary-redaction)
+              node --test scripts/qa01-parity-summary.test.mjs
+              ;;
+            feat/d076-lock-integrity)
+              corepack enable
+              corepack prepare pnpm@9.15.0 --activate
+              cd plugins/suliko-remote-panel
+              pnpm install --frozen-lockfile --ignore-scripts
+              pnpm run typecheck
+              pnpm run test
+              pnpm licenses list --prod --json > "$RUNNER_TEMP/d081-licenses.json"
+              cd ../..
+              node scripts/plugin-license-audit.mjs plugins/suliko-remote-panel "$RUNNER_TEMP/d081-licenses.json"
+              ;;
+            fix/d080-e4-version-display)
+              corepack enable
+              corepack prepare pnpm@9.15.0 --activate
+              cd plugins/suliko-hello
+              pnpm install --frozen-lockfile --ignore-scripts
+              pnpm run typecheck
+              pnpm run test
+              ;;
+            *) echo 'Unsupported branch' >&2; exit 2 ;;
+          esac
+          echo "D081 regression passed for source head ${GITHUB_SHA:0:8}" >> "$GITHUB_STEP_SUMMARY"
