@@ -5,7 +5,11 @@ umask 077
 repo="$(git -C "$(dirname "${BASH_SOURCE[0]}")/../.." rev-parse --show-toplevel)"
 script="$repo/scripts/suliko-setup.sh"
 test -f "$script"
-test "$(git -C "$repo" remote get-url origin)" = "https://github.com/dol-1/suliko-ide-ci.git"
+remote="$(git -C "$repo" remote get-url origin)"
+case "$remote" in
+  https://github.com/dol-1/suliko-ide-ci|https://github.com/dol-1/suliko-ide-ci.git) ;;
+  *) printf "%s\\n" "Not an authorized PUBLIC CI checkout" >&2; exit 2 ;;
+esac
 root="$(mktemp -d "${TMPDIR:-/tmp}/suliko-e1-fixture-XXXXXXXX")"
 trap 'rm -rf -- "$root"' EXIT
 mkdir -m 700 -p "$root/home" "$root/foreign"
