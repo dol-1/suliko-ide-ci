@@ -16,6 +16,8 @@ sha='8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770'
 cache="$HOME/.cache/suliko-ide/$asset"
 stage_dir="$HOME/.local/share/suliko-ide"
 stage="$stage_dir/$asset"
+owner="$stage_dir/.suliko-owned-stage-$asset.sha256"
+owner_record="SULIKO-IDE-STAGE-v1 $asset $sha"
 link_dir="$HOME/.local/bin"
 link="$link_dir/suliko-bb-desktop"
 safe_dirs() {
@@ -32,8 +34,14 @@ check_sha() {
   fi
   [[ "$got" = "$sha" ]]
 }
+check_owner() {
+  [[ -f "$owner" && ! -L "$owner" && "$(cat "$owner")" == "$owner_record" ]]
+}
 safe_dirs
 if [[ "$1" = "--remove-stage" ]]; then
+  if [[ -e "$link" || -L "$link" || -e "$stage" || -L "$stage" || -e "$owner" || -L "$owner" ]]; then
+    check_owner || { echo 'Refusing unowned stage/launcher: missing or invalid ownership marker' >&2; exit 1; }
+  fi
   if [[ -e "$link" || -L "$link" ]]; then
     [[ -L "$link" && "$(readlink "$link")" = "$stage" ]] || { echo 'Refusing unrelated launcher' >&2; exit 1; }
   fi
@@ -42,9 +50,13 @@ if [[ "$1" = "--remove-stage" ]]; then
   fi
   [[ ! -L "$link" ]] || rm -- "$link"
   [[ ! -f "$stage" ]] || rm -- "$stage"
+  [[ ! -e "$owner" ]] || rm -- "$owner"
   [[ ! -d "$stage_dir" ]] || rmdir "$stage_dir" 2>/dev/null || true
   echo 'PREVIEW staging removed; unrelated files, official BB data and other software untouched.'
   exit 0
+fi
+if [[ -e "$link" || -L "$link" || -e "$stage" || -L "$stage" || -e "$owner" || -L "$owner" ]]; then
+  check_owner || { echo 'Refusing preexisting stage/launcher without verified ownership' >&2; exit 1; }
 fi
 if [[ -e "$link" || -L "$link" ]]; then
   [[ -L "$link" && "$(readlink "$link")" = "$stage" ]] || { echo 'Refusing occupied Suliko launcher path' >&2; exit 1; }
@@ -52,6 +64,7 @@ fi
 if [[ -e "$stage" || -L "$stage" ]]; then
   check_sha "$stage" || { echo 'Refusing modified/unowned AppImage' >&2; exit 1; }
 else
+  [[ ! -e "$owner" && ! -L "$owner" ]] || { echo 'Orphaned ownership marker; refusing stage' >&2; exit 1; }
   # Never trust a cached asset without a fresh digest, even when download
   # itself verified the original official GitHub release.
   if [[ ! -f "$cache" ]]; then
@@ -66,8 +79,14 @@ else
   check_sha "$temp" || { echo 'Staged AppImage copy checksum mismatch' >&2; exit 1; }
   chmod 700 "$temp"
   [[ ! -e "$stage" && ! -L "$stage" ]] || { echo 'Stage path occupied' >&2; exit 1; }
-  mv -- "$temp" "$stage"
+  # Atomic same-filesystem, no-clobber hardlink; never replace a foreign asset.
+  ln -- "$temp" "$stage" || { echo 'Stage target appeared; refusing overwrite' >&2; exit 1; }
+  rm -- "$temp"
   trap - EXIT
+  # If marker creation races/fails, leave an untracked orphan; never authorize
+  # uninstall of it implicitly. Owner can remove that orphan manually.
+  ( set -C; printf '%s\n' "$owner_record" > "$owner" ) ||
+    { echo 'Could not write exclusive stage owner record' >&2; exit 1; }
 fi
 if [[ ! -e "$link" && ! -L "$link" ]]; then
   mkdir -p -- "$link_dir"

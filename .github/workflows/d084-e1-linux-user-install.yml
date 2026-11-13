@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d084-e1-linux-install]
+    branches: [feat/d084-e1-linux-install, feat/d084-linux-stage-ownership]
     paths: ['.github/workflows/d084-e1-linux-user-install.yml', 'scripts/suliko-setup.sh', 'scripts/suliko-stage-linux.sh']
   workflow_dispatch:
 permissions: read-all
@@ -56,7 +56,25 @@ jobs:
           }
           trap cleanup EXIT
           bash scripts/suliko-setup.sh --download-verified >/dev/null
+          # Matching official bytes do not mean an existing staged file is ours.
+          stage="$home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          owner="$home/.local/share/suliko-ide/.suliko-owned-stage-bb-0.49.0-x86_64.AppImage.sha256"
+          mkdir -p "$(dirname "$stage")"
+          cp "$home/.cache/suliko-ide/bb-0.49.0-x86_64.AppImage" "$stage"
+          if bash scripts/suliko-stage-linux.sh --stage > /dev/null 2>&1; then
+            echo 'E1 accepted a foreign same-hash staged AppImage' >&2; exit 1
+          fi
+          test -s "$stage"
+          rm "$stage"
           bash scripts/suliko-stage-linux.sh --stage >/dev/null
+          test -f "$owner"
+          saved_record="$(cat "$owner")"
+          printf 'FORGED-NOT-OWNED\n' > "$owner"
+          if bash scripts/suliko-stage-linux.sh --remove-stage > /dev/null 2>&1; then
+            echo 'E1 removed a staged AppImage with a forged owner marker' >&2; exit 1
+          fi
+          test -s "$stage"
+          printf '%s\n' "$saved_record" > "$owner"
           app="$home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
           launcher="$home/.local/bin/suliko-bb-desktop"
           test -x "$app"
@@ -77,7 +95,7 @@ jobs:
           # Uninstall only Suliko-owned files, preserving all unrelated data.
           bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null
           bash scripts/suliko-setup.sh --uninstall >/dev/null
-          test ! -e "$app" && test ! -e "$launcher"
+          test ! -e "$app" && test ! -e "$launcher" && test ! -e "$owner"
           test ! -e "$home/.cache/suliko-ide/bb-0.49.0-x86_64.AppImage"
           test -d "$home/bb-disposable"
           stop="$(date +%s)"
