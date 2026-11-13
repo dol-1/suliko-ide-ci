@@ -122,16 +122,46 @@ test("J04: provider/model selection can be opened", async ({ appPage }) => {
   await expect(appPage.getByRole("dialog").or(appPage.getByRole("listbox")).first()).toBeVisible();
 });
 
+// Stock BB desktop-v0.49.0 deliberately routes Files and Terminal through
+// "new tab" action search, not sidebar navigation. Upstream sources:
+// RootComposeView useAppCommandHandler("file.quickOpen") opens NewTab;
+// NewTabFileSearch renders file results as role=option; NewTabActions renders
+// "Start terminal" as role=option when the project source host is connected.
+// These tests now require ACTUAL file search + open, and ACTUAL terminal start,
+// stronger than the previous nonexistent-sidebar-label assertions.
+async function openStockFileLauncher(page: Page) {
+  const search = page.getByRole("combobox", { name: /Search files/i }).first();
+  if (!(await search.isVisible().catch(() => false))) {
+    await page.keyboard.press("Control+p");
+  }
+  await expect(search).toBeVisible({ timeout: 10000 });
+  await expect(search).toBeEnabled();
+  return search;
+}
+
 test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
-  const files = navigation(appPage, /files|changes|diff/i);
-  await expect(files).toBeVisible();
-  await files.click();
-  await expect(appPage.getByRole("main").or(appPage.locator("#root")).first()).toBeVisible();
+  const search = await openStockFileLauncher(appPage);
+  // The only file in the isolated repository is deterministic and harmless.
+  await search.fill("README");
+  const file = appPage.getByRole("group", { name: /^Files$/i })
+    .getByRole("option", { name: /README\.md/i }).first();
+  await expect(file).toBeVisible({ timeout: 15000 });
+  await file.click();
+  // A real opened file tab is required, not just the application root.
+  await expect(appPage.getByRole("tab", { name: /README\.md/i }).first())
+    .toBeVisible({ timeout: 10000 });
 });
 
 test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
-  // Requires fixture worktree+host; absence fails the test (no silent skip).
-  await expect(navigation(appPage, /terminal/i)).toBeVisible();
+  const search = await openStockFileLauncher(appPage);
+  await search.fill("");
+  const terminal = appPage.getByRole("option", { name: /Start terminal/i }).first();
+  await expect(terminal).toBeVisible({ timeout: 10000 });
+  await expect(terminal).toBeEnabled();
+  // Do not execute commands; starting a disposable terminal UI is sufficient.
+  await terminal.click();
+  await expect(appPage.getByRole("tab", { name: /terminal/i }).first())
+    .toBeVisible({ timeout: 10000 });
 });
 
 test("J07: Suliko Hello plugin panel appears on both clients", async ({ appPage }) => {
