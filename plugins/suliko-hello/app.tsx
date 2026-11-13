@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import { definePluginApp, useRpc } from "@get-bb/plugin-sdk/app";
 import type { helloContract } from "./server.js";
 import { panelMessages } from "./i18n.js";
+import { publicBbVersion } from "./version-compat.js";
+
+/** Display only canonical UTC timestamps, never arbitrary RPC text. */
+function publicRpcTimestamp(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 28 ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) return null;
+  const epoch = Date.parse(value);
+  if (!Number.isFinite(epoch)) return null;
+  const canonical = new Date(epoch).toISOString();
+  // Reject impossible calendar dates silently normalized by Date.parse.
+  return canonical.startsWith(value.slice(0, 19)) ? canonical : null;
+}
 
 type BbCompatibility =
   | { kind: "checking" }
@@ -29,7 +41,7 @@ export function HelloPanel() {
       if (!active) return;
       setCompatibility(result.supported
         ? { kind: "supported" }
-        : { kind: "unsupported", version: result.currentVersion, allowedRange: result.allowedRange });
+        : { kind: "unsupported", version: publicBbVersion(result.currentVersion), allowedRange: result.allowedRange });
     }).catch(() => {
       if (active) setCompatibility({
         kind: "unsupported", version: null, allowedRange: ">=0.49.0 <0.49.1",
@@ -43,9 +55,11 @@ export function HelloPanel() {
     setStatus({ kind: "loading" });
     try {
       const result = await rpc.call("ping", {});
+      const ts = publicRpcTimestamp(result.ts);
+      if (!ts) throw new Error("Invalid public timestamp");
       setStatus({
         kind: "success",
-        ts: result.ts,
+        ts,
         secretConfigured: result.secretConfigured,
       });
     } catch {

@@ -1,6 +1,6 @@
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { ALLOWED_BB_VERSION_RANGE, isCompatibleBbVersion } from "./version-compat.js";
+import { ALLOWED_BB_VERSION_RANGE, isCompatibleBbVersion, publicBbVersion } from "./version-compat.js";
 
 // Only public status leaves the backend. Secret settings are never sent to the app.
 export const helloContract = defineRpcContract({
@@ -66,7 +66,7 @@ export default function plugin(bb: BbPluginApi) {
       const currentVersion = await currentBbVersion();
       return {
         supported: isCompatibleBbVersion(currentVersion),
-        currentVersion,
+        currentVersion: publicBbVersion(currentVersion),
         allowedRange: ALLOWED_BB_VERSION_RANGE,
       };
     },
