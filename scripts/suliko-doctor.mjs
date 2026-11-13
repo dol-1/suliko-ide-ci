@@ -9,9 +9,11 @@ const allowedState = new Set(["enabled", "disabled", "absent"]);
 function inspect(source) {
   // Construct ALL output from a constant-key allowlist. Never serialize source or errors.
   const valid = source !== null && typeof source === "object" && !Array.isArray(source) ? source : {};
+  // Only expose canonical numeric version components. Arbitrary pre-release
+  // strings are untrusted fixture text and could carry short secret markers.
   const version = typeof valid.bbVersion === "string"
-    && valid.bbVersion.length <= 32
-    && /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]{1,16})?$/.test(valid.bbVersion)
+    && valid.bbVersion.length <= 18
+    && /^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(valid.bbVersion)
     ? valid.bbVersion : "unknown";
   const listener = valid.listenerHost === "127.0.0.1" || valid.listenerHost === "::1" || valid.listenerHost === "localhost";
   const hardened = valid.profileHardened === true;
