@@ -1,0 +1,29 @@
+{
+  "$schema": "https://getbb.app/schemas/marketplace.schema.json",
+  "schemaVersion": 1,
+  "name": "suliko-beta-dry-run",
+  "displayName": "Suliko Beta RC Preview — NOT PUBLISHED",
+  "description": "Unreleased experimental source-only beta-candidate manifest. Do not install on user hosts.",
+  "plugins": [
+    {
+      "id": "suliko-hello",
+      "displayName": "Suliko Hello (RC candidate, not published)",
+      "description": "Local-only SDK preview; no production credentials or Remote capabilities.",
+      "tags": [
+        "experimental",
+        "developer-tools"
+      ],
+      "author": {
+        "name": "Suliko"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/dol-1/suliko-ide-ci.git",
+          "subdir": "plugins/suliko-hello",
+          "range": "0.1.0-rc.1",
+          "tagPrefix": "suliko-hello/"
+        }
+      }
+    }
+  ]
+}
