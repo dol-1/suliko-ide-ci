@@ -140,7 +140,7 @@ async function diagnose(page, target) {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+p");
     await page.waitForTimeout(500);
-    const readme = page.getByText(/^README\\.md$/i).first();
+    const readme = page.getByText(/^README\.md$/i).first();
     readmeListed = await readme.isVisible().catch(() => false);
     if (readmeListed) {
       readmeOpenActionSucceeded = await readme.click({ timeout: 5000 })
