@@ -1,4 +1,7 @@
 name: D-064 pinned vs upstream Git source SDK compile matrix (NON-RELEASE)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d064-real-sdk-matrix, main]

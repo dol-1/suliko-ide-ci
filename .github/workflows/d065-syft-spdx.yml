@@ -1,4 +1,7 @@
 name: D-065 pinned Syft SPDX SBOM dry-run (NO publication)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d065-syft-spdx, main]

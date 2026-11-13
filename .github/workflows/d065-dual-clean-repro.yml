@@ -1,4 +1,7 @@
 name: D-065 two clean own-plugin build reproducibility check (NO release)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d065-dual-clean-repro, main]
