@@ -1,0 +1,44 @@
+name: D-088 Remote mock loading error offline empty safe state tests
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d088-desktop-visual-and-remote-states]
+    paths: ['plugins/suliko-remote-panel/**', '.github/workflows/d088-remote-state-matrix.yml']
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  read-only-fixtures:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Verify frozen SDK and no-op Remote plugin permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs'),p=require('./plugins/suliko-remote-panel/package.json');
+          if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132'||p.engines.bb!=='>=0.49.0 <0.49.1'||p.engines.bbPluginSdk!=='>=0.6.132 <0.6.133') throw Error('Unreviewed BB SDK bounds');
+          if(p.bb.server!=='./server.ts'||!/Intentionally no side effects/.test(fs.readFileSync('plugins/suliko-remote-panel/server.ts','utf8')))throw Error('Remote backend not verified as no-op');
+          NODE
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          cd plugins/suliko-remote-panel
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm run typecheck
+          pnpm run test
+          pnpm exec esbuild app.tsx --bundle --platform=browser --format=esm --jsx=automatic --packages=external --outfile=dist/mock-panel.js
+          test -s dist/mock-panel.js
+          echo 'D088 all offline read-only mock state assertions passed; no network, user data, actual Remote, plugin marketplace, Desktop/Web integration or release.' >> "$GITHUB_STEP_SUMMARY"
