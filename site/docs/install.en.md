@@ -7,3 +7,5 @@
 3. A real automated hardened-profile installer and marketplace setup require additional independent checks. Until this gate passes, do not turn on a remote-access endpoint or handle real private customer data.
 
 [First steps](first-steps.en.md) · [Troubleshooting](troubleshooting.en.md)
+
+**Windows trust warning (BB 0.49.0):** The official pinned Windows x64 installer has been SHA-256-verified against the official release digest, but a free Windows CI runner reported Authenticode **NotSigned**. Upstream states builds without a Windows signing certificate are unsigned and may trigger SmartScreen. SHA-256 authenticates correspondence to the reviewed release digest; it does **not** establish the publisher's code-signing identity. Our signed-installer gate deliberately refuses execution, and Suliko's Windows automated install is **not approved**. Do not bypass SmartScreen or interpret a diagnostic GREEN run as an installation success. See the [upstream Windows packaging explanation](https://github.com/get-bb/bb/blob/desktop-v0.49.0/apps/desktop/README.md).

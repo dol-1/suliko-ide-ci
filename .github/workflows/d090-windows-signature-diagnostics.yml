@@ -1,0 +1,54 @@
+name: D-090 official Windows SHA and Authenticode status (diagnostic only; NO execution)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d090-windows-signature-diagnostics]
+    paths:
+      - '.github/workflows/d090-windows-signature-diagnostics.yml'
+      - 'scripts/suliko-setup.ps1'
+      - 'site/docs/install.en.md'
+      - 'site/docs/install.ka.md'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  official-unsigned-status:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify pinned official SHA256 and record bounded OS signature classification
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $work = Join-Path $env:RUNNER_TEMP 'd090-disposable-unsigned-diagnostic'
+          $env:LOCALAPPDATA = Join-Path $work 'LocalAppData'
+          New-Item -ItemType Directory -Path $env:LOCALAPPDATA -Force | Out-Null
+          try {
+            & ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null
+            $file = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/bb-0.49.0-x64.exe'
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw 'Official asset staging failed' }
+            $digest = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($digest -cne '201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f') { throw 'Official asset digest mismatch' }
+            $sig = Get-AuthenticodeSignature -LiteralPath $file
+            $kind = [string]$sig.Status
+            $allowed = @('Valid','NotSigned','UnknownError','HashMismatch','NotTrusted','NotSupportedFileFormat','Incompatible')
+            if ($kind -notin $allowed) { $kind = 'UnknownError' }
+            Write-Output "D090_SHA256_MATCH=true"
+            Write-Output "D090_AUTHENTICODE_STATUS=$kind"
+            "D090_SHA256_MATCH=true" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "D090_AUTHENTICODE_STATUS=$kind" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            'D090 evidence ONLY: never executes unsigned EXE; does NOT prove publisher identity or Windows installer safety. D084 signing gate remains RED.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            if ($sig.Status -ne [Management.Automation.SignatureStatus]::NotSigned) {
+              throw 'Release signature status changed: independent review needed, diagnostic expected NotSigned'
+            }
+          } finally {
+            if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
+          }
