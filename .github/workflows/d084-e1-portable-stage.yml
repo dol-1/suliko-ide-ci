@@ -73,9 +73,35 @@ jobs:
           if (-not (Test-Path -LiteralPath $stage -PathType Leaf)) { throw 'Staged EXE missing' }
           node scripts/d058-stage-portable.mjs --remove-stage
           if ($LASTEXITCODE -ne 0) { throw 'Stage removal failed' }
-          & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
           $cache = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/bb-0.49.0-x64.exe'
-          if ((Test-Path -LiteralPath $stage) -or (Test-Path -LiteralPath $cache)) { throw 'Managed assets not cleaned' }
+          $marker = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/.suliko-managed-bb-0.49.0-x64.exe.sha256'
+          # A forged ownership marker must NEVER delete even a hash-valid asset.
+          $validRecord = [IO.File]::ReadAllText($marker)
+          [IO.File]::WriteAllText($marker, 'FORGED-NOT-OWNED')
+          $refusedForged = $false
+          try { & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null } catch { $refusedForged = $true }
+          if (-not $refusedForged -or -not (Test-Path -LiteralPath $cache)) {
+            throw 'Forged ownership marker was not refused safely'
+          }
+          [IO.File]::WriteAllText($marker, $validRecord)
+          & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
+          if ((Test-Path -LiteralPath $stage) -or (Test-Path -LiteralPath $cache) -or (Test-Path -LiteralPath $marker)) {
+            throw 'Managed assets not cleaned'
+          }
+          # A foreign same-name user asset must survive --uninstall, and a new
+          # --download-verified must refuse to overwrite without making a request.
+          [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($cache)) | Out-Null
+          [IO.File]::WriteAllText($cache, 'FOREIGN-DO-NOT-TOUCH')
+          & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
+          if ([IO.File]::ReadAllText($cache) -cne 'FOREIGN-DO-NOT-TOUCH') {
+            throw 'Uninstall touched a foreign file'
+          }
+          $refusedOverwrite = $false
+          try { & ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null } catch { $refusedOverwrite = $true }
+          if (-not $refusedOverwrite -or [IO.File]::ReadAllText($cache) -cne 'FOREIGN-DO-NOT-TOUCH') {
+            throw 'Download overwrote/refused to preserve a foreign file'
+          }
+          [IO.File]::Delete($cache)
           $watch.Stop()
           $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
           "WINDOWS_STAGE_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
