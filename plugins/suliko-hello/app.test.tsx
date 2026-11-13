@@ -32,6 +32,44 @@ describe("Suliko Hello sidebar panel", () => {
       slot.lifecycle.unmount();
     }
   });
+  it("does not echo untrusted BB version text in incompatibility warnings", async () => {
+    const app = await loadPluginApp(() => import("./app.js"));
+    const marker = "sk-" + "SYNTHETIC_DO_NOT_ECHO_1234567890";
+    const slot = renderSlot(app.navPanels[0]!, { subPath: "" }, {
+      context: { projectId: "proj_demo", threadId: null },
+      rpc: {
+        compatibility: () => ({ supported: false, currentVersion: "0.49.0-" + marker,
+          allowedRange: ">=0.49.0 <0.49.1" }),
+        ping: () => { throw new Error("ping must not run"); },
+      },
+    });
+    try {
+      const alert = await slot.findByRole("alert");
+      expect(alert.textContent).toContain("version unavailable");
+      expect(alert.textContent).not.toContain(marker);
+      expect(slot.queryByRole("button", { name: "Ping server" })).toBeNull();
+    } finally { slot.lifecycle.unmount(); }
+  });
+  it("does not render arbitrary timestamp content from RPC", async () => {
+    const app = await loadPluginApp(() => import("./app.js"));
+    const marker = "sk-" + "SYNTHETIC_TIMESTAMP_MARKER_12345";
+    const slot = renderSlot(app.navPanels[0]!, { subPath: "" }, {
+      context: { projectId: "proj_demo", threadId: null },
+      rpc: {
+        compatibility: () => ({ supported: true, currentVersion: "0.49.0",
+          allowedRange: ">=0.49.0 <0.49.1" }),
+        ping: () => ({ ok: true, ts: "2026-11-12T12:00:00Z " + marker,
+          secretConfigured: true }),
+      },
+    });
+    try {
+      fireEvent.click(await slot.findByRole("button", { name: "Ping server" }));
+      const alert = await slot.findByRole("alert");
+      expect(alert.textContent).toContain("RPC check failed");
+      expect(alert.textContent).not.toContain(marker);
+      expect(slot.queryByText(/Connected at/)).toBeNull();
+    } finally { slot.lifecycle.unmount(); }
+  });
   it("shows an incompatibility warning and never exposes the action", async () => {
     const app = await loadPluginApp(() => import("./app.js"));
     const slot = renderSlot(app.navPanels[0]!, { subPath: "" }, {
