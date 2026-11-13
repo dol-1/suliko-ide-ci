@@ -176,7 +176,9 @@ jobs:
               node stock-bb/packages/bb-app/dist/bb.js machine list --json > "$machines" 2>/dev/null &&
               BB_DATA_DIR="$data" BB_SERVER_PORT="$port" BB_HOST_DAEMON_PORT="$daemon_port" \
               node stock-bb/packages/bb-app/dist/bb.js project list --json > "$projects" 2>/dev/null; then
-              node scripts/qa01-host-prereqs.mjs "$machines" "$projects" "$client" "$name" | tee -a "$GITHUB_STEP_SUMMARY"
+              if ! node scripts/qa01-host-prereqs.mjs "$machines" "$projects" "$client" "$name" | tee -a "$GITHUB_STEP_SUMMARY"; then
+                echo "QA01_HOST_PREREQS {\"target\":\"$client\",\"available\":false}"
+              fi
             else
               echo "QA01_HOST_PREREQS {\"target\":\"$client\",\"available\":false}"
             fi
