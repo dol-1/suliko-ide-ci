@@ -53,6 +53,19 @@ test("schema allowlist makes synthetic secrets unrepresentable in stdout and bun
   assert.equal(JSON.parse(result.bundle).status, "synthetic-fixture-pass");
   if (process.platform !== "win32") assert.equal(result.mode, 0o600);
 });
+test("version-shaped secret suffix is never copied into output or support bundle", () => {
+  const marker = "sk-SYNTH12";
+  const result = run({ ...fixture, bbVersion: "0.49.0-" + marker }, { bundle: true });
+  assert.equal(result.status, 1);
+  assert.equal(JSON.parse(result.stdout).bbVersion, "unknown");
+  assert.ok(!result.output.includes(marker), "marker leaked into stdout");
+  assert.ok(!result.bundle.includes(marker), "marker leaked into bundle");
+});
+test("pre-release version must be reviewed, not certified by synthetic fixture", () => {
+  const result = run({ ...fixture, bbVersion: "0.49.0-rc.1" });
+  assert.equal(result.status, 1);
+  assert.equal(JSON.parse(result.stdout).bbVersion, "unknown");
+});
 test("malicious version and disabled plugin prevent synthetic pass without echoing values", () => {
   const result = run({ ...fixture, bbVersion: needles[0], listenerHost: "0.0.0.0", plugins: { ...fixture.plugins, "bb--mcp": "enabled" }, error: needles[1] });
   assert.equal(result.status, 1);
