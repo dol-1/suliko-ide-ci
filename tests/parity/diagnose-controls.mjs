@@ -10,12 +10,27 @@ function sanitize(value) {
     .trim().replace(/\s+/g, " ").slice(0, 70);
 }
 async function observe(page, target, stage) {
-  const controls = await page.locator("a,button,[role=button],[role=link],h1,h2").evaluateAll((nodes) =>
-    nodes.slice(0, 60).map((node) => ({
-      role: node.getAttribute("role") || node.tagName.toLowerCase(),
-      label: node.getAttribute("aria-label") || node.getAttribute("title") || node.textContent || "",
-    })),
-  );
+  let controls = null;
+  // Electron can navigate away from "Opening bb" DURING evaluateAll.
+  // Retry bounded read-only capture; never report an unavailable snapshot
+  // as empty or as an assertion pass.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      controls = await page.locator("a,button,[role=button],[role=link],h1,h2").evaluateAll((nodes) =>
+        nodes.slice(0, 60).map((node) => ({
+          role: node.getAttribute("role") || node.tagName.toLowerCase(),
+          label: node.getAttribute("aria-label") || node.getAttribute("title") || node.textContent || "",
+        })),
+      );
+      break;
+    } catch {
+      if (attempt < 2) await page.waitForTimeout(300).catch(() => {});
+    }
+  }
+  if (!controls) {
+    console.log("QA01_DIAG_CAPTURE_UNAVAILABLE", JSON.stringify({ target, stage }));
+    return;
+  }
   const names = controls.map(({ role, label }) => ({ role: sanitize(role), label: sanitize(label) }))
     .filter(({ label }) => label && !label.includes("[secret]")).slice(0, 40);
   console.log("QA01_DOM_DIAGNOSTIC", JSON.stringify({
@@ -32,18 +47,30 @@ async function diagnose(page, target) {
   const ready = await projects.waitFor({ state: "visible", timeout: 45000 })
     .then(() => true).catch(() => false);
   await observe(page, target, "after-hydration-wait");
-  // A visible Projects control may still be DISABLED by stock onboarding.
-  // A diagnostic must never burn 30 seconds attempting that click and thereby
-  // prevent capture of the second (Desktop) client.
-  const enabled = ready && await projects.isEnabled().catch(() => false);
+  // Reproduce the exact provider-free onboarding action in the disposable
+  // strict fixture. Do not register any provider or submit credentials.
   const skip = page.getByRole("button", { name: /skip setup/i }).first();
   const skipVisible = await skip.isVisible().catch(() => false);
+  const skipped = skipVisible
+    ? await skip.click({ timeout: 5000 }).then(() => true).catch(() => false)
+    : false;
+  // The control is sometimes disabled until the synthetic setup is skipped.
+  const enabled = ready && await projects.isEnabled().catch(() => false);
   console.log("QA01_DIAG_NAV_STATE", JSON.stringify({
     target, projectsVisible: ready, projectsEnabled: enabled, skipSetupVisible: skipVisible,
+    syntheticSkipClicked: skipped,
   }));
+  let projectSelected = false;
   if (enabled) {
-    await projects.click({ timeout: 5000 });
-    await observe(page, target, "after-projects-nav");
+    const navigated = await projects.click({ timeout: 5000 }).then(() => true).catch(() => false);
+    if (navigated) {
+      await observe(page, target, "after-projects-nav");
+      const synthetic = page.getByText(/qa01-(desktop-)?synthetic/i).first();
+      if (await synthetic.isVisible().catch(() => false)) {
+        projectSelected = await synthetic.click({ timeout: 5000 }).then(() => true).catch(() => false);
+        if (projectSelected) await observe(page, target, "after-synthetic-project");
+      }
+    }
   } else {
     console.log("QA01_DIAG_SKIPPED_DISABLED_NAV", target);
   }
@@ -57,6 +84,7 @@ async function diagnose(page, target) {
   };
   console.log("QA01_DIAG_FEATURE_PREREQS", JSON.stringify({
     target,
+    syntheticProjectSelected: projectSelected,
     syntheticProjectVisible: await page.getByText(/qa01-(desktop-)?synthetic/i).first().isVisible().catch(() => false),
     filesNavigationVisible: await visible(/files|changes|diff/i),
     terminalNavigationVisible: await visible(/terminal/i),
