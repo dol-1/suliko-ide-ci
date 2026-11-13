@@ -158,6 +158,50 @@ async function diagnose(page, target) {
     target, readmeListed, readmeOpenActionSucceeded,
     syntheticReadmeContentVisible, strictJourneyCountUnchanged: 14,
   }));
+  // Source-backed pinned BB accessible UI. Use exact controls and a synthetic
+  // query; never capture raw DOM, arbitrary text, file data or errors.
+  let searchVisible=false, searchEnabled=false, fileOptionVisible=false;
+  let fileTabVisible=false, terminalActionVisible=false, terminalActionEnabled=false;
+  let terminalTabVisible=false;
+  try {
+    const combo=page.getByRole("combobox",{name:/Search files/i}).first();
+    searchVisible=await combo.isVisible().catch(()=>false);
+    if(!searchVisible) {
+      await page.keyboard.press("Control+p");
+      searchVisible=await combo.isVisible().catch(()=>false);
+    }
+    searchEnabled=searchVisible && await combo.isEnabled().catch(()=>false);
+    if(searchEnabled) {
+      await combo.fill("README");
+      const file=page.getByRole("group",{name:/^Files$/i})
+        .getByRole("option",{name:/README\.md/i}).first();
+      fileOptionVisible=await file.waitFor({state:"visible",timeout:6000})
+        .then(()=>true).catch(()=>false);
+      if(fileOptionVisible) {
+        const clicked=await file.click({timeout:3000}).then(()=>true).catch(()=>false);
+        fileTabVisible=clicked && await page.getByRole("tab",{name:/README\.md/i}).first()
+          .waitFor({state:"visible",timeout:3000}).then(()=>true).catch(()=>false);
+      }
+    }
+    await page.keyboard.press("Escape");
+    if(!(await combo.isVisible().catch(()=>false))) await page.keyboard.press("Control+p");
+    if(await combo.isVisible().catch(()=>false)) await combo.fill("");
+    const action=page.getByRole("option",{name:/Start terminal/i}).first();
+    terminalActionVisible=await action.isVisible().catch(()=>false);
+    terminalActionEnabled=terminalActionVisible && await action.isEnabled().catch(()=>false);
+    // A non-running UI-only probe may open a disposable terminal tab, but never
+    // sends a command, touches user data, or treats UI action as QA acceptance.
+    if(terminalActionEnabled) {
+      const clicked=await action.click({timeout:3000}).then(()=>true).catch(()=>false);
+      terminalTabVisible=clicked && await page.getByRole("tab",{name:/terminal/i}).first()
+        .waitFor({state:"visible",timeout:3000}).then(()=>true).catch(()=>false);
+    }
+  } catch { /* redacted diagnostic */ }
+  console.log("QA01_DIAG_STOCK_ACTIONS",JSON.stringify({
+    target,searchVisible,searchEnabled,fileOptionVisible,fileTabVisible,
+    terminalActionVisible,terminalActionEnabled,terminalTabVisible,
+    strictJourneyCountUnchanged:14,
+  }));
 }
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
