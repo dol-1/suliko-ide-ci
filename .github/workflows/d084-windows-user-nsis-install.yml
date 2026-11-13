@@ -56,6 +56,12 @@ jobs:
               throw 'Windows official installer digest mismatch'
             }
             $sig = Get-AuthenticodeSignature -LiteralPath $installer
+            # Only categorical OS trust metadata; never print signer paths,
+            # raw errors or publisher certificate content into public logs.
+            $known = @('Valid','NotSigned','UnknownError','HashMismatch','NotTrusted','NotSupportedFileFormat','Incompatible')
+            $status = [string]$sig.Status
+            if ($status -notin $known) { $status = 'UnknownError' }
+            "D084_WINDOWS_AUTHENTICODE_STATUS=$status" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             if ($sig.Status -ne [Management.Automation.SignatureStatus]::Valid) {
               throw 'Official EXE signature invalid or unavailable; refused launch'
             }
