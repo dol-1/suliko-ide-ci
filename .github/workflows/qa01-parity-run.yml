@@ -6,7 +6,7 @@ concurrency:
 on:
   workflow_dispatch:
   push:
-    branches: [feat/qa01-dom-diagnostics, feat/qa01-desktop-ready-gate]
+    branches: [feat/qa01-dom-diagnostics, feat/qa01-desktop-ready-gate, feat/qa01-45s-categorical-controls]
     paths: ['tests/parity/**', '.github/workflows/qa01-parity-run.yml']
 permissions: read-all
 jobs:

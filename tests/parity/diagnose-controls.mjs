@@ -29,7 +29,7 @@ async function diagnose(page, target) {
     .or(page.getByRole("button", { name: /projects?/i })).first();
   // Diagnostic only: client-side hydration can lag DOMContentLoaded. Never
   // use this wait to skip, weaken, retry or rewrite a parity assertion.
-  const ready = await projects.waitFor({ state: "visible", timeout: 12000 })
+  const ready = await projects.waitFor({ state: "visible", timeout: 45000 })
     .then(() => true).catch(() => false);
   await observe(page, target, "after-hydration-wait");
   // A visible Projects control may still be DISABLED by stock onboarding.
@@ -47,6 +47,23 @@ async function diagnose(page, target) {
   } else {
     console.log("QA01_DIAG_SKIPPED_DISABLED_NAV", target);
   }
+  // Diagnostic-only booleans: no arbitrary text, credentials, runtime paths,
+  // screenshots or test assertion modifications.
+  const visible = async (pattern) => {
+    const link = page.getByRole("link", { name: pattern });
+    const button = page.getByRole("button", { name: pattern });
+    return (await link.count()) > 0 && await link.first().isVisible().catch(() => false)
+      || (await button.count()) > 0 && await button.first().isVisible().catch(() => false);
+  };
+  console.log("QA01_DIAG_FEATURE_PREREQS", JSON.stringify({
+    target,
+    syntheticProjectVisible: await page.getByText(/qa01-(desktop-)?synthetic/i).first().isVisible().catch(() => false),
+    filesNavigationVisible: await visible(/files|changes|diff/i),
+    terminalNavigationVisible: await visible(/terminal/i),
+    helloNavigationVisible: await visible(/suliko hello/i),
+    createThreadVisible: await visible(/new thread/i),
+    providerPickerVisible: await visible(/provider|model/i),
+  }));
 }
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
