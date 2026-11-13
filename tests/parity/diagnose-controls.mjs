@@ -1,41 +1,30 @@
 // QA-01 diagnostic only: no changes to the 14 journey assertions.
 import { chromium, _electron } from "@playwright/test";
 import { basename } from "node:path";
+import { categoricalControls } from "./diagnose-controls-safe.mjs";
 
-function sanitize(value) {
-  return String(value ?? "")
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
-    .replace(/(?:gh[ps]_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]+|Bearer\s+\S+)/gi, "[secret]")
-    .replace(/(?:\/home\/|\/Users\/|C:\\Users\\)[^\s]+/g, "[home]")
-    .trim().replace(/\s+/g, " ").slice(0, 70);
-}
 async function observe(page, target, stage) {
-  let controls = null;
-  // Electron can navigate away from "Opening bb" DURING evaluateAll.
-  // Retry bounded read-only capture; never report an unavailable snapshot
-  // as empty or as an assertion pass.
+  let labels = null;
+  // In-memory bounded capture only. Never print raw UI names, paths, or errors:
+  // even a disposable runner can surface arbitrary untrusted app text.
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      controls = await page.locator("a,button,[role=button],[role=link],h1,h2").evaluateAll((nodes) =>
-        nodes.slice(0, 60).map((node) => ({
-          role: node.getAttribute("role") || node.tagName.toLowerCase(),
-          label: node.getAttribute("aria-label") || node.getAttribute("title") || node.textContent || "",
-        })),
+      labels = await page.locator("a,button,[role=button],[role=link],h1,h2").evaluateAll(nodes =>
+        nodes.slice(0, 60).map(node => String(
+          node.getAttribute("aria-label") || node.getAttribute("title") || node.textContent || ""
+        ).slice(0, 256)),
       );
       break;
     } catch {
       if (attempt < 2) await page.waitForTimeout(300).catch(() => {});
     }
   }
-  if (!controls) {
+  if (!labels) {
     console.log("QA01_DIAG_CAPTURE_UNAVAILABLE", JSON.stringify({ target, stage }));
     return;
   }
-  const names = controls.map(({ role, label }) => ({ role: sanitize(role), label: sanitize(label) }))
-    .filter(({ label }) => label && !label.includes("[secret]")).slice(0, 40);
-  console.log("QA01_DOM_DIAGNOSTIC", JSON.stringify({
-    target, stage, pathname: sanitize(new URL(page.url()).pathname), names,
-  }));
+  console.log("QA01_DIAG_CONTROL_CATEGORIES",
+    JSON.stringify({ target, stage, ...categoricalControls(labels) }));
 }
 async function diagnose(page, target) {
   await page.waitForLoadState("domcontentloaded");
