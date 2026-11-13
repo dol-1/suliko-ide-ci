@@ -69,3 +69,40 @@ jobs:
              "$RUNNER_TEMP/$plugin.pnpm.json" "$dir/$plugin.spdx.json" | tee -a "$GITHUB_STEP_SUMMARY"
           done
           echo 'D089 Linux installed closure only: NOT full optional OS or shipped-bundle completeness; no legal clearance, publish or beta GO.' >> "$GITHUB_STEP_SUMMARY"
+
+  platform-lock-subset:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Synthetic no-drift negative OS lock-subset tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d089-os-lock-subset.mjs
+          node --test scripts/d089-os-lock-subset.test.mjs
+      - name: Install frozen dev/runtime graph without dependency scripts or live services
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          mkdir -p .d089-os-temp
+          for plugin in suliko-hello suliko-remote-panel; do
+            (cd "plugins/$plugin" && pnpm install --frozen-lockfile --ignore-scripts >/dev/null &&
+              pnpm list --depth Infinity --json > "../../.d089-os-temp/$plugin.json")
+            node scripts/d089-os-lock-subset.mjs "plugins/$plugin/pnpm-lock.yaml" ".d089-os-temp/$plugin.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          rm -rf -- .d089-os-temp
+          echo 'D089 cross-OS frozen installed subset only; not independent Syft SPDX, bundled/optional license assurance, release or beta GO.' >> "$GITHUB_STEP_SUMMARY"
