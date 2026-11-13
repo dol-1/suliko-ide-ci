@@ -1,0 +1,13 @@
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {audit,lockIds} from "./d089-lock-spdx.mjs";
+const lock="lockfileVersion: '9.0'\n\npackages:\n\n  'a@1.0.0':\n    resolution: {integrity: sha512-X}\n\n  'b@2.0.0':\n    resolution: {integrity: sha512-Y}\n\nsnapshots:\n\n  a@1.0.0: {}\n  b@2.0.0: {}\n";
+const list=[{dependencies:{a:{version:"1.0.0(peer@3.0.0)"}},devDependencies:{b:{version:"2.0.0"}}}];
+const spdx=(pairs)=>({spdxVersion:"SPDX-2.3",relationships:[],packages:pairs.map(([name,versionInfo],i)=>({name,versionInfo,SPDXID:"SPDXRef-"+i}))});
+test("installed coverage and dev-only classified",()=>{const r=audit(lock,list,spdx([["a","1.0.0"],["b","2.0.0"]]));assert.equal(r.installed,2);assert.equal(r.production,1);assert.equal(r.missingInSpdx,0);assert.ok(!JSON.stringify(r).includes("a@"))});
+test("missing transitive fails closed",()=>assert.throws(()=>audit(lock,list,spdx([["a","1.0.0"]]))));
+test("version drift fails closed",()=>assert.throws(()=>audit(lock,list,spdx([["a","1.0.1"],["b","2.0.0"]]))));
+test("duplicate Syft identity fails closed",()=>assert.throws(()=>audit(lock,list,spdx([["a","1.0.0"],["a","1.0.0"],["b","2.0.0"]]))));
+test("unlocked installed dependency fails closed",()=>assert.throws(()=>audit(lock,[{dependencies:{c:{version:"1.0.0"}}}],spdx([["c","1.0.0"]]))));
+test("bad/duplicate pnpm lock fails closed",()=>{assert.throws(()=>lockIds("lockfileVersion: '8.0'"));assert.throws(()=>lockIds(lock.replace("snapshots:","  a@1.0.0:\nsnapshots:")))});
+test("untrusted token text is not serialized",()=>{const token="sk-"+"SYNTHETIC_NEVER_LOG_12345";assert.throws(()=>audit(lock,[{dependencies:{[token]:{version:"1.0.0"}}}],spdx([["a","1.0.0"]])))});
