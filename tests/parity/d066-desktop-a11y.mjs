@@ -79,7 +79,7 @@ for(const [lang,helloLabel,remoteLabel] of [
       if(counts.critical||clipped)throw Error("D066 Desktop own panel accessibility/clipping gate failed");
       // D088: only synthetic panel pixels; never screenshot entire BB workspace.
       const visibleText=await panel.innerText();
-      if(visibleText.length>2000||/(?:[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}|sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9]{16,}|bearer\\s+\\S+)/i.test(visibleText))
+      if(visibleText.length>2000||/(?:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9]{16,}|bearer\s+\S+)/i.test(visibleText))
         throw Error("D088 refused non-synthetic Desktop screenshot content");
       const bounds=await panel.boundingBox();
       if(!bounds||bounds.width<170||bounds.width>1400||bounds.height<70||bounds.height>900)
