@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, main]
+    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, main]
     paths:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
@@ -17,6 +17,11 @@ permissions:
 jobs:
   site:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      deploy_enabled: ${{ steps.pages_probe.outputs.enabled }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -43,14 +48,37 @@ jobs:
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot.en/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot.ka/index.html"
           echo "Static docs build and dependency license gate passed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Check official Pages API; skip deployment if unconfigured
+        id: pages_probe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          enabled=false
+          if [[ "$GITHUB_REF" == refs/heads/main && "$GITHUB_EVENT_NAME" == push ]]; then
+            result="$RUNNER_TEMP/d086-pages-config.json"
+            if gh api --silent "repos/$GITHUB_REPOSITORY/pages" > "$result" 2>/dev/null; then
+              if node -e 'const j=require(process.argv[1]);process.exit(j.build_type==="workflow"&&typeof j.html_url==="string"&&j.html_url.startsWith("https://")?0:1)' "$result"; then
+                enabled=true
+              fi
+            fi
+            rm -f -- "$result"
+          fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          if [[ "$enabled" == true ]]; then
+            echo 'D086: Pages workflow deployment enabled; checks passed.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'D086: Pages not workflow-configured; docs built successfully, upload/deployment skipped.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload public-only site for deployment on main
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.pages_probe.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: ${{ runner.temp }}/suliko-docs-built
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.site.outputs.deploy_enabled == 'true'
     needs: site
     runs-on: ubuntu-24.04
     permissions:
