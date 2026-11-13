@@ -162,7 +162,8 @@ test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
   await expect(file).toBeVisible({ timeout: 15000 });
   await file.click();
   // A real opened file tab is required, not just the application root.
-  await expect(appPage.getByRole("tab", { name: /README\.md/i }).first())
+  await expect(appPage.getByRole("button", { name: /README\.md/i })
+    .and(appPage.locator('button[aria-pressed="true"]')).first())
     .toBeVisible({ timeout: 10000 });
 });
 
@@ -174,7 +175,8 @@ test("J06: terminal affordance exists with an enrolled disposable host", async (
   await expect(terminal).toBeEnabled();
   // Do not execute commands; starting a disposable terminal UI is sufficient.
   await terminal.click();
-  await expect(appPage.getByRole("tab", { name: /terminal/i }).first())
+  await expect(appPage.getByRole("button", { name: /terminal/i })
+    .and(appPage.locator('button[aria-pressed="true"]')).first())
     .toBeVisible({ timeout: 10000 });
 });
 
