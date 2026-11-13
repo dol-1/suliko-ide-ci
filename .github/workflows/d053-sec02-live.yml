@@ -5,11 +5,12 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d053-sec02-live]
+    branches: [feat/d053-sec02-live, feat/d084-sec02-live-hello]
     paths:
       - ".github/workflows/d053-sec02-live.yml"
       - "scripts/verify-hardened.sh"
       - "config/hardened/.env.hardened"
+      - 'plugins/suliko-hello/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -76,6 +77,19 @@ jobs:
             [[ -n "$plugin" ]] || continue
             bb plugin disable "$plugin"
           done < "$RUNNER_TEMP/sec02-ids"
+          # Installed own-plugin proof, not merely a synthetic disabled-plugin fixture.
+          # This is the reviewed PUBLIC Suliko Hello source in a fresh disposable BB.
+          bb plugin install ./plugins/suliko-hello --yes >/dev/null
+          bb plugin list --json >"$RUNNER_TEMP/sec02-live-after.json"
+          node - "$RUNNER_TEMP/sec02-live-after.json" <<'NODE'
+          const fs=require('node:fs'),v=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(v.plugins)) throw Error('Missing live plugin list');
+          const installed=v.plugins.filter(x=>x.id==='suliko-hello' || x.id==='bb-plugin-suliko-hello');
+          if(installed.length!==1||installed[0].enabled!==true) {
+            throw Error('Installed own Hello plugin is not provably enabled');
+          }
+          console.log('D084 live own Hello plugin enabled, without loading real user data');
+          NODE
           bash scripts/verify-hardened.sh
           # Require actual TCP LISTEN bindings on loopback for both independent ports.
           ss -ltnp >"$RUNNER_TEMP/sec02-listeners"
@@ -86,4 +100,4 @@ jobs:
             echo "Unsafe stock BB listener address" >&2
             exit 1
           fi
-          echo 'SEC-02 PASS: real pinned stock BB server + host daemon LISTEN only on 127.0.0.1, forbidden plugin states verified LIVE, BB_TELEMETRY=false. Does not prove actual tailnet ACL or provider hook isolation.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'D084 SEC-02 live: real pinned stock BB loopback server and host daemon, forbidden plugin states disabled, reviewed Suliko Hello installed/enabled, telemetry false. No marketplace RC test tag, provider-native hook isolation, tailnet ACL or 3OS beta.' >> "$GITHUB_STEP_SUMMARY"
