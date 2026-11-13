@@ -165,22 +165,23 @@ jobs:
           export BB_PARITY_ELECTRON_BINARY="$GITHUB_WORKSPACE/$appimage"
           export BB_PARITY_DATA_DIR="$RUNNER_TEMP/bb-parity-desktop"
           mkdir -p "$BB_PARITY_DATA_DIR"
-          # Read-only diagnostic: only fixture UI role/label names, no full DOM/secrets.
-          # Never changes or skips any of the 14 strict journey assertions.
-          if ! xvfb-run -a node tests/parity/diagnose-controls.mjs; then
-            echo 'Diagnostic capture unavailable; full strict parity test still executes' >&2
-          fi
-          # Requires a pre-enrolled disposable host and Suliko Hello in both
-          # data directories. Missing fixtures cause real test failures.
+          # Full strict 7x2 MUST run first. A standalone GUI diagnostic that
+          # navigates onboarding can affect the shared disposable BB session;
+          # running it before the tests confounded the previous 7/14 baseline.
+          # J01-J07, both projects, retries=0 and fail-closed assertions are
+          # unchanged; this collects extra evidence only AFTER the real result.
           set +e
-          # npm test prints an npm banner before Playwright JSON, corrupting the
-          # machine-readable report. Invoke the already installed CLI directly.
           xvfb-run -a bash -c 'cd tests/parity && ./node_modules/.bin/playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json" 2>"$RUNNER_TEMP/qa01-playwright.stderr"
           code=$?
-          set -e
-          # Summarize only synthetic journey statuses/categories to GitHub log
-          # AND step summary; preserve exit code and all 14 strict assertions.
           node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          report_code="${PIPESTATUS[0]}"
+          set -e
+          # Diagnostic remains optional and cannot suppress or turn a RED
+          # Playwright/summary run green. Never capture full DOM or secrets.
+          if ! xvfb-run -a node tests/parity/diagnose-controls.mjs; then
+            echo 'Post-parity categorical diagnostic unavailable; original test failure/success retained' >&2
+          fi
+          test "$report_code" -eq 0 || exit "$report_code"
           exit "$code"
       - name: Stop disposable BB server
         if: always()
