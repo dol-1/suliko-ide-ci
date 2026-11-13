@@ -5,7 +5,7 @@ concurrency:
 on:
   push:
     branches: [feat/d088-desktop-visual-and-remote-states]
-    paths: ['plugins/suliko-remote-panel/**', '.github/workflows/d088-remote-state-matrix.yml']
+    paths: ['plugins/suliko-remote-panel/**', 'tests/parity/d066-desktop-a11y.mjs', '.github/workflows/d088-remote-state-matrix.yml']
   workflow_dispatch:
 permissions: read-all
 jobs:
