@@ -3,16 +3,16 @@
 // No live Remote, auth, provider settings, controller, write or approval authority.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { createServer, type Server } from "node:http";
+import { createServer } from "node:http";
+import React from "react";
 import { RemotePanel } from "./app.js";
 import { createTestOnlyLoopbackReader } from "./loopback-test-reader.js";
 
-type Mode = "normal" | "error" | "empty" | "malicious-job" | "bad-link";
 describe("D103 actual loopback GET reader rendered in own mounted Remote React panel", () => {
-  let server: Server;
-  let url: string;
-  let mode: Mode;
-  let observed: Array<{ method: string | undefined; path: string | undefined; hadAuth: boolean }>;
+  let server;
+  let url;
+  let mode;
+  let observed;
   beforeEach(async () => {
     document.documentElement.lang="en";
     mode="normal";
@@ -38,7 +38,7 @@ describe("D103 actual loopback GET reader rendered in own mounted Remote React p
       const payload=JSON.stringify(data);
       res.writeHead(200,{"content-type":"application/json","content-length":Buffer.byteLength(payload)}).end(payload);
     });
-    await new Promise<void>((resolve,reject)=>{
+    await new Promise((resolve,reject)=>{
       server.once("error",reject);
       server.listen(0,"127.0.0.1",resolve);
     });
@@ -49,12 +49,12 @@ describe("D103 actual loopback GET reader rendered in own mounted Remote React p
   afterEach(async ()=>{
     cleanup();
     document.documentElement.lang="en";
-    await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
+    await new Promise((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
   });
-  function mount(): void {
-    render(<RemotePanel readPort={createTestOnlyLoopbackReader(url)}/>);
+  function mount() {
+    render(React.createElement(RemotePanel,{readPort:createTestOnlyLoopbackReader(url)}));
   }
-  function assertReadOnly(): void {
+  function assertReadOnly() {
     expect(observed.every(r=>r.method==="GET" && !r.hadAuth)).toBe(true);
     expect(observed.map(x=>x.path).sort()).toEqual([
       "/mock/approvals/demo-approval-1/status",
