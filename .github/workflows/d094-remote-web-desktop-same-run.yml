@@ -1,0 +1,130 @@
+name: D-094 same-run installed Remote MOCK Web plus packaged Desktop state/axe (NOT live Remote)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d094-remote-web-desktop-same-run]
+    paths:
+      - '.github/workflows/d094-remote-web-desktop-same-run.yml'
+      - 'tests/parity/d066-desktop-a11y.mjs'
+      - 'tests/parity/remote-mock-a11y.mjs'
+      - 'plugins/suliko-remote-panel/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop-own-panels:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CI: 'true'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38888'
+      BB_HOST_DAEMON_PORT: '38890'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+      - name: Build official unmodified stock BB and packaged Linux AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build &&
+            pnpm --dir apps/desktop run prepare-runtime &&
+            pnpm --dir apps/desktop run desktop:build:linux)
+      - name: Install pinned Playwright and axe test-only dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tests/parity
+          npm install --no-save --no-package-lock --no-audit --no-fund '@axe-core/playwright@4.14.0' '@playwright/test@1.56.0'
+          npx playwright install chromium
+          command -v xvfb-run
+      - name: Start disposable BB and install ONLY our own plugins
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BB_DATA_DIR="$RUNNER_TEMP/d066-desktop-data"
+          mkdir -p "$BB_DATA_DIR"
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38888 --host-daemon-port 38890 --no-in-app-updates >"$RUNNER_TEMP/d066-desktop-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --max-time 2 --output /dev/null http://127.0.0.1:38888/ 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1 || { echo 'D066 isolated Desktop fixture not ready' >&2; exit 1; }
+          node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes >/dev/null
+          node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-remote-panel --yes >/dev/null
+          folder="$RUNNER_TEMP/d066-desktop-synthetic"
+          mkdir -p "$folder"
+          git -C "$folder" init -b main >/dev/null
+          printf 'Disposable test project only\n' > "$folder/README.md"
+          git -C "$folder" add README.md
+          node stock-bb/packages/bb-app/dist/bb.js project create --name d066-desktop-synthetic --root "$folder" >/dev/null
+          # Web a11y fixture looks specifically for qa01-synthetic; a single
+          # shared d066 Desktop project does NOT satisfy its prerequisite.
+          # Two independent, disposable git roots exercise actual host UI.
+          web_folder="$RUNNER_TEMP/d094-web-synthetic"
+          mkdir -p "$web_folder"
+          git -C "$web_folder" init -b main >/dev/null
+          printf 'Disposable Web mock project only\n' > "$web_folder/README.md"
+          git -C "$web_folder" add README.md
+          node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-synthetic --root "$web_folder" >/dev/null
+          echo "$BB_DATA_DIR" > "$RUNNER_TEMP/d066-desktop-data-path"
+      - name: Frozen own Remote mock strict state/backoff tests (no network/token)
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd plugins/suliko-remote-panel && pnpm install --frozen-lockfile --ignore-scripts >/dev/null &&
+            pnpm run typecheck && pnpm run test)
+          echo 'D094 all offline loading/error/offline/empty/unknown/backoff cases completed; mock only.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Actual installed Remote MOCK Web panel EN/KA against this disposable BB
+        shell: bash
+        env:
+          BB_A11Y_URL: 'http://127.0.0.1:38888'
+        run: |
+          set -euo pipefail
+          (cd tests/parity && npx playwright install chromium)
+          node tests/parity/remote-mock-a11y.mjs
+          echo 'D094 Web installed mock label/link/no-write/a11y gate passed; no live Remote.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Inspect installed packaged Desktop own panels in synthetic EN/KA
+        shell: bash
+        run: |
+          set -euo pipefail
+          appimage="$(find stock-bb/apps/desktop/release -name '*.AppImage' -type f -print -quit)"
+          test -n "$appimage" && test -s "$appimage"
+          chmod +x "$appimage"
+          export BB_DESKTOP_BINARY="$GITHUB_WORKSPACE/$appimage"
+          export BB_DATA_DIR="$RUNNER_TEMP/d066-desktop-data"
+          xvfb-run -a node tests/parity/d066-desktop-a11y.mjs
+          echo 'D094 packaged Linux Desktop + same-disposable Web installed mock; not real Remote or complete HTTP E3.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain four strictly synthetic Desktop own-panel PNGs for 1 day
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d088-packaged-desktop-synthetic-own-panels
+          path: ${{ runner.temp }}/d088-desktop-own-panels/*.png
+          retention-days: 1
+          if-no-files-found: error
+      - name: Stop isolated server even after failures
+        if: always()
+        shell: bash
+        run: |
+          if [ -s "$RUNNER_TEMP/d066-desktop-data-path" ]; then
+            node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/d066-desktop-data-path")" >/dev/null 2>&1 || true
+          fi
