@@ -91,6 +91,7 @@ export default definePluginApp((app) => {
     title: "Suliko Remote (mock)",
     icon: "Monitor",
     path: "suliko-remote",
-    component: RemotePanel,
+    // SDK nav panels receive PluginNavPanelProps; the mock port is test-only injection.
+    component: () => <RemotePanel />,
   });
 });
