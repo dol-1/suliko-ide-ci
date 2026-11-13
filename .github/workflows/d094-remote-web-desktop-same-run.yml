@@ -76,6 +76,15 @@ jobs:
           printf 'Disposable test project only\n' > "$folder/README.md"
           git -C "$folder" add README.md
           node stock-bb/packages/bb-app/dist/bb.js project create --name d066-desktop-synthetic --root "$folder" >/dev/null
+          # Web a11y fixture looks specifically for qa01-synthetic; a single
+          # shared d066 Desktop project does NOT satisfy its prerequisite.
+          # Two independent, disposable git roots exercise actual host UI.
+          web_folder="$RUNNER_TEMP/d094-web-synthetic"
+          mkdir -p "$web_folder"
+          git -C "$web_folder" init -b main >/dev/null
+          printf 'Disposable Web mock project only\n' > "$web_folder/README.md"
+          git -C "$web_folder" add README.md
+          node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-synthetic --root "$web_folder" >/dev/null
           echo "$BB_DATA_DIR" > "$RUNNER_TEMP/d066-desktop-data-path"
       - name: Frozen own Remote mock strict state/backoff tests (no network/token)
         shell: bash
