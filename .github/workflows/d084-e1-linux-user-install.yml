@@ -1,0 +1,88 @@
+name: D-084 E1 verified Linux user-level AppImage install-and-launch candidate
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d084-e1-linux-install]
+    paths: ['.github/workflows/d084-e1-linux-user-install.yml', 'scripts/suliko-setup.sh', 'scripts/suliko-stage-linux.sh']
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  linux-e1:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38892'
+      BB_HOST_DAEMON_PORT: '38893'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verified actual user-level install, unpack, nonprivileged launch, clean uninstall
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" -ne 0
+          test "$(uname -m)" = x86_64
+          command -v xvfb-run >/dev/null
+          command -v timeout >/dev/null
+          home="$RUNNER_TEMP/d084-fresh-home"
+          extract="$RUNNER_TEMP/d084-extracted-official"
+          mkdir -m 700 -p "$home" "$extract" "$home/bb-disposable"
+          export HOME="$home" BB_DATA_DIR="$home/bb-disposable"
+          start="$(date +%s)"
+          pgid=""
+          stop_app() {
+            set +e
+            if [[ -n "$pgid" ]]; then
+              kill -TERM -- "-$pgid" >/dev/null 2>&1
+              sleep 2
+              kill -KILL -- "-$pgid" >/dev/null 2>&1
+              wait "$pgid" >/dev/null 2>&1
+              pgid=""
+            fi
+          }
+          cleanup() {
+            stop_app
+            HOME="$home" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1
+            HOME="$home" bash scripts/suliko-setup.sh --uninstall >/dev/null 2>&1
+          }
+          trap cleanup EXIT
+          bash scripts/suliko-setup.sh --download-verified >/dev/null
+          bash scripts/suliko-stage-linux.sh --stage >/dev/null
+          app="$home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          launcher="$home/.local/bin/suliko-bb-desktop"
+          test -x "$app"
+          test "$(readlink "$launcher")" = "$app"
+          printf '%s  %s\n' '8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770' "$app" | sha256sum -c - >/dev/null
+          (cd "$extract" && "$app" --appimage-extract >"$RUNNER_TEMP/d084-extract.log" 2>&1)
+          test -x "$extract/squashfs-root/AppRun"
+          # A desktop GUI is expected to remain open, not exit 0 on --version.
+          # Require an actual 20s windowed runtime lifespan; this is not proof
+          # of a ready UI, installed profile hardening or marketplace success.
+          # No unsafe --no-sandbox, sudo, provider token or production account.
+          setsid xvfb-run -a "$app" >"$RUNNER_TEMP/d084-window.log" 2>&1 &
+          pgid=$!
+          sleep 20
+          kill -0 "$pgid" 2>/dev/null || { echo 'D084 GUI exited before 20s liveness smoke' >&2; exit 1; }
+          stop_app
+          set -e
+          # Uninstall only Suliko-owned files, preserving all unrelated data.
+          bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null
+          bash scripts/suliko-setup.sh --uninstall >/dev/null
+          test ! -e "$app" && test ! -e "$launcher"
+          test ! -e "$home/.cache/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          test -d "$home/bb-disposable"
+          stop="$(date +%s)"
+          elapsed="$((stop-start))"
+          echo "SETUP_ELAPSED_SECONDS=$elapsed"
+          echo "SETUP_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          printf 'D084 verified Linux user-level AppImage unpack/20s liveness/remove completed; elapsed=%s seconds; SEC-02/marketplace/Hello/full E1 NOT yet checked.\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          test "$elapsed" -lt 900
