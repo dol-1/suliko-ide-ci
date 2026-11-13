@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Suliko E1 preflight: official BB asset only, checksum verified, never executed.
 set -euo pipefail
+umask 077
 version="0.49.0"
 tag="desktop-v0.49.0"
 mode="dry-run"
@@ -27,6 +28,8 @@ case "$(uname -s)-$(uname -m)" in
 esac
 cache="$HOME/.cache/suliko-ide"
 destination="$cache/$asset"
+marker="$cache/.suliko-managed-$asset.sha256"
+marker_record="SULIKO-IDE-VERIFIED-v1 $asset $sha"
 url="https://github.com/get-bb/bb/releases/download/$tag/$asset"
 hash_file() {
   if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}';
@@ -57,22 +60,40 @@ case "$mode" in
   verify-file) check_file "$verify_path" ;;
   download-verified)
     ensure_managed_cache_path
+    # Never replace a same-named file that might belong to the user.
+    [[ ! -e "$destination" && ! -L "$destination" && ! -e "$marker" && ! -L "$marker" ]] ||
+      { printf '%s\n' 'Cache target already exists; refusing overwrite' >&2; exit 1; }
     command -v curl >/dev/null 2>&1 || { printf '%s\n' 'curl required' >&2; exit 2; }
     mkdir -p "$cache"
     tmp="$(mktemp "$cache/.bb-verified.XXXXXXXX")"
     trap 'rm -f "$tmp"' EXIT
     curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$tmp" "$url"
     check_file "$tmp"
-    mv -f -- "$tmp" "$destination"
+    # Hard-link creation is no-clobber even if another process won a race.
+    ln "$tmp" "$destination" || { printf '%s\n' 'Cache target appeared; refusing overwrite' >&2; exit 1; }
+    rm -f -- "$tmp"
+    # Exclusive marker creation; a failure leaves an untracked file, never
+    # an authorization to delete that file on a subsequent --uninstall.
+    ( set -C; printf '%s\n' "$marker_record" > "$marker" ) ||
+      { printf '%s\n' 'Ownership marker creation failed' >&2; exit 1; }
     trap - EXIT
     printf 'Verified official BB asset saved at: %s\n' "$destination"
     printf '%s\n' 'It was NOT executed or installed.'
     ;;
   uninstall)
     ensure_managed_cache_path
-    # Only Suliko-managed cached installer; never remove official BB, user data, or plugins.
-    if [[ -f "$destination" || -L "$destination" ]]; then rm -f -- "$destination"; fi
+    # A matching marker is required: filename alone never establishes ownership.
+    if [[ -e "$marker" || -L "$marker" ]]; then
+      [[ -f "$marker" && ! -L "$marker" && "$(cat "$marker")" == "$marker_record" ]] ||
+        { printf '%s\n' 'Invalid ownership marker; refusing removal' >&2; exit 1; }
+      if [[ -e "$destination" || -L "$destination" ]]; then
+        check_file "$destination" >/dev/null ||
+          { printf '%s\n' 'Managed installer changed; refusing removal' >&2; exit 1; }
+        rm -f -- "$destination"
+      fi
+      rm -f -- "$marker"
+    fi
     if [[ -d "$cache" && ! -L "$cache" ]]; then rmdir "$cache" 2>/dev/null || true; fi
-    printf '%s\n' 'Suliko download cache cleanup finished; BB user data untouched.'
+    printf '%s\n' 'Suliko tracked cache cleanup finished; untracked files and BB data untouched.'
     ;;
 esac
