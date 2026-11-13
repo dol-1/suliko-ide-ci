@@ -203,6 +203,34 @@ async function diagnose(page, target) {
     strictJourneyCountUnchanged:14,
   }));
 }
+  // Stock ThreadSecondaryPanel renders button[data-panel-new-tab]; discover
+  // whether right panel must open (Ctrl+J) before Ctrl+P launcher.
+  // After strict 14: no raw UI labels or errors printed.
+  let plusVisible=false, panelToggleDelivered=false, plusClicked=false;
+  let actualLauncherVisible=false, actualLauncherEnabled=false;
+  try {
+    const plus=page.locator("button[data-panel-new-tab]").first();
+    plusVisible=await plus.isVisible().catch(()=>false);
+    if(!plusVisible){
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Control+j");
+      panelToggleDelivered=true;
+      plusVisible=await plus.waitFor({state:"visible",timeout:4000})
+        .then(()=>true).catch(()=>false);
+    }
+    if(plusVisible){
+      plusClicked=await plus.click({timeout:3000}).then(()=>true).catch(()=>false);
+      const search=page.getByRole("combobox",{name:/Search files/i}).first();
+      actualLauncherVisible=plusClicked && await search.waitFor({state:"visible",timeout:5000})
+        .then(()=>true).catch(()=>false);
+      actualLauncherEnabled=actualLauncherVisible && await search.isEnabled().catch(()=>false);
+    }
+  }catch{/* fixed safe result only */}
+  console.log("QA01_DIAG_NEW_TAB_PANEL",JSON.stringify({
+    target,plusVisible,panelToggleDelivered,plusClicked,
+    actualLauncherVisible,actualLauncherEnabled,strictJourneyCountUnchanged:14,
+  }));
+
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
 const browser = await chromium.launch({ headless: true });
