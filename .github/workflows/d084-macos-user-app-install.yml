@@ -1,0 +1,93 @@
+name: D-084 macOS official DMG user-app launch smoke (NO release)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d084-macos-user-app-install]
+    paths:
+      - '.github/workflows/d084-macos-user-app-install.yml'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/d058-stage-portable.mjs'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  macos-arm64-user:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38893'
+      BB_HOST_DAEMON_PORT: '38894'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Official fixed-SHA DMG mount, user-app install, code-sign check, GUI liveness and cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" -ne 0
+          test "$(uname -m)" = arm64
+          export HOME="$RUNNER_TEMP/d084-mac-user-home"
+          export BB_DATA_DIR="$HOME/bb-disposable"
+          mkdir -m 700 -p "$HOME" "$HOME/Applications" "$BB_DATA_DIR"
+          mount="$RUNNER_TEMP/d084-mac-readonly-mount"
+          mkdir -m 700 -p "$mount"
+          pid=""
+          mounted=0
+          cleanup() {
+            set +e
+            if [[ -n "$pid" ]]; then
+              kill -TERM "$pid" >/dev/null 2>&1
+              sleep 2
+              kill -KILL "$pid" >/dev/null 2>&1
+              wait "$pid" >/dev/null 2>&1
+            fi
+            if [[ "$mounted" = 1 ]]; then hdiutil detach -quiet "$mount" >/dev/null 2>&1; fi
+            # Only the exact disposable user-owned path can be removed.
+            [[ ! -d "$HOME/Applications/bb.app" ]] || rm -rf -- "$HOME/Applications/bb.app"
+            HOME="$HOME" bash scripts/suliko-setup.sh --uninstall >/dev/null 2>&1
+          }
+          trap cleanup EXIT
+          start="$(date +%s)"
+          bash scripts/suliko-setup.sh --download-verified >/dev/null
+          dmg="$HOME/.cache/suliko-ide/bb-0.49.0-arm64.dmg"
+          test -s "$dmg" && test ! -L "$dmg"
+          printf '%s  %s\n' '5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17' "$dmg" | shasum -a 256 -c - >/dev/null
+          hdiutil attach -readonly -nobrowse -quiet -mountpoint "$mount" "$dmg"
+          mounted=1
+          source_app="$(find "$mount" -maxdepth 2 -type d -name 'bb.app' -print -quit)"
+          if [[ -z "$source_app" || -L "$source_app" ]]; then
+            echo 'Official DMG did not have the expected bb.app bundle; fail closed.' >&2; exit 1
+          fi
+          app="$HOME/Applications/bb.app"
+          test ! -e "$app" && test ! -L "$app"
+          ditto --noqtn "$source_app" "$app"
+          executable="$app/Contents/MacOS/bb"
+          test -x "$executable" && test ! -L "$executable"
+          codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
+            { echo 'Official BB app signature verification failed; do not launch.' >&2; exit 1; }
+          # Explicitly execute the official copied app as an unprivileged user;
+          # no root, remote service, provider token, persistent account or system install.
+          "$executable" >"$RUNNER_TEMP/d084-mac-window.log" 2>&1 &
+          pid=$!
+          sleep 15
+          kill -0 "$pid" 2>/dev/null ||
+            { echo 'macOS copied BB app did not remain alive for the 15s smoke.' >&2; exit 1; }
+          kill -TERM "$pid" >/dev/null 2>&1 || true
+          wait "$pid" >/dev/null 2>&1 || true
+          pid=""
+          hdiutil detach -quiet "$mount"
+          mounted=0
+          rm -rf -- "$app"
+          bash scripts/suliko-setup.sh --uninstall >/dev/null
+          test ! -e "$app" && test ! -e "$dmg"
+          elapsed="$(($(date +%s)-start))"
+          echo "MACOS_INSTALL_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          echo 'D084 official pinned macOS arm64 DMG -> disposable user bb.app + codesign + 15s liveness + cleanup passed. NO SEC02/marketplace/Hello, other OS or beta GO.' >> "$GITHUB_STEP_SUMMARY"
+          test "$elapsed" -lt 900
