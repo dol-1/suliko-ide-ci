@@ -1,5 +1,8 @@
 # STAGING ONLY: copy to dol-1/suliko-ide-ci/.github/workflows/spike02-packaged.yml.
 name: SPIKE-02 Stock BB packaged desktop smoke (three OS)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   workflow_dispatch:

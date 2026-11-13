@@ -1,5 +1,8 @@
 # SEC-03 0.49.0 packaged Electron IPC negative probes, no BB source edits.
 name: SEC-03 strict IPC negatives and explicit LOW expected-finding jobs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   workflow_dispatch:
   push:

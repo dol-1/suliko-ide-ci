@@ -1,6 +1,9 @@
 # [ChatGPT] D-041 / ARCH-01: read-only weekly upstream release sentinel.
 # No automatic BB source updates, no outgoing disclosures.
 name: BB upstream latest-release sentinel
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   schedule:
     - cron: '0 11 * * 1'
