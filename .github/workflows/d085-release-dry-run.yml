@@ -4,8 +4,8 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d085-release-dry-run]
-    paths: ['.github/workflows/d085-release-dry-run.yml', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**']
+    branches: [feat/d085-release-dry-run, feat/d089-sbom-lock-coverage]
+    paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,6 +43,12 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'D085 unreleased beta RC candidate manifest SHA256 '+h+'; no test RC tag assumed to exist yet.\n');
           console.log('D085 unreleased changelog/changeset and beta-only candidate manifest checked');
           NODE
+      - name: Synthetic signed-subject fixture negatives (no secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d089-attestation-subject.mjs
+          node --test scripts/d089-attestation-subject.test.mjs
       - name: Verify reviewed own plugin pins and build outputs
         shell: bash
         run: |
@@ -121,10 +127,13 @@ jobs:
           set -euo pipefail
           report="$RUNNER_TEMP/d065-attestation-verify.json"
           trap 'rm -f -- "$report" "$PREVIEW"; rm -rf -- "$RUNNER_TEMP/d065-provenance-stage"' EXIT
-          gh attestation verify "$PREVIEW" --repo "$GITHUB_REPOSITORY" --format=json >"$report"
-          node - "$report" <<'NODE'
-          const fs=require('node:fs'), data=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          if(!Array.isArray(data)||data.length===0)throw Error('No verifiable GitHub provenance attestation');
-          console.log('D065 signed provenance successfully verified for ephemeral own-plugin bundle; repository attestation record exists.');
-          NODE
-          echo 'D065 verified signed preview only; no release, package upload, public beta or BB core changes.' >> "$GITHUB_STEP_SUMMARY"
+          # The CLI enforces GitHub OIDC certificate source SHA/ref and exact signer;
+          # JS independently checks the verified subject digest against actual bytes.
+          gh attestation verify "$PREVIEW" \
+            --repo "$GITHUB_REPOSITORY" \
+            --source-digest "$GITHUB_SHA" \
+            --source-ref "$GITHUB_REF" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/d085-release-dry-run.yml" \
+            --format=json >"$report"
+          node scripts/d089-attestation-subject.mjs "$report" "$PREVIEW" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'D089 same-run artifact SHA256 and GitHub signer/source verified; no release, upload, beta or other-OS coverage claim.' >> "$GITHUB_STEP_SUMMARY"
