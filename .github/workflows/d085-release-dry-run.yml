@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d085-release-dry-run, feat/d089-sbom-lock-coverage]
+    branches: [feat/d085-release-dry-run, feat/d089-sbom-lock-coverage, feat/d104-main-ephemeral-release-dryrun, main]
     paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**']
   workflow_dispatch:
 permissions:
