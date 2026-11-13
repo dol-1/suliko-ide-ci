@@ -62,6 +62,8 @@ jobs:
             $status = [string]$sig.Status
             if ($status -notin $known) { $status = 'UnknownError' }
             "D084_WINDOWS_AUTHENTICODE_STATUS=$status" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          # Fixed enum only; no publisher certificate, raw sig object or paths in logs.
+          Write-Output "D084_WINDOWS_AUTHENTICODE_STATUS=$status"
             if ($sig.Status -ne [Management.Automation.SignatureStatus]::Valid) {
               throw 'Official EXE signature invalid or unavailable; refused launch'
             }
