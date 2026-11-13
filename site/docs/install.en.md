@@ -9,3 +9,17 @@
 [First steps](first-steps.en.md) · [Troubleshooting](troubleshooting.en.md)
 
 **Windows trust warning (BB 0.49.0):** The official pinned Windows x64 installer has been SHA-256-verified against the official release digest, but a free Windows CI runner reported Authenticode **NotSigned**. Upstream states builds without a Windows signing certificate are unsigned and may trigger SmartScreen. SHA-256 authenticates correspondence to the reviewed release digest; it does **not** establish the publisher's code-signing identity. Our signed-installer gate deliberately refuses execution, and Suliko's Windows automated install is **not approved**. Do not bypass SmartScreen or interpret a diagnostic GREEN run as an installation success. See the [upstream Windows packaging explanation](https://github.com/get-bb/bb/blob/desktop-v0.49.0/apps/desktop/README.md).
+
+## Tested platform evidence, not a released installer
+
+The following are **separate disposable GitHub-hosted CI experiments**, not instructions for installing Suliko on your own computer:
+
+| Platform | What has been observed | Still missing |
+| --- | --- | --- |
+| Linux x86_64 | Official SHA-verified AppImage staged in a fresh unprivileged home, launched, and owned files removed. A separate real stock BB loopback profile disabled forbidden built-ins and enabled a local Hello plugin. | One released setup command, RC marketplace tag, packaged-plugin integration and full uninstall |
+| macOS Apple Silicon | Official SHA-verified DMG read-only mounted, user-local app copied, macOS code signature checked, launched briefly and removed. | Live hardened profile, marketplace/plugin and complete setup command |
+| Windows x64 | Official EXE SHA-256 matches the release digest, but hosted Windows reported **NotSigned**. | A reviewed publisher-trust policy and safe installed-plugin E2E; no installer was executed by the signed-execution test |
+
+A CI job marked GREEN for **diagnostic inspection** must never be interpreted as an approved installation. The four beta gates, including three-platform setup and a live docs site, are not all met. Do not run unreleased Suliko scripts on production systems.
+
+For provider configuration, use BB's official settings interface rather than posting key values anywhere. [Troubleshooting](troubleshooting.en.md) and [FAQ](faq.en.md) cover safe support requests.

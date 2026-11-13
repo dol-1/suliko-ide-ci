@@ -14,6 +14,7 @@ nav:
   - English:
       - Installation: install.en.md
       - First steps: first-steps.en.md
+      - FAQ: faq.en.md
       - Private Web: web.en.md
       - Remote status: remote.en.md
       - Privacy: privacy.en.md
@@ -23,6 +24,7 @@ nav:
       - დასაწყისი: index.ka.md
       - ინსტალაცია: install.ka.md
       - პირველი ნაბიჯები: first-steps.ka.md
+      - კითხვები: faq.ka.md
       - პირადი Web: web.ka.md
       - Remote სტატუსი: remote.ka.md
       - კონფიდენციალურობა: privacy.ka.md
