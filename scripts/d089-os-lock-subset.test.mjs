@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {checkOsInstalledLockSubset} from "./d089-os-lock-subset.mjs";
-const lock="lockfileVersion: '9.0'\n\npackages:\n\n  a@1.0.0: {}\n  b@2.0.0: {}\n\nsnapshots:\n\n  a@1.0.0: {}\n  b@2.0.0: {}\n";
+const lock="lockfileVersion: '9.0'\n\npackages:\n\n  a@1.0.0:\n    resolution: {integrity: sha512-SYNTHETIC_A}\n  b@2.0.0:\n    resolution: {integrity: sha512-SYNTHETIC_B}\n\nsnapshots:\n\n  a@1.0.0: {}\n  b@2.0.0: {}\n";
 const tree=[{dependencies:{a:{version:"1.0.0"}}}];
 test("Mac and Windows installed identities are strict frozen-lock subsets",()=>{
  for(const platform of ["darwin","win32"]){
