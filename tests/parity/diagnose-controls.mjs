@@ -202,7 +202,6 @@ async function diagnose(page, target) {
     terminalActionVisible,terminalActionEnabled,terminalTabVisible,
     strictJourneyCountUnchanged:14,
   }));
-}
   // Stock ThreadSecondaryPanel renders button[data-panel-new-tab]; discover
   // whether right panel must open (Ctrl+J) before Ctrl+P launcher.
   // After strict 14: no raw UI labels or errors printed.
@@ -230,6 +229,7 @@ async function diagnose(page, target) {
     target,plusVisible,panelToggleDelivered,plusClicked,
     actualLauncherVisible,actualLauncherEnabled,strictJourneyCountUnchanged:14,
   }));
+}
 
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
