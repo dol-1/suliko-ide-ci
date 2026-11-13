@@ -1,0 +1,68 @@
+name: D-102 macOS official DMG safe user-only staging preview (NO launch)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d102-macos-user-staging-preview]
+    paths:
+      - 'scripts/suliko-macos-preview.sh'
+      - 'scripts/suliko-setup.sh'
+      - '.github/workflows/d102-macos-staging-preview.yml'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  owned-preview:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Nonroot actual official DMG and fail-closed user-owned staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" -ne 0
+          test "$(uname -m)" = arm64
+          export HOME="$RUNNER_TEMP/d102-owned-home"
+          mkdir -m 700 -p "$HOME" "$HOME/Applications" "$HOME/unrelated-app"
+          echo 'foreign untouched' >"$HOME/unrelated-app/owner.txt"
+          start="$(date +%s)"
+          bash scripts/suliko-macos-preview.sh --dry-run >/dev/null
+          test ! -e "$HOME/.cache"
+          # A redirected app directory must be refused rather than followed.
+          rmdir "$HOME/Applications"
+          ln -s "$HOME/unrelated-app" "$HOME/Applications"
+          if bash scripts/suliko-macos-preview.sh --install-preview >/dev/null 2>&1; then
+            echo 'D102 failed to reject symlinked Applications' >&2; exit 1
+          fi
+          rm -- "$HOME/Applications"
+          mkdir -m 700 -p "$HOME/Applications"
+          bash scripts/suliko-macos-preview.sh --install-preview >/dev/null
+          app="$HOME/Applications/SulikoBBPreview.app"
+          marker="$HOME/Applications/.suliko-bb-preview-0.49.0-arm64.sha256"
+          dmg="$HOME/.cache/suliko-ide/bb-0.49.0-arm64.dmg"
+          test -d "$app" && test ! -L "$app" && test -f "$marker" && test -f "$dmg"
+          codesign --verify --deep --strict "$app" >/dev/null 2>&1
+          printf '%s  %s\n' '5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17' "$dmg" | shasum -a 256 -c - >/dev/null
+          bash scripts/suliko-macos-preview.sh --install-preview >/dev/null
+          original="$(cat "$marker")"
+          printf '%s\n' 'FORGED-UNOWNED' >"$marker"
+          if bash scripts/suliko-macos-preview.sh --uninstall-preview >/dev/null 2>&1; then
+            echo 'D102 forged ownership must refuse uninstall' >&2; exit 1
+          fi
+          test -d "$app"
+          printf '%s\n' "$original" >"$marker"
+          bash scripts/suliko-macos-preview.sh --uninstall-preview >/dev/null
+          test ! -e "$app" && test ! -e "$marker" && test ! -e "$dmg"
+          grep -qx 'foreign untouched' "$HOME/unrelated-app/owner.txt"
+          elapsed="$(($(date +%s)-start))"
+          echo "D102_PREVIEW_ELAPSED_SECONDS=$elapsed"
+          echo "D102_PREVIEW_ELAPSED_SECONDS=$elapsed" >>"$GITHUB_STEP_SUMMARY"
+          echo 'D102 official macOS ARM64 signed user-app staged/rolled back without execution; no plugin, SEC02, 3OS, marketplace, release or beta approval.' >>"$GITHUB_STEP_SUMMARY"
+          test "$elapsed" -lt 900
