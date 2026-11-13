@@ -13,7 +13,22 @@ const owned=["suliko-hello","suliko-remote-panel"];
 export function stockVersionMatchesPin(raw) {
   return typeof raw==="string"&&raw.length<=32&&raw.trim()==="0.49.0";
 }
-export function inspectLive(config,plugins,expectedDir,port,rawVersion) {
+// BB 0.49.0 official env list format: NAME=<set> or no managed env.
+// Reject any unexpected text; never log it or include raw values.
+export function inspectManagedProviderKeys(raw) {
+  if(raw==="No bb-app env set.\n")return {openai:"absent",anthropic:"absent"};
+  if(typeof raw!=="string"||raw.length>65536||!raw.endsWith("\n"))
+    throw Error("Unsafe managed env listing shape");
+  const keys=new Set();
+  for(const line of raw.slice(0,-1).split("\n")){
+    const m=/^([A-Z][A-Z0-9_]*)=<set>$/.exec(line);
+    if(!m||keys.has(m[1]))throw Error("Unredacted or malformed managed env listing");
+    keys.add(m[1]);
+  }
+  return{openai:keys.has("OPENAI_API_KEY")?"present":"absent",
+         anthropic:keys.has("ANTHROPIC_API_KEY")?"present":"absent"};
+}
+export function inspectLive(config,plugins,expectedDir,port,rawVersion,redactedEnvList) {
   if(config===null||typeof config!=="object"||Array.isArray(config))throw Error("Invalid BB system config shape");
   if(plugins===null||typeof plugins!=="object"||!Array.isArray(plugins.plugins))throw Error("Invalid BB plugin list shape");
   let url=null;
@@ -21,6 +36,7 @@ export function inspectLive(config,plugins,expectedDir,port,rawVersion) {
   const loopback=url.protocol==="http:"&&url.hostname==="127.0.0.1"&&url.port===String(port);
   const dataDirMatches=config.dataDir===expectedDir;
   const versionMatches=stockVersionMatchesPin(rawVersion);
+  const providerPresence=inspectManagedProviderKeys(redactedEnvList);
   const states={};
   for(const id of [...forbidden,...owned]){
     const x=plugins.plugins.find(x=>x?.id===id);
@@ -28,12 +44,12 @@ export function inspectLive(config,plugins,expectedDir,port,rawVersion) {
   }
   const forbiddenSafe=forbidden.every(x=>states[x]==="absent"||states[x]==="disabled");
   return {
-    schema:"suliko-doctor-live-ci-v1",
+    schema:"suliko-doctor-live-ci-v2",
     evidence:"actual-disposable-stock-bb-cli-reads-only",
     stockPin:"desktop-v0.49.0",
     checks:{serverLoopback:loopback,dataDirectoryMatchesDisposable:dataDirMatches,forbiddenPluginsSafe:forbiddenSafe,stockVersionMatchesPin:versionMatches},
     pluginStates:states,
-    providerKeyPresence:"NOT_INSPECTED",
+    providerKeyPresence:providerPresence,
     providerSettingsAndHooks:"NOT_INSPECTED",
     status:loopback&&dataDirMatches&&forbiddenSafe&&versionMatches?"partial-runtime-pass":"review-required",
   };
@@ -49,7 +65,7 @@ export function writeCiSafeBundle(report,requestedPath,tempRoot) {
     return [id,validState.has(state)?state:"unknown"];
   }));
   const clean={
-    schema:"suliko-doctor-live-ci-v1",
+    schema:"suliko-doctor-live-ci-v2",
     evidence:"actual-disposable-stock-bb-cli-reads-only",
     stockPin:"desktop-v0.49.0",
     checks:{
@@ -59,7 +75,10 @@ export function writeCiSafeBundle(report,requestedPath,tempRoot) {
       stockVersionMatchesPin:report?.checks?.stockVersionMatchesPin===true,
     },
     pluginStates,
-    providerKeyPresence:"NOT_INSPECTED",
+    providerKeyPresence:{
+      openai:["present","absent"].includes(report?.providerKeyPresence?.openai)?report.providerKeyPresence.openai:"unknown",
+      anthropic:["present","absent"].includes(report?.providerKeyPresence?.anthropic)?report.providerKeyPresence.anthropic:"unknown",
+    },
     providerSettingsAndHooks:"NOT_INSPECTED",
     status:report?.status==="partial-runtime-pass"?"partial-runtime-pass":"review-required",
   };
@@ -89,6 +108,16 @@ function readStockVersion(bin) {
     });
   } catch {throw Error("Sanitized stock BB version read failed");}
 }
+function readRedactedManagedEnv(root) {
+  const bin=resolve("stock-bb/packages/bb-app/dist/bb-app.js");
+  if(!existsSync(bin))throw Error("Reviewed stock BB app CLI missing");
+  try {
+    return execFileSync(process.execPath,[bin,"--data-dir",root,"env","list"],{
+      env:process.env,encoding:"utf8",timeout:20000,maxBuffer:65536,
+      stdio:["ignore","pipe","pipe"],
+    });
+  }catch{throw Error("Sanitized managed env list command failed");}
+}
 function main(argv){
   const bundleRequested=argv.length===3&&argv[1]==="--bundle";
   if(argv[0]!=="--ci-disposable"||!(argv.length===1||bundleRequested))
@@ -102,7 +131,7 @@ function main(argv){
   const bin=resolve("stock-bb/packages/bb-app/dist/bb.js");
   if(!existsSync(bin))throw Error("Reviewed stock BB CLI missing");
   const report=inspectLive(fromCli(bin,["settings","show","--json"]),
-    fromCli(bin,["plugin","list","--json"]),env.BB_DATA_DIR,port,readStockVersion(bin));
+    fromCli(bin,["plugin","list","--json"]),env.BB_DATA_DIR,port,readStockVersion(bin),readRedactedManagedEnv(env.BB_DATA_DIR));
   if(bundleRequested)writeCiSafeBundle(report,argv[2],root);
   process.stdout.write(JSON.stringify(report)+"\n");
   if(report.status!=="partial-runtime-pass")process.exitCode=1;

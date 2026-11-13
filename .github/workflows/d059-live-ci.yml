@@ -4,14 +4,13 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d059-live-ci-observation, feat/d059-ci-support-bundle, feat/d059-portable-private-bundle, feat/d059-cli-version-pinned, main]
+    branches: [feat/d059-live-ci-observation, feat/d059-ci-support-bundle, feat/d059-portable-private-bundle, feat/d059-cli-version-pinned, feat/d059-redacted-managed-env-presence, main]
     paths:
       - scripts/d059-live-ci-readonly.mjs
       - scripts/d059-live-ci-readonly.test.mjs
       - .github/workflows/d059-live-ci.yml
   workflow_dispatch:
-permissions:
-  contents: read
+permissions: read-all
 jobs:
   source-contract:
     runs-on: ubuntu-24.04
@@ -121,7 +120,8 @@ jobs:
           const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/d059-aggregate.json','utf8'));
           if(r.status!=='partial-runtime-pass'||r.checks.serverLoopback!==true||
              r.checks.dataDirectoryMatchesDisposable!==true||r.checks.forbiddenPluginsSafe!==true||
-             r.checks.stockVersionMatchesPin!==true)
+             r.checks.stockVersionMatchesPin!==true||
+             r.providerKeyPresence?.openai!=="absent"||r.providerKeyPresence?.anthropic!=="absent")
             throw Error('Disposable BB live doctor assertions failed');
           const s=JSON.stringify(r);
           if(s.includes(process.env.RUNNER_TEMP)||/"dataDir"\s*:/.test(s)||/"token"\s*:/.test(s))throw Error('Potential raw internal evidence leak');
