@@ -5,7 +5,7 @@ concurrency:
 on:
   push:
     branches: [feat/d089-sbom-lock-coverage]
-    paths: ['scripts/d089-**', '.github/workflows/d089-lock-spdx.yml', 'plugins/**/pnpm-lock.yaml']
+    paths: ['scripts/d089-**', 'scripts/plugin-license-audit.mjs', '.github/workflows/d089-lock-spdx.yml', 'plugins/**/pnpm-lock.yaml']
   workflow_dispatch:
 permissions: read-all
 jobs:
@@ -37,6 +37,17 @@ jobs:
             (cd "plugins/$plugin" && pnpm install --frozen-lockfile --ignore-scripts >/dev/null &&
              pnpm list --depth Infinity --json > "$RUNNER_TEMP/$plugin.pnpm.json")
           done
+      - name: Compare D-043 production-only license inventory against actual installed graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/d089-production-licenses.test.mjs
+          for plugin in suliko-hello suliko-remote-panel; do
+            (cd "plugins/$plugin" && pnpm licenses list --prod --json > "$RUNNER_TEMP/$plugin.licenses.json")
+            node scripts/plugin-license-audit.mjs "plugins/$plugin" "$RUNNER_TEMP/$plugin.licenses.json" > "$RUNNER_TEMP/$plugin.d043-report.md"
+            node scripts/d089-production-licenses.mjs "$RUNNER_TEMP/$plugin.pnpm.json" "$RUNNER_TEMP/$plugin.licenses.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          rm -f -- "$RUNNER_TEMP"/*.licenses.json "$RUNNER_TEMP"/*.d043-report.md
       - name: Fetch verified official Syft v1.57.1 and cross-check two inventories
         shell: bash
         env:
