@@ -61,7 +61,18 @@ const data = process.env.BB_PARITY_DATA_DIR;
 if (!bin || !data || !basename(data).startsWith("bb-parity-")) throw Error("Disposable packaged Desktop required");
 const desktop = await _electron.launch({
   executablePath: bin,
-  env: { ...process.env, BB_DATA_DIR: data, BB_SERVER_BIND_HOST: "127.0.0.1", BB_TELEMETRY: "false" },
+  // Match the exact disposable Desktop attach setup used by parity.spec.ts.
+  // Otherwise the diagnostic observes a different Electron splash state.
+  env: {
+    ...process.env,
+    BB_DATA_DIR: data,
+    BB_SERVER_BIND_HOST: "127.0.0.1",
+    BB_SERVER_PORT: "38888",
+    BB_HOST_DAEMON_PORT: "38890",
+    BB_DESKTOP_APP_URL: "http://127.0.0.1:38888",
+    BB_DESKTOP_ATTACH_WITHOUT_PROMPT: "1",
+    BB_TELEMETRY: "false",
+  },
 });
 try { await diagnose(await desktop.firstWindow(), "desktop"); }
 finally { await desktop.close(); }
