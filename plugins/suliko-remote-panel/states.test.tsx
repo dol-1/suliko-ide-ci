@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // D-088 E3: injectable read-only mock transport; NEVER a live Remote client.
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { RemotePanel } from "./app.js";
 import type { RemoteReadOnlyMockPort } from "./mock-remote.js";
 
@@ -69,5 +69,46 @@ describe("D088 Remote MOCK state matrix (no network, no token, no authority)", (
     expect(screen.getByText("Approval page unavailable")).toBeTruthy();
     expect(screen.queryByRole("link",{name:/Open Remote approval page/})).toBeNull();
     noWriteControls();
+  });
+});
+
+describe("E3 bounded read-only mock polling and unmount", () => {
+  it("fails closed on a transient error and refreshes only after 30s", async () => {
+    vi.useFakeTimers();
+    try {
+      let requests = 0;
+      const readPort = port({ list_devices: async () => {
+        requests++;
+        if (requests === 1) throw new Error("sk-SYNTH_NOT_A_REAL_SECRET");
+        return [];
+      } });
+      render(<RemotePanel readPort={readPort} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      expect(requests).toBe(1);
+      expect(screen.getByRole("alert").textContent).toBe("Unable to load demo data.");
+      await act(async () => { await vi.advanceTimersByTimeAsync(29_999); });
+      expect(requests).toBe(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(requests).toBe(2);
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getByText("No devices available in this snapshot.")).toBeTruthy();
+      noWriteControls();
+    } finally { cleanup(); vi.useRealTimers(); }
+  });
+  it("stops polling permanently on unmount", async () => {
+    vi.useFakeTimers();
+    try {
+      let requests = 0;
+      const readPort = port({ list_devices: async () => {
+        requests++;
+        return [];
+      } });
+      const { unmount } = render(<RemotePanel readPort={readPort} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      expect(requests).toBe(1);
+      unmount();
+      await act(async () => { await vi.advanceTimersByTimeAsync(240_000); });
+      expect(requests).toBe(1);
+    } finally { cleanup(); vi.useRealTimers(); }
   });
 });

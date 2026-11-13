@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d088-desktop-visual-and-remote-states]
+    branches: [feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff]
     paths: ['plugins/suliko-remote-panel/**', 'tests/parity/d066-desktop-a11y.mjs', '.github/workflows/d088-remote-state-matrix.yml']
   workflow_dispatch:
 permissions: read-all
