@@ -158,6 +158,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node --test scripts/qa01-host-prereqs.test.mjs
           for client in web desktop; do
             if [[ "$client" = web ]]; then
               port=38887
