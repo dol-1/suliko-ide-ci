@@ -1,4 +1,7 @@
 name: D-062 public docs build and privacy guard (NO deploy yet)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, main]

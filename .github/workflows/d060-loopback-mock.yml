@@ -1,4 +1,7 @@
 name: D-060 synthetic loopback-only Remote read contract
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d060-remote-loopback-reader, main]
