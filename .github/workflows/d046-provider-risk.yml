@@ -1,5 +1,8 @@
 # [ChatGPT] D-046 clean fixture and negative-provider-settings tests.
 name: D-046 SEC-02 native provider residual-risk verifier
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d046-provider-verifier]

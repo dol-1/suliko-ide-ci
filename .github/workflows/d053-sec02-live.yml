@@ -1,5 +1,8 @@
 # D-053 true stock BB runtime verification; never use owner data or credentials.
 name: SEC-02 installed stock BB live loopback and plugin-state verify
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d053-sec02-live]

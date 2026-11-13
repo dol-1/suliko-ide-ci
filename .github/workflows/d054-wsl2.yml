@@ -1,5 +1,8 @@
 # [ChatGPT] D-054 WSL2 disposable stock BB smoke, Windows runner, no owner host.
 name: SPIKE-02 pinned stock BB WSL2 Ubuntu loopback smoke
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d054-spike02-wsl2]

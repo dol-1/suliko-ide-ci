@@ -1,4 +1,7 @@
 name: D-058 Linux unprivileged verified AppImage staging preview
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d058-linux-user-stage, main]

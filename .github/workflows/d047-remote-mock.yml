@@ -1,6 +1,9 @@
 # [ChatGPT] D-047: client-only SDK harness for the Remote MOCK panel.
 # No Remote API traffic, token, agent, or Human Gate action.
 name: REM-04 offline Remote mock panel SDK tests
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d047-remote-mock-sdk, feat/d060-remote-mock-state, feat/d061-remote-i18n]
