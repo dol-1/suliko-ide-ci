@@ -54,14 +54,22 @@ describe("D103 actual loopback GET reader rendered in own mounted Remote React p
   function mount() {
     render(React.createElement(RemotePanel,{readPort:createTestOnlyLoopbackReader(url)}));
   }
-  function assertReadOnly() {
-    expect(observed.every(r=>r.method==="GET" && !r.hadAuth)).toBe(true);
-    expect(observed.map(x=>x.path).sort()).toEqual([
+  function assertReadOnly(requireAll=false) {
+    const allowed=[
       "/mock/approvals/demo-approval-1/status",
       "/mock/approvals/pending",
       "/mock/devices",
       "/mock/jobs/demo-job-1/status",
-    ].sort());
+    ].sort();
+    // On HTTP error the Promise.all may abort after 3 of 4 concurrent
+    // requests; do NOT demand a fourth request after a failure. Preserve
+    // strict endpoint, GET-only and no-auth safety on *every* observed request.
+    expect(observed.length).toBeGreaterThan(0);
+    expect(observed.length).toBeLessThanOrEqual(4);
+    expect(observed.every(r=>r.method==="GET" && !r.hadAuth &&
+      allowed.includes(r.path))).toBe(true);
+    expect(new Set(observed.map(r=>r.path)).size).toBe(observed.length);
+    if(requireAll) expect(observed.map(x=>x.path).sort()).toEqual(allowed);
     expect(screen.queryByRole("button",{name:/approve|execute|run command/i})).toBeNull();
   }
   it("renders real HTTP offline and unknown outcomes with external-only approval link",async()=>{
@@ -72,7 +80,7 @@ describe("D103 actual loopback GET reader rendered in own mounted Remote React p
     expect(link.getAttribute("href")).toBe("https://remote.example.invalid/approvals/demo-approval-1");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
-    assertReadOnly();
+    assertReadOnly(true);
   });
   it("renders empty/no-approval in Georgian from actual GET replies",async()=>{
     document.documentElement.lang="ka-GE";
@@ -81,7 +89,7 @@ describe("D103 actual loopback GET reader rendered in own mounted Remote React p
     expect(await screen.findByText("ამ ჩანაწერში მოწყობილობები არ არის.")).toBeTruthy();
     expect(screen.getByText("მოლოდინში თანხმობა არ არის.")).toBeTruthy();
     expect(screen.queryByRole("link",{name:/approval|თანხმობის/i})).toBeNull();
-    assertReadOnly();
+    assertReadOnly(true);
   });
   it("redacts synthetic server failure text and refuses stale status",async()=>{
     mode="error";
