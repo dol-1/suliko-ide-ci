@@ -1,0 +1,60 @@
+name: D-089 experimental pnpm v9/Syft resolved identity coverage (NO release)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d089-sbom-lock-coverage]
+    paths: ['scripts/d089-**', '.github/workflows/d089-lock-spdx.yml', 'plugins/**/pnpm-lock.yaml']
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  coverage:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Fail-closed synthetic coverage negatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d089-lock-spdx.mjs
+          node --test scripts/d089-lock-spdx.test.mjs
+      - name: Frozen disposable pnpm installation for dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          for plugin in suliko-hello suliko-remote-panel; do
+            (cd "plugins/$plugin" && pnpm install --frozen-lockfile --ignore-scripts >/dev/null &&
+             pnpm list --depth Infinity --json > "$RUNNER_TEMP/$plugin.pnpm.json")
+          done
+      - name: Fetch verified official Syft v1.57.1 and cross-check two inventories
+        shell: bash
+        env:
+          SYFT_CHECK_FOR_APP_UPDATE: 'false'
+          SYFT_LOG_LEVEL: 'error'
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/d089-syft"
+          mkdir -m 700 -p "$dir"
+          trap 'rm -rf -- "$dir"; rm -f -- "$RUNNER_TEMP"/suliko-*.pnpm.json' EXIT
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$dir/syft.tar.gz" \
+            "https://github.com/anchore/syft/releases/download/v1.57.1/syft_1.57.1_linux_amd64.tar.gz"
+          printf '%s  %s\n' 'bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c' "$dir/syft.tar.gz" | sha256sum -c - >/dev/null
+          tar -xzf "$dir/syft.tar.gz" -C "$dir" syft
+          chmod 700 "$dir/syft"
+          for plugin in suliko-hello suliko-remote-panel; do
+            "$dir/syft" "dir:plugins/$plugin" -o "spdx-json=$dir/$plugin.spdx.json" >/dev/null
+            node scripts/d089-lock-spdx.mjs "plugins/$plugin/pnpm-lock.yaml" \
+             "$RUNNER_TEMP/$plugin.pnpm.json" "$dir/$plugin.spdx.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          echo 'D089 Linux installed closure only: NOT full optional OS or shipped-bundle completeness; no legal clearance, publish or beta GO.' >> "$GITHUB_STEP_SUMMARY"
