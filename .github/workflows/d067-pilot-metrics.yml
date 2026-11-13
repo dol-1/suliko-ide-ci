@@ -1,4 +1,7 @@
 name: D-067 synthetic-only privacy-safe pilot metric proof (NO REAL DATA)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d067-synthetic-metrics, main]

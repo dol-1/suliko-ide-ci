@@ -1,4 +1,7 @@
 name: D-058 macOS Windows nonexecuting verified asset staging preview
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d058-macos-win-stage-preview, main]

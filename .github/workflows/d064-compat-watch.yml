@@ -1,4 +1,7 @@
 name: D-064 upstream SDK version contract watcher
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d064-compat-watch, main]

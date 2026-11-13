@@ -1,4 +1,7 @@
 name: D-065 nonpublishing plugin build and checksum preflight
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d065-bundle-preflight, main]

@@ -1,4 +1,7 @@
 name: D-063 controlled Dependabot config lint
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d063-dependabot-allowlist, main]

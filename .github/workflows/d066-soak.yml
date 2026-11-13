@@ -1,4 +1,7 @@
 name: D-066 BB+Hello loopback 30-minute RSS soak
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d066-soak-30min, main]

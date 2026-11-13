@@ -1,4 +1,7 @@
 name: D-065 source-only beta release preview (NOT published)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d065-source-preview, feat/d065-preview-path-boundary, main]

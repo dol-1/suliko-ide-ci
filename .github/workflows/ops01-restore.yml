@@ -1,5 +1,8 @@
 # OPS-01: isolated Linux rehearsal; no production data or off-host claim.
 name: OPS-01 synthetic BB export-import restore
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   workflow_dispatch:
   push:

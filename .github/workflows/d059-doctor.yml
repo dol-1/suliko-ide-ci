@@ -1,4 +1,7 @@
 name: D-059 synthetic doctor redaction (NO live credentials)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d059-synthetic-doctor, fix/d059-stock-bb-plugin-ids, main]

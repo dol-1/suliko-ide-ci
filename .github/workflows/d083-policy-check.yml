@@ -1,0 +1,46 @@
+name: D-083 public workflow minimum-security static gates
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [fix/d083-workflow-concurrency]
+    paths: ['.github/workflows/**']
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  audit:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Check ALL public workflow source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=commonjs <<'NODE'
+          const fs=require('node:fs'),p='.github/workflows';
+          const names=fs.readdirSync(p).filter(x=>/\.ya?ml$/.test(x));
+          if(names.length<47)throw Error('Public workflows missing from security audit');
+          let unpinned=0,missing=0;
+          for(const file of names){
+            const s=fs.readFileSync(p+'/'+file,'utf8');
+            if(!/^concurrency:\s*\n\s+group:\s*\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.ref\s*\}\}\s*\n\s+cancel-in-progress:\s*true/m.test(s))
+              { console.error(file+': missing per-ref cancellation'); missing++; }
+            if(!/^permissions:\s*(read-all|\n\s{2}[a-z-]+:\s*(read|none|write))/m.test(s))
+              { console.error(file+': missing explicit permissions'); missing++; }
+            for(const m of s.matchAll(/^\s*uses:\s*([^\s#]+)/gm)){
+              if(!/^[-\w.]+\/[-\w.]+@[a-f0-9]{40}$/.test(m[1]))
+                { console.error(file+': action not pinned to SHA'); unpinned++; }
+            }
+          }
+          if(missing||unpinned)throw Error('Public workflow hardening failed: '+missing+' missing policy, '+unpinned+' unpinned actions');
+          console.log('D083 checked '+names.length+' public workflow source files: concurrency/permissions/action pins PASS; no claim about repository rulesets');
+          NODE

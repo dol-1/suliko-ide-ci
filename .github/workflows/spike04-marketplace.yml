@@ -1,5 +1,8 @@
 # SPIKE-04 marketplace staging only: no tag release until CI and review.
 name: SPIKE-04 marketplace staged install (manual only)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   workflow_dispatch:
 permissions:

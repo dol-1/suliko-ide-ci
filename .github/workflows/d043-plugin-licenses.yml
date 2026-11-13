@@ -1,5 +1,8 @@
 # D-043: never treat stock BB's installed workspace SBOM as shipped Suliko code.
 name: D-043 Suliko plugin lockfiles and production license audit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d043-plugin-licenses]

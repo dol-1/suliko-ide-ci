@@ -1,4 +1,7 @@
 name: D-065 signed own-plugin rehearsal provenance (NO release)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d065-attested-preview, main]

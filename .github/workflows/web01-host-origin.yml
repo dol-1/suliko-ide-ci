@@ -1,5 +1,8 @@
 # [ChatGPT] D-045 isolated WEB-01 Host/Origin smoke, no Tailscale or public bind.
 name: WEB-01 stock BB loopback Host-Origin matrix
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d045-web01-origin-matrix]
