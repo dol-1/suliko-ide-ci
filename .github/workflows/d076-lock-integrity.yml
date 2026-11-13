@@ -1,0 +1,64 @@
+name: D-076 Remote MOCK lockfile integrity triage (NO publish)
+on:
+  push:
+    branches: [feat/d076-lock-integrity]
+    paths:
+      - '.github/workflows/d076-lock-integrity.yml'
+      - 'plugins/suliko-remote-panel/package.json'
+      - 'plugins/suliko-remote-panel/pnpm-lock.yaml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lock-triage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Verify manifest pins; regenerate disposable review-only lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          node - <<'NODE'
+          const p=require('./plugins/suliko-remote-panel/package.json');
+          if(p.devDependencies['@get-bb/plugin-sdk']!=='0.6.132' ||
+             p.devDependencies.esbuild!=='0.28.2' ||
+             p.engines.bb!=='>=0.49.0 <0.49.1') throw Error('Unreviewed SDK/BB/esbuild pin');
+          NODE
+          cd plugins/suliko-remote-panel
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm run typecheck
+          pnpm run test
+          pnpm licenses list --prod --json > "$RUNNER_TEMP/d076-prod-licenses.json"
+          node ../../scripts/plugin-license-audit.mjs . "$RUNNER_TEMP/d076-prod-licenses.json"
+          pnpm licenses list --json > "$RUNNER_TEMP/d076-all-licenses.json"
+          cd ../..
+          git diff -- plugins/suliko-remote-panel/pnpm-lock.yaml > "$RUNNER_TEMP/d076-lock.patch"
+          if test -s "$RUNNER_TEMP/d076-lock.patch"; then
+            echo 'D076: generated candidate lockfile for review; committed lock differs.' >> "$GITHUB_STEP_SUMMARY"
+            git diff --numstat -- plugins/suliko-remote-panel/pnpm-lock.yaml >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/d076-lock.patch"
+          else
+            echo 'D076: checked-in pnpm lockfile is stable under pnpm 9.15.0.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Preserve public lock candidate for independent dependency review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d076-synthetic-lock-review
+          path: |
+            plugins/suliko-remote-panel/pnpm-lock.yaml
+            ${{ runner.temp }}/d076-lock.patch
+            ${{ runner.temp }}/d076-prod-licenses.json
+            ${{ runner.temp }}/d076-all-licenses.json
+          if-no-files-found: warn
+          retention-days: 3
