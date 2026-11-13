@@ -132,7 +132,21 @@ test("J04: provider/model selection can be opened", async ({ appPage }) => {
 async function openStockFileLauncher(page: Page) {
   const search = page.getByRole("combobox", { name: /Search files/i }).first();
   if (!(await search.isVisible().catch(() => false))) {
-    await page.keyboard.press("Control+p");
+    // Prefer the installed stock UI action instead of assuming a shortcut
+    // will focus a hidden right panel. Pinned BB ThreadSecondaryPanel renders
+    // data-panel-new-tab on its actual accessible New tab button.
+    const newTab = page.locator("button[data-panel-new-tab]").first();
+    if (!(await newTab.isVisible().catch(() => false))) {
+      const show = page.getByRole("button", { name: /Show right panel/i }).first();
+      if (await show.isVisible().catch(() => false)) {
+        await show.click();
+      } else {
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Control+j");
+      }
+    }
+    await expect(newTab).toBeVisible({ timeout: 10000 });
+    await newTab.click();
   }
   await expect(search).toBeVisible({ timeout: 10000 });
   await expect(search).toBeEnabled();
