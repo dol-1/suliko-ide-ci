@@ -1,4 +1,7 @@
 name: D-063 Semgrep pinned plugin and CLI security scan
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d063-semgrep-own-code, main]

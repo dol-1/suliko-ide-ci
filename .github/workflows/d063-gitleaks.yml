@@ -1,4 +1,7 @@
 name: D-063 redacted full-public-git-history Gitleaks
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d063-gitleaks-public-history, feat/d063-gitleaks-all-prs, main]

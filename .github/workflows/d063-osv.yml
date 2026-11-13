@@ -1,4 +1,7 @@
 name: D-063 OSV pinned own-plugin lockfiles
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d063-osv-plugin-lockfiles, main]

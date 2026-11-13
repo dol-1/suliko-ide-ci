@@ -1,4 +1,7 @@
 name: D-063 OpenSSF Scorecard public CI repo assessment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches: [feat/d063-scorecard-public, fix/d063-scorecard-output-path, fix/d063-scorecard-policy-trigger, main]
