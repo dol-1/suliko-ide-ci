@@ -1,0 +1,110 @@
+name: D-084 E1 macOS Windows verified official asset staging (NOT install)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d084-e1-portable-stage]
+    paths:
+      - '.github/workflows/d084-e1-portable-stage.yml'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-setup.ps1'
+      - 'scripts/d058-stage-portable.mjs'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  macos-arm64:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    # GitHub standard public M1 arm64 runner label (not image suffix macos-15-arm64).
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Isolated macOS arm64 verified DMG staging and cleanup, no mount/execute
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(uname -m)" = arm64
+          export HOME="$RUNNER_TEMP/d084-fresh-mac-home"
+          mkdir -m 700 -p "$HOME"
+          start="$(date +%s)"
+          bash scripts/suliko-setup.sh --download-verified >/dev/null
+          node scripts/d058-stage-portable.mjs --stage
+          test -f "$HOME/Library/Application Support/SulikoIDE/Stage/bb-0.49.0-arm64.dmg"
+          node scripts/d058-stage-portable.mjs --remove-stage
+          bash scripts/suliko-setup.sh --uninstall >/dev/null
+          test ! -e "$HOME/Library/Application Support/SulikoIDE/Stage/bb-0.49.0-arm64.dmg"
+          test ! -e "$HOME/.cache/suliko-ide/bb-0.49.0-arm64.dmg"
+          elapsed="$(($(date +%s)-start))"
+          echo "MACOS_STAGE_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          echo "D084 macOS arm64 official DMG verified/staged/removed; installer NOT run, SEC02/marketplace/Hello not claimed." >> "$GITHUB_STEP_SUMMARY"
+          test "$elapsed" -lt 900
+  windows-x64:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Isolated Windows x64 verified EXE staging and cleanup, no execution
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64') { throw 'x64 runner required' }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'd084-fresh-win-localappdata'
+          New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA | Out-Null
+          $watch = [Diagnostics.Stopwatch]::StartNew()
+          & ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null
+          node scripts/d058-stage-portable.mjs --stage
+          if ($LASTEXITCODE -ne 0) { throw 'Verified staging failed' }
+          $stage = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Stage/bb-0.49.0-x64.exe'
+          if (-not (Test-Path -LiteralPath $stage -PathType Leaf)) { throw 'Staged EXE missing' }
+          node scripts/d058-stage-portable.mjs --remove-stage
+          if ($LASTEXITCODE -ne 0) { throw 'Stage removal failed' }
+          $cache = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/bb-0.49.0-x64.exe'
+          $marker = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/.suliko-managed-bb-0.49.0-x64.exe.sha256'
+          # A forged ownership marker must NEVER delete even a hash-valid asset.
+          $validRecord = [IO.File]::ReadAllText($marker)
+          [IO.File]::WriteAllText($marker, 'FORGED-NOT-OWNED')
+          $refusedForged = $false
+          try { & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null } catch { $refusedForged = $true }
+          if (-not $refusedForged -or -not (Test-Path -LiteralPath $cache)) {
+            throw 'Forged ownership marker was not refused safely'
+          }
+          [IO.File]::WriteAllText($marker, $validRecord)
+          & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
+          if ((Test-Path -LiteralPath $stage) -or (Test-Path -LiteralPath $cache) -or (Test-Path -LiteralPath $marker)) {
+            throw 'Managed assets not cleaned'
+          }
+          # A foreign same-name user asset must survive --uninstall, and a new
+          # --download-verified must refuse to overwrite without making a request.
+          [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($cache)) | Out-Null
+          [IO.File]::WriteAllText($cache, 'FOREIGN-DO-NOT-TOUCH')
+          & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
+          if ([IO.File]::ReadAllText($cache) -cne 'FOREIGN-DO-NOT-TOUCH') {
+            throw 'Uninstall touched a foreign file'
+          }
+          $refusedOverwrite = $false
+          try { & ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null } catch { $refusedOverwrite = $true }
+          if (-not $refusedOverwrite -or [IO.File]::ReadAllText($cache) -cne 'FOREIGN-DO-NOT-TOUCH') {
+            throw 'Download overwrote/refused to preserve a foreign file'
+          }
+          [IO.File]::Delete($cache)
+          $watch.Stop()
+          $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
+          "WINDOWS_STAGE_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          'D084 Windows x64 official EXE verified/staged/removed; installer NOT run, SEC02/marketplace/Hello not claimed.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          if ($elapsed -ge 900) { throw 'Verified staging exceeded 15-minute threshold' }
