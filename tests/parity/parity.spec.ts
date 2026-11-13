@@ -169,7 +169,9 @@ test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
 
 test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
   const search = await openStockFileLauncher(appPage);
-  await search.fill("");
+  // Pinned stock NewTabFileSearch only exposes action role=option after a matching query.
+  // Empty-query actions are separate buttons; exercise the actual accessible search flow.
+  await search.fill("terminal");
   const terminal = appPage.getByRole("option", { name: /Start terminal/i }).first();
   await expect(terminal).toBeVisible({ timeout: 10000 });
   await expect(terminal).toBeEnabled();
