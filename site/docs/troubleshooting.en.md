@@ -7,3 +7,11 @@
 - **Remote unknown outcome:** verify in the authorized Remote interface; a missing receipt is **not success**.
 
 Use [pilot feedback](pilot.en.md) for a generic, sanitized report. The planned `suliko doctor` support bundle is a **synthetic preview**, not a finished live diagnostic tool.
+
+## Doctor / support bundle status
+
+The public `suliko-doctor` experiment validates a **fixed-schema synthetic** report and rejects test tokens, private paths and email-shaped values. It is **not** a production diagnostic for your own machine, and a locally gathered log is not automatically safe to publish.
+
+To report an issue, provide only the OS/CPU family, the BB release number, the affected feature and a general symptom. Do not attach raw logs, credentials, private repository paths, unredacted screenshots or Remote device identifiers. Use [pilot feedback](pilot.en.md) only for non-sensitive information. Unknown Remote job outcomes must be checked on the authorized Remote service; do not repeat write operations to see if they succeeded.
+
+See the [FAQ](faq.en.md) for support and setup expectations.
