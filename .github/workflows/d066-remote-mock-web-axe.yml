@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d066-remote-mock-web-axe, main]
+    branches: [feat/d066-remote-mock-web-axe, feat/d088-desktop-visual-and-remote-states, main]
     paths:
       - '.github/workflows/d066-remote-mock-web-axe.yml'
       - 'tests/parity/remote-mock-a11y.mjs'

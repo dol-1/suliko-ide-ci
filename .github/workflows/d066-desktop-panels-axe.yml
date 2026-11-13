@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d066-desktop-panels-axe, main]
+    branches: [feat/d066-desktop-panels-axe, feat/d088-desktop-visual-and-remote-states, main]
     paths:
       - '.github/workflows/d066-desktop-panels-axe.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'
@@ -86,6 +86,14 @@ jobs:
           export BB_DATA_DIR="$RUNNER_TEMP/d066-desktop-data"
           xvfb-run -a node tests/parity/d066-desktop-a11y.mjs
           echo 'D066 only packaged Linux Desktop own panels; not actual Remote or cross-platform beta.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain four strictly synthetic Desktop own-panel PNGs for 1 day
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d088-packaged-desktop-synthetic-own-panels
+          path: ${{ runner.temp }}/d088-desktop-own-panels/*.png
+          retention-days: 1
+          if-no-files-found: error
       - name: Stop isolated server even after failures
         if: always()
         shell: bash
