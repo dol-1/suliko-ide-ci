@@ -53,13 +53,15 @@ jobs:
           printf '%s  %s\n' '8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770' "$app" | sha256sum -c - >/dev/null
           (cd "$extract" && "$app" --appimage-extract >"$RUNNER_TEMP/d084-extract.log" 2>&1)
           test -x "$extract/squashfs-root/AppRun"
-          # Run the exact verified desktop package; no unsafe --no-sandbox, sudo,
-          # privileged installer, provider token, or production account.
+          # A desktop GUI is expected to remain open, not exit 0 on --version.
+          # Require an actual 20s windowed runtime lifespan; this is not proof
+          # of a ready UI, installed profile hardening or marketplace success.
+          # No unsafe --no-sandbox, sudo, provider token or production account.
           set +e
-          timeout --signal=TERM --kill-after=5s 45s xvfb-run -a "$app" --version >"$RUNNER_TEMP/d084-version.log" 2>&1
+          timeout --signal=TERM --kill-after=5s 20s xvfb-run -a "$app" >"$RUNNER_TEMP/d084-window.log" 2>&1
           code=$?
           set -e
-          test "$code" = 0 || { echo 'D084 Linux packaged desktop safe launch failed (details withheld)' >&2; exit 1; }
+          test "$code" = 124 || { echo 'D084 GUI failed 20s liveness smoke (no raw diagnostics emitted)' >&2; exit 1; }
           # Uninstall only Suliko-owned files, preserving all unrelated data.
           bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null
           bash scripts/suliko-setup.sh --uninstall >/dev/null
@@ -69,5 +71,5 @@ jobs:
           stop="$(date +%s)"
           elapsed="$((stop-start))"
           echo "SETUP_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
-          printf 'D084 verified Linux user-level AppImage unpack/launch/remove completed; elapsed=%s seconds; SEC-02/marketplace/Hello/full E1 NOT yet checked.\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          printf 'D084 verified Linux user-level AppImage unpack/20s liveness/remove completed; elapsed=%s seconds; SEC-02/marketplace/Hello/full E1 NOT yet checked.\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"
           test "$elapsed" -lt 900
