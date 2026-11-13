@@ -1,0 +1,141 @@
+name: D-091 Linux verified AppImage + live SEC02 and local Hello (PARTIAL E1, NOT marketplace)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d091-linux-installed-profile-hello]
+    paths:
+      - '.github/workflows/d091-linux-installed-profile-hello.yml'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-stage-linux.sh'
+      - 'scripts/verify-hardened.sh'
+      - 'config/hardened/.env.hardened'
+      - 'plugins/suliko-hello/**'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  integrated-linux-candidate:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 95
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38906'
+      BB_HOST_DAEMON_PORT: '38907'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Build exact stock BB CLI for disposable plugin verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
+      - name: Verify/install official AppImage, launch, live SEC02 and Hello, clean owned stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" -ne 0
+          test "$(uname -m)" = x86_64
+          command -v xvfb-run >/dev/null
+          command -v ss >/dev/null
+          home="$RUNNER_TEMP/d091-owned-home"
+          export HOME="$home" BB_DATA_DIR="$home/bb-disposable"
+          mkdir -m 700 -p "$home" "$BB_DATA_DIR" "$RUNNER_TEMP/d091-bin"
+          export PATH="$RUNNER_TEMP/d091-bin:$PATH"
+          cat >"$RUNNER_TEMP/d091-bin/bb" <<'WRAPPER'
+          #!/usr/bin/env bash
+          exec node "$GITHUB_WORKSPACE/stock-bb/packages/bb-app/dist/bb.js" "$@"
+          WRAPPER
+          chmod 700 "$RUNNER_TEMP/d091-bin/bb"
+          begin="$(date +%s)"
+          app_pid=""
+          stop_app() {
+            set +e
+            if [[ -n "$app_pid" ]]; then
+              kill -TERM -- "-$app_pid" >/dev/null 2>&1 || true
+              sleep 2
+              kill -KILL -- "-$app_pid" >/dev/null 2>&1 || true
+              wait "$app_pid" >/dev/null 2>&1 || true
+              app_pid=""
+            fi
+          }
+          cleanup() {
+            stop_app
+            node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true
+            HOME="$home" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1 || true
+            HOME="$home" bash scripts/suliko-setup.sh --uninstall >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          bash scripts/suliko-setup.sh --dry-run >/dev/null
+          bash scripts/suliko-setup.sh --download-verified >/dev/null
+          bash scripts/suliko-stage-linux.sh --stage >/dev/null
+          app="$home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          launcher="$home/.local/bin/suliko-bb-desktop"
+          test -x "$app"
+          test "$(readlink "$launcher")" = "$app"
+          printf '%s  %s\n' '8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770' "$app" | sha256sum -c - >/dev/null
+          # Nonprivileged packaged GUI liveness. No provider key or remote host.
+          setsid xvfb-run -a "$app" >"$RUNNER_TEMP/d091-app.log" 2>&1 &
+          app_pid=$!
+          sleep 20
+          kill -0 "$app_pid" 2>/dev/null || { echo 'D091 official GUI exited prematurely'; exit 1; }
+          stop_app
+          # CLI from identical pinned upstream source: prove live plugin+SEC02.
+          # This does NOT prove marketplace/RC tag or plugin in packaged AppImage.
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR"             --server-bind-host 127.0.0.1 --server-port 38906 --host-daemon-port 38907             --no-in-app-updates >"$RUNNER_TEMP/d091-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if bb plugin list --json >"$RUNNER_TEMP/d091-before.json" 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [[ "$ready" != 1 ]]; then echo 'D091 live BB plugin CLI did not become ready'; exit 1; fi
+          node - "$RUNNER_TEMP/d091-before.json" <<'NODE' >"$RUNNER_TEMP/d091-forbidden"
+          const fs=require('node:fs'),value=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(value.plugins))throw Error('Missing BB plugin list');
+          const forbidden=new Set(['bb--mcp','account-pool','connect','bb--connect-next','memory']);
+          for(const p of value.plugins)if(forbidden.has(p.id)&&p.enabled===true)console.log(p.id);
+          NODE
+          while IFS= read -r p; do
+            [[ -n "$p" ]] || continue
+            bb plugin disable "$p" >/dev/null
+          done < "$RUNNER_TEMP/d091-forbidden"
+          bb plugin install ./plugins/suliko-hello --yes >/dev/null
+          bb plugin list --json >"$RUNNER_TEMP/d091-after.json"
+          node - "$RUNNER_TEMP/d091-after.json" <<'NODE'
+          const fs=require('node:fs'),value=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(value.plugins))throw Error('Missing installed plugins');
+          const hello=value.plugins.filter(p=>p.id==='suliko-hello'||p.id==='bb-plugin-suliko-hello');
+          if(hello.length!==1||hello[0].enabled!==true)throw Error('Own Hello not enabled');
+          NODE
+          bash scripts/verify-hardened.sh
+          ss -ltn >"$RUNNER_TEMP/d091-listeners"
+          grep -Eq '127[.]0[.]0[.]1:38906([[:space:]]|$)' "$RUNNER_TEMP/d091-listeners"
+          grep -Eq '127[.]0[.]0[.]1:38907([[:space:]]|$)' "$RUNNER_TEMP/d091-listeners"
+          node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$BB_DATA_DIR" >/dev/null
+          bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null
+          bash scripts/suliko-setup.sh --uninstall >/dev/null
+          test ! -e "$app" && test ! -L "$launcher" && test ! -f "$home/.cache/suliko-ide/bb-0.49.0-x86_64.AppImage"
+          elapsed="$(($(date +%s)-begin))"
+          echo "SETUP_ELAPSED_SECONDS=$elapsed"
+          echo "SETUP_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
+          echo 'D091 Linux candidate: official AppImage user-stage+GUI, same-stock-source CLI live SEC02+Hello and owned cleanup; no marketplace RC, full packaged plugin/3OS/uninstall or beta GO.' >> "$GITHUB_STEP_SUMMARY"
+          test "$elapsed" -lt 900
