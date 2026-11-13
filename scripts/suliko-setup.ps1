@@ -17,6 +17,8 @@ $sha = '201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f'
 $url = "https://github.com/get-bb/bb/releases/download/desktop-v0.49.0/$asset"
 $cache = Join-Path $env:LOCALAPPDATA 'SulikoIDE\Cache'
 $dest = Join-Path $cache $asset
+$marker = Join-Path $cache ('.suliko-managed-' + $asset + '.sha256')
+$markerRecord = "SULIKO-IDE-VERIFIED-v1 $asset $sha"
 function Assert-ManagedCachePath {
   # Never follow a reparse-point/junction parent to remove unrelated data.
   foreach ($path in @((Join-Path $env:LOCALAPPDATA 'SulikoIDE'), $cache)) {
@@ -37,19 +39,45 @@ function Assert-Hash([string]$Path) {
 }
 if ($Uninstall) {
   Assert-ManagedCachePath
-  if (Test-Path -LiteralPath $dest -PathType Leaf) { Remove-Item -LiteralPath $dest -Force }
+  # Matching owner record AND verified bytes are mandatory to delete a cache asset.
+  $markerItem = Get-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+  if ($null -ne $markerItem) {
+    if ($markerItem.PSIsContainer -or ($markerItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+      throw 'Refusing nonregular ownership marker'
+    }
+    $record = [IO.File]::ReadAllText($marker).TrimEnd([char[]]@("`r","`n"))
+    if ($record -cne $markerRecord) { throw 'Unrecognized ownership marker; preserving cache' }
+    # For matching records, refuse changed/missing/corrupted/redirected payloads.
+    Assert-Hash $dest | Out-Null
+    [IO.File]::Delete($dest)
+    [IO.File]::Delete($marker)
+  }
   if (Test-Path -LiteralPath $cache -PathType Container) {
     if (@(Get-ChildItem -LiteralPath $cache -Force).Count -eq 0) { Remove-Item -LiteralPath $cache }
   }
-  Write-Output 'Suliko download cache cleanup finished; BB user data untouched.'
+  Write-Output 'Suliko tracked cache cleanup finished; untracked files and BB user data untouched.'
 } elseif ($DownloadVerified) {
   Assert-ManagedCachePath
+  # Never overwrite an existing same-name user file or stale ownership record.
+  if ($null -ne (Get-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue) -or
+      $null -ne (Get-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue)) {
+    throw 'Cache target already exists; refusing overwrite'
+  }
   New-Item -ItemType Directory -Path $cache -Force | Out-Null
   $tmp = Join-Path $cache ([guid]::NewGuid().ToString('n') + '.download')
   try {
     Invoke-WebRequest -Uri $url -OutFile $tmp -MaximumRedirection 5
     Assert-Hash $tmp
-    Move-Item -LiteralPath $tmp -Destination $dest -Force
+    # .NET Move without overwrite is a same-volume atomic no-clobber create.
+    [IO.File]::Move($tmp, $dest)
+    # CreateNew refuses any concurrent/forged marker. If this fails, the
+    # untracked verified file is deliberately left behind, never auto-deleted.
+    $stream = [IO.FileStream]::new($marker, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try {
+      $writer = [IO.StreamWriter]::new($stream)
+      try { $writer.WriteLine($markerRecord); $writer.Flush() }
+      finally { $writer.Dispose() }
+    } finally { $stream.Dispose() }
     Write-Output "Verified official BB asset saved at: $dest"
     Write-Output 'It was NOT executed or installed.'
   } finally {
