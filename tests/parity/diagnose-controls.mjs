@@ -101,6 +101,35 @@ async function diagnose(page, target) {
     target, helloButtonVisible, helloClickSucceeded, helloPanelMounted,
     strictJourneyCountUnchanged: 14,
   }));
+  // Pinned get-bb/bb docs/configuration.md specifies Linux/Windows:
+  // Mod+P (quick open), Mod+D (diff), Mod+Shift+Enter (terminal).
+  // Probe only AFTER all 14 unchanged strict journeys and only in the
+  // disposable project UI. No key values, file content or raw DOM logged.
+  async function probeShortcut(key, expected) {
+    try {
+      await page.keyboard.press("Escape");
+      await page.keyboard.press(key);
+      await page.waitForTimeout(300);
+      const count = await expected.count().catch(() => 0);
+      const visible = count > 0 && await expected.first().isVisible().catch(() => false);
+      await page.keyboard.press("Escape");
+      return { delivered: true, expectedVisible: visible };
+    } catch {
+      return { delivered: false, expectedVisible: false };
+    }
+  }
+  const quickOpen = await probeShortcut("Control+p",
+    page.getByRole("dialog").or(page.getByRole("combobox")).or(
+      page.getByRole("textbox", { name: /file|search|path/i })));
+  const diff = await probeShortcut("Control+d",
+    page.getByRole("tab", { name: /diff|changes/i }).or(
+      page.getByRole("heading", { name: /diff|changes/i })));
+  const terminal = await probeShortcut("Control+Shift+Enter",
+    page.getByRole("tab", { name: /terminal/i }).or(
+      page.getByRole("heading", { name: /terminal/i })));
+  console.log("QA01_DIAG_SHORTCUTS", JSON.stringify({
+    target, quickOpen, diff, terminal, strictJourneyCountUnchanged: 14,
+  }));
 }
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
 if (!["127.0.0.1", "localhost"].includes(webUrl.hostname) || webUrl.protocol !== "http:") throw Error("Loopback Web only");
