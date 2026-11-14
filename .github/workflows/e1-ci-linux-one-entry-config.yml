@@ -1,0 +1,40 @@
+name: D-151 Linux one CI entry official GUI + published stock CLI SEC02/Hello (UNSHIPPED)
+on:
+  push:
+    branches: [feat/d151-ci-linux-one-entry-configured]
+    paths:
+      - '.github/workflows/e1-ci-linux-one-entry-config.yml'
+      - 'scripts/d151-ci-e1-one-entry-linux.sh'
+  workflow_dispatch:
+concurrency:
+  group: d151-linux-ci-config-\${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  genuine-linux-ci-one-entry:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Prepare pinned local Playwright inspection dependency (not application provisioning)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+          command -v xvfb-run
+          command -v ss
+      - name: Run *one* CI-only command to stage official user GUI and provision real published stock CLI SEC02/Hello
+        shell: bash
+        run: |
+          bash scripts/d151-ci-e1-one-entry-linux.sh
