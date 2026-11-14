@@ -1,8 +1,9 @@
 name: D-141 Linux one-command official AppImage installed Hello GUI + stock CLI SEC02 (PARTIAL)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: e1-user-linux-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [feat/d141-linux-one-command-stage]
     paths:
