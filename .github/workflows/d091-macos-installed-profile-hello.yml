@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d091-macos-installed-profile-hello, feat/d135-macos-official-installed-hello]
+    branches: [main, feat/d091-macos-installed-profile-hello, feat/d135-macos-official-installed-hello, feat/d138-macos-gatekeeper-hello-main-gate]
     paths:
       - '.github/workflows/d091-macos-installed-profile-hello.yml'
       - 'scripts/verify-hardened.sh'
