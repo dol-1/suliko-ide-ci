@@ -91,7 +91,7 @@ jobs:
           test -f "$owner" && test ! -L "$owner"
           test -d "$app" && test ! -L "$app"
           # Independently revalidate the user command's official DMG SHA.
-          printf '%s  %s\\n' '5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17' "$dmg" | shasum -a 256 -c - >/dev/null
+          printf '%s  %s\n' '5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17' "$dmg" | shasum -a 256 -c - >/dev/null
           test -x "$executable" && test ! -L "$executable"
           codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
             { echo 'Official BB app signature verification failed; do not launch.' >&2; exit 1; }

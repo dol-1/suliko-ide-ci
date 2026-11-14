@@ -88,7 +88,7 @@ mac_install_user() {
   mac_detach() {
     if [[ "${mac_mounted:-0}" = 1 ]]; then
       hdiutil detach -quiet "$mac_mount_target" >/dev/null 2>&1 ||
-        { printf '%s\\n' 'Could not safely detach official DMG' >&2; return 1; }
+        { printf '%s\n' 'Could not safely detach official DMG' >&2; return 1; }
       mac_mounted=0
     fi
     rmdir "$mac_mount_target" >/dev/null 2>&1 || return 1
