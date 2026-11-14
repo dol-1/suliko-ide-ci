@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Match canonical and mirrored immutable RC tag, otherwise explicit SKIP
+      - name: Verify mirrored RC tag against separately approved canonical SHA, otherwise explicit SKIP
         id: verify
         shell: bash
         run: |
@@ -38,24 +38,26 @@ jobs:
              g?.subdir!=='plugins/suliko-hello'||g?.range!=='0.1.0-rc.1'||g?.tagPrefix!=='suliko-hello/')
             throw Error('D117 rejected RC catalog drift');
           NODE
-          canonical="$(git ls-remote --refs --tags https://gitlab.com/dol-1-group/suliko-ide-ci.git "refs/tags/$tag")"
+          # The canonical GitLab repository is PRIVATE; unauthenticated GitHub
+          # Actions cannot query it. Before setting EXPECTED_SHA, separately
+          # verify the canonical lightweight test tag with the authorized GitLab
+          # connector and record the reviewed SHA. This public job checks the
+          # public mirrored tag against that explicitly authorized pin only.
           mirror="$(git ls-remote --refs --tags https://github.com/dol-1/suliko-ide-ci.git "refs/tags/$tag")"
-          if [[ -z "$canonical" && -z "$mirror" ]]; then
+          if [[ -z "$mirror" ]]; then
             echo 'tag_present=false' >> "$GITHUB_OUTPUT"
-            echo 'D117_RC_TAG=ABSENT; Desktop/Web RC install SKIPPED (NOT acceptance or beta GO).' >> "$GITHUB_STEP_SUMMARY"
+            echo 'D117_RC_TAG=ABSENT in public mirror; Desktop/Web RC install SKIPPED (NOT acceptance or beta GO).' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          [[ -n "$canonical" && -n "$mirror" && "$canonical" == "$mirror" ]] ||
-            { echo 'RC tag mirror absent/mismatched; fail closed' >&2; exit 1; }
-          sha="${canonical%%$'\t'*}"
-          [[ "$canonical" == "$sha"$'\t'"refs/tags/$tag" && "$sha" =~ ^[0-9a-f]{40}$ ]] ||
-            { echo 'Unexpected RC tag format; lightweight exact commit only' >&2; exit 1; }
+          sha="${mirror%%$'\t'*}"
+          [[ "$mirror" == "$sha"$'\t'"refs/tags/$tag" && "$sha" =~ ^[0-9a-f]{40}$ ]] ||
+            { echo 'Unexpected public RC tag format; lightweight exact commit required' >&2; exit 1; }
           expected="$(cat marketplace/rc/EXPECTED_SHA)"
           [[ "$expected" =~ ^[0-9a-f]{40}$ && "$expected" != '0000000000000000000000000000000000000000' && "$sha" == "$expected" ]] ||
             { echo 'RC ref SHA not explicitly reviewed/approved; fail closed' >&2; exit 1; }
           echo 'tag_present=true' >> "$GITHUB_OUTPUT"
           echo "approved_sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "D117_RC_TAG_VERIFIED=$tag sha=$sha; actual install required next." >> "$GITHUB_STEP_SUMMARY"
+          echo "D117_PUBLIC_MIRROR_TAG_VERIFIED=$tag sha=$sha against separately approved canonical SHA; actual install required next." >> "$GITHUB_STEP_SUMMARY"
   install-both-clients:
     if: needs.rc-gate.outputs.tag_present == 'true'
     needs: rc-gate
@@ -82,16 +84,14 @@ jobs:
         with:
           node-version: '22.19.0'
           package-manager-cache: false
-      - name: Verify canonical and GitHub SHA have not changed
+      - name: Verify mirrored RC tag SHA has not changed
         env:
           APPROVED_SHA: ${{ needs.rc-gate.outputs.approved_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          for repo in https://gitlab.com/dol-1-group/suliko-ide-ci.git https://github.com/dol-1/suliko-ide-ci.git; do
-            entry="$(git ls-remote --refs --tags "$repo" refs/tags/suliko-hello/v0.1.0-rc.1)"
-            test "$entry" = "$APPROVED_SHA"$'\t'refs/tags/suliko-hello/v0.1.0-rc.1
-          done
+          entry="$(git ls-remote --refs --tags https://github.com/dol-1/suliko-ide-ci.git refs/tags/suliko-hello/v0.1.0-rc.1)"
+          test "$entry" = "$APPROVED_SHA"$'\t'refs/tags/suliko-hello/v0.1.0-rc.1
       - name: Build exact pinned stock BB and packaged Linux Desktop
         shell: bash
         run: |
