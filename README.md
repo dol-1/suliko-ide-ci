@@ -1,93 +1,40 @@
-# suliko-ide-ci
+# Suliko IDE — public CI mirror / საჯარო CI სარკე
 
-[Claude] CI source for Suliko IDE. Push-mirrored to public GitHub dol-1/suliko-ide-ci, where GitHub Actions runs (free, 3 OS). Only workflows + plugins/config/scripts — no secrets, no plans.
+> **Pre-release test infrastructure only. Not a production IDE, customer installer, signed release or public beta.**
+> **მხოლოდ ექსპერიმენტული სატესტო ინფრასტრუქტურაა — არა საბოლოო პროდუქტი ან საჯარო ბეტა.**
 
-## Getting started
+## What this repository contains / რა არის აქ
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+This GitHub repository is a **public push mirror of canonical GitLab-reviewed changes**. It contains Suliko-owned experimental BB-compatible plugins, configuration, synthetic test fixtures, bilingual documentation source and GitHub Actions workflows. It must never contain user projects, provider keys, customer data, private planning or Remote backends. The public mirror is for verification; there is no independent GitHub production release pipeline.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+ეს GitHub რეპოზიტორია GitLab-ში განხილული კოდის **საჯარო სარკეა**. აქ თავსდება მხოლოდ საკუთარი ექსპერიმენტული პლაგინები, კონფიგურაცია, სინთეტიკური ტესტები, KA/EN დოკუმენტაცია და GitHub Actions. რეალური მომხმარებლის მონაცემები, API გასაღებები, პირადი გეგმები და Remote-ის სერვერი აქ არ თავსდება.
 
-## Add your files
+## Testing and status / ტესტირება და მდგომარეობა
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- CI uses **standard free public GitHub Actions runners** on Linux, macOS and Windows. A successful step on one OS is not proof that every OS, installer or feature works.
+- The upstream BB version is pinned to **desktop-v0.49.0** for reviewed compatibility tests; no BB core is changed. An automated source scan does not substitute for an independent security review.
+- A change is eligible for canonical main merge only after its **exact mirrored head SHA** has a completed successful run and a recorded premerge GitLab review note with the run ID, SHA and UTC completion time. No skipped/queued/red tests count as passing.
+- **No published Suliko release or installer is authorized.** End-user 3-OS one-command setup, immutable RC, independent security sign-off and public beta approval are still outstanding.
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/dol-1-group/suliko-ide-ci.git
-git branch -M main
-git push -uf origin main
-```
+- CI მუშაობს მხოლოდ საჯარო უფასო სტანდარტულ Linux/macOS/Windows runner-ებზე. ერთი მწვანე ტესტი ყველა პლატფორმის მზადყოფნას არ ამტკიცებს.
+- BB-ის სატესტო ვერსია ფიქსირებულია: **desktop-v0.49.0**. BB-ის ძირითად კოდს არ ვცვლით.
+- მთავარ ბრენჩში გაერთიანებამდე აუცილებელია **ზუსტად იმავე SHA-ის** დასრულებული წარმატებული CI და GitLab MR-ში წინასწარ დაფიქსირებული მტკიცებულება.
+- საჯარო რელიზი/ბეტა ჯერ არ არსებობს; საჭიროა სრულად ინტეგრირებული ინსტალაცია და დამოუკიდებელი უსაფრთხოების შემოწმება.
 
-## Integrate with your tools
+## Documentation / დოკუმენტაცია
 
-* [Set up project integrations](https://gitlab.com/dol-1-group/suliko-ide-ci/-/settings/integrations)
+Source for KA/EN documentation is in [site/docs](site/docs), with the verified MkDocs configuration in [site/mkdocs.yml](site/mkdocs.yml). GitHub Pages may not be enabled; the presence of documentation source does **not** guarantee a live published site.
 
-## Collaborate with your team
+KA/EN დოკუმენტაციის წყაროა [site/docs](site/docs). GitHub Pages-ის ჩართვა ჯერ არ არის დადასტურებული; მხოლოდ წყაროს არსებობა არ ნიშნავს, რომ საიტი საჯაროდ მუშაობს.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Security and contributions / უსაფრთხოება და კონტრიბუცია
 
-## Test and Deploy
+Please follow [SECURITY.md](SECURITY.md) for coordinated vulnerability reporting. Do **not** put security details, tokens, private data or exploit demonstrations in public issues. Private vulnerability reporting is available only if explicitly enabled by maintainers; no availability or response time is promised. For non-sensitive feedback and source contribution rules, read [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Use the built-in continuous integration in GitLab.
+მოწყვლადობის შესახებ ინფორმაციისათვის იხილეთ [SECURITY.md](SECURITY.md). საჯარო issue-ში არ გამოაქვეყნოთ გასაღებები, პირადი მონაცემები, ექსპლოიტები ან არასაჯარო დეტალები. ჩვეულებრივი უკუკავშირისა და ცვლილებების წესებია [CONTRIBUTING.md](CONTRIBUTING.md).
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## Licensing / ლიცენზია
 
-***
+**Public visibility is not a license grant for Suliko-original code.** Suliko-original licensing/redistribution requires a separately approved project license. The upstream BB project and other dependencies retain their own licenses. Do not assume this repository distributes or licenses BB upstream code.
 
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+**საჯარო ხილვადობა Suliko-ს საკუთარი კოდის გამოყენების ლიცენზიას არ ნიშნავს.** ლიცენზირება ცალკე დასამტკიცებელია; მესამე მხარის კომპონენტებზე მოქმედებს მათი საკუთარი პირობები.
