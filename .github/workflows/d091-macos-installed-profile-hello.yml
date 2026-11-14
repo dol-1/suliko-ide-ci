@@ -4,12 +4,13 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d091-macos-installed-profile-hello]
+    branches: [feat/d091-macos-installed-profile-hello, feat/d135-macos-official-installed-hello]
     paths:
       - '.github/workflows/d091-macos-installed-profile-hello.yml'
       - 'scripts/verify-hardened.sh'
       - 'config/hardened/.env.hardened'
       - 'plugins/suliko-hello/**'
+      - 'tests/parity/d135-macos-official-installed-hello.mjs'
       - 'scripts/suliko-setup.sh'
       - 'scripts/d058-stage-portable.mjs'
   workflow_dispatch:
@@ -48,6 +49,11 @@ jobs:
           corepack prepare pnpm@9.15.0 --activate
           (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
           test -s stock-bb/packages/bb-app/dist/bb-app.js
+      - name: Install test-only pinned Playwright Electron harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
       - name: Official fixed-SHA DMG mount, user-app install, code-sign check, GUI liveness and cleanup
         shell: bash
         run: |
@@ -90,11 +96,14 @@ jobs:
           fi
           app="$HOME/Applications/bb.app"
           test ! -e "$app" && test ! -L "$app"
-          ditto --noqtn "$source_app" "$app"
+          # Do not suppress source quarantine metadata or bypass Gatekeeper.
+          ditto "$source_app" "$app"
           executable="$app/Contents/MacOS/bb"
           test -x "$executable" && test ! -L "$executable"
           codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
             { echo 'Official BB app signature verification failed; do not launch.' >&2; exit 1; }
+          spctl --assess --type execute "$app" >/dev/null 2>&1 ||
+            { echo 'Official BB app rejected by macOS execution policy; refusing launch.' >&2; exit 1; }
           # Explicitly execute the official copied app as an unprivileged user;
           # no root, remote service, provider token, persistent account or system install.
           "$executable" >"$RUNNER_TEMP/d084-mac-window.log" 2>&1 &
@@ -143,6 +152,17 @@ jobs:
           console.log('D091 macOS live own Hello enabled on loopback');
           NODE
           bash scripts/verify-hardened.sh
+          # D135: test genuine installed official signed bb.app GUI own Hello,
+          # after the separate immutable same-source CLI enabled the plugin.
+          project="$HOME/d135-macos-synthetic"
+          mkdir -m 700 -p "$project"
+          printf '%s\n' 'Disposable project only' > "$project/README.md"
+          git -C "$project" init -b main >/dev/null
+          git -C "$project" add README.md
+          bb project create --name d135-macos-synthetic --root "$project" >/dev/null
+          export D135_OFFICIAL_EXE="$executable"
+          export D135_BB_WEB_URL='http://127.0.0.1:38914/'
+          node tests/parity/d135-macos-official-installed-hello.mjs
           # The tests explicitly use only an isolated loopback pair; inspect
           # actual connected listeners, not a successful config parse alone.
           lsof -nP -iTCP:38914 -sTCP:LISTEN >"$RUNNER_TEMP/d091-macos-38914" || { echo 'No BB loopback server listener'; exit 1; }
@@ -157,5 +177,5 @@ jobs:
           test ! -e "$app" && test ! -e "$dmg"
           elapsed="$(($(date +%s)-start))"
           echo "MACOS_INSTALL_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
-          echo 'D091 macOS official SHA256 DMG user-app code-sign+15s GUI, separate same-stock-SHA CLI live SEC02+Hello and owned cleanup; no packaged-plugin/RC marketplace/Windows/beta GO.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'D135 macOS official signed DMG user-app genuine Hello Electron panel + separate live stock CLI SEC02/Hello and owned cleanup; no immutable RC marketplace, 3OS user installer or beta GO.' >> "$GITHUB_STEP_SUMMARY"
           test "$elapsed" -lt 900
