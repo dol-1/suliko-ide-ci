@@ -1,11 +1,20 @@
 // D065: deterministic source-only beta preview, NO release, no tag, no uploaded artifacts.
 import { createHash } from "node:crypto";
-import { lstatSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, writeFileSync, openSync, closeSync, fstatSync, constants } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 const ROOTS=["plugins/suliko-hello","plugins/suliko-remote-panel"];
 const CATALOG="marketplace/marketplace.json";
 function sha(data){return createHash("sha256").update(data).digest("hex");}
+// A leaf path check plus later path read is racy. Open once, verify the
+// same descriptor is an ordinary file and refuse symlink leaves (O_NOFOLLOW).
+function readCheckedFile(file,encoding) {
+  const fd=openSync(file,constants.O_RDONLY|(constants.O_NOFOLLOW||0));
+  try {
+    if(!fstatSync(fd).isFile())throw Error("Reject unsafe preview file type");
+    return readFileSync(fd,encoding);
+  } finally {closeSync(fd);}
+}
 function collect(root,where,items) {
   const actual=join(root,where),stat=lstatSync(actual);
   if(stat.isSymbolicLink()||(!stat.isDirectory()&&!stat.isFile()))throw Error("Reject unsafe preview tree entry");
@@ -16,7 +25,7 @@ function collect(root,where,items) {
       collect(root,where+"/"+name,items);
     }
   } else {
-    const bytes=readFileSync(actual);
+    const bytes=readCheckedFile(actual);
     items.push({path:where.replaceAll(sep,"/"),sha256:sha(bytes),bytes:bytes.length});
   }
 }
@@ -29,7 +38,7 @@ export function previewManifest(root) {
   if(parentStat.isSymbolicLink()||!parentStat.isDirectory()||
      leafStat.isSymbolicLink()||!leafStat.isFile())
     throw Error("Reject unsafe preview marketplace catalog path");
-  const catalog=JSON.parse(readFileSync(catalogFile,"utf8"));
+  const catalog=JSON.parse(readCheckedFile(catalogFile,"utf8"));
   if(catalog.schemaVersion!==1||catalog.name!=="suliko-experimental"||
       catalog.plugins?.length!==1||catalog.plugins[0]?.id!=="suliko-hello")throw Error("Unreviewed marketplace catalog");
   if(catalog.plugins[0].source?.git?.url!=="https://github.com/dol-1/suliko-ide-ci.git")throw Error("Unreviewed marketplace origin");
@@ -41,7 +50,7 @@ export function previewManifest(root) {
   collect(abs,CATALOG,files);
   files.sort((a,b)=>a.path.localeCompare(b.path,"en"));
   const pluginVersions=ROOTS.map(p=>{
-    const pkg=JSON.parse(readFileSync(join(abs,p,"package.json"),"utf8"));
+    const pkg=JSON.parse(readCheckedFile(join(abs,p,"package.json"),"utf8"));
     if(pkg.engines?.bb!==">=0.49.0 <0.49.1"||pkg.devDependencies?.["@get-bb/plugin-sdk"]!=="0.6.132")throw Error("Unreviewed BB or SDK plugin pin");
     return{path:p,name:pkg.name,version:pkg.version,bb:pkg.engines.bb,sdk:pkg.engines.bbPluginSdk};
   });

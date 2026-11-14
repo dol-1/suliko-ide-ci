@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 const PIN_SHA="7b26cae79ec978fafd0a5db0e8517e94f12eb8f4";
 const PIN_VERSION="0.6.132";
-const KNOWN_MAIN_VERSION="0.6.141";
+// Reviewed upstream metadata: main da3e60b81d560e114a2bec724bb59c997aaaae7f
+// reports 0.6.144. This is a drift WARNING only, NOT runtime SDK approval.
+const KNOWN_MAIN_VERSION="0.6.144";
 const ISSUE="https://gitlab.com/dol-1-group/suliko-ide/-/work_items/49";
 function parts(v) {
   if(!/^\d+\.\d+\.\d+$/.test(v)) throw Error("Unreviewed semver syntax");
@@ -51,10 +53,22 @@ async function main() {
   const result=inspect({mainVersion:latest.version,pinVersion:pinned.version,mainSha:sha,pinSha:PIN_SHA,manifests});
   const finding=result.state==="known-drift"?"KNOWN OUTSIDE REVIEWED RANGES, existing "+ISSUE+"; not yet proven to break at runtime":"Version pin matches; real plugin compilation still pending";
   console.log("D064 main SHA="+sha+" SDK="+latest.version+" frozen="+pinned.version+" state="+result.state);
-  if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-    "### D064 upstream contract watch\n- Main SHA: "+sha+"\n- Main SDK: "+latest.version+
-    "\n- Pinned SHA: "+PIN_SHA+"\n- Pinned SDK: "+pinned.version+"\n- "+finding+
-    "\nThis is a version-contract check, NOT an upstream main plugin SDK compile/test.\n");
+  if(process.env.GITHUB_STEP_SUMMARY) {
+    // Never persist network-origin JSON fields to a filesystem report. Report
+    // only fixed, explicitly reviewed literals after inspect() validates input.
+    const reviewedVersion=result.state==="known-drift"?KNOWN_MAIN_VERSION:PIN_VERSION;
+    const reviewedState=result.state==="known-drift"
+      ?"KNOWN OUTSIDE REVIEWED RANGES; see existing review issue; not runtime-proven"
+      :"Reviewed version pin matches; runtime compilation still pending";
+    const safeSummary="### D064 upstream contract watch\n"+
+      "- Main commit: validated 40-hex source (omitted from report)\n"+
+      "- Main SDK reviewed value: "+reviewedVersion+"\n"+
+      "- Pinned SHA: "+PIN_SHA+"\n"+
+      "- Pinned SDK: "+PIN_VERSION+"\n"+
+      "- "+reviewedState+"\n"+
+      "Version-contract check only; upstream main plugin compile/test not proven.\n";
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY,safeSummary);
+  }
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)
   main().catch(e=>{console.error("D064 FAIL CLOSED: "+e.message);process.exitCode=1;});

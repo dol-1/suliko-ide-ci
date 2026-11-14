@@ -1,7 +1,7 @@
 // D125: only disposable CI-host native Mac/Win actual pinned stock BB CLI reads.
 // Never run on owner machine or return raw CLI output, personal paths or secrets.
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, openSync, closeSync, fstatSync, constants } from "node:fs";
 import { join, resolve } from "node:path";
 import { connect } from "node:net";
 const e=process.env, root=e.RUNNER_TEMP&&resolve(e.RUNNER_TEMP);
@@ -66,10 +66,16 @@ try{
     report.providerKeyPresence?.anthropic!=="absent"||
     report.providerSettingsAndHooks!=="NOT_INSPECTED")
    throw Error("D125 native doctor categorical assertions failed");
- const bundlePath=join(root,"d059-support-bundle.json"),stat=lstatSync(bundlePath);
- if(!stat.isFile()||stat.isSymbolicLink()||(e.RUNNER_OS==="macOS"&&(stat.mode&0o777)!==0o600))
-   throw Error("D125 private bundle file type/mode failed");
- const bundle=readFileSync(bundlePath,"utf8");
+ const bundlePath=join(root,"d059-support-bundle.json");
+ // Single open+fstat+read descriptor closes a path replacement race.
+ const fd=openSync(bundlePath,constants.O_RDONLY|(constants.O_NOFOLLOW||0));
+ let bundle;
+ try {
+   const stat=fstatSync(fd);
+   if(!stat.isFile()||(e.RUNNER_OS==="macOS"&&(stat.mode&0o777)!==0o600))
+     throw Error("D125 private bundle file type/mode failed");
+   bundle=readFileSync(fd,"utf8");
+ } finally {closeSync(fd);}
  if(JSON.stringify(JSON.parse(bundle))!==JSON.stringify(report)||
    bundle.includes(root)||bundle.includes(home)||
    /"(token|key|password|dataDir|raw|email)"\s*:/.test(bundle))
