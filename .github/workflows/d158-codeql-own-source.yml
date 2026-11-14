@@ -1,0 +1,89 @@
+name: D-158 pinned CodeQL JS TS source security gate (SARIF not uploaded)
+on:
+  push:
+    branches: [feat/d158-private-sarif-codeql, main]
+    paths:
+      - '.github/workflows/d158-codeql-own-source.yml'
+      - 'plugins/**'
+      - 'scripts/**'
+  workflow_dispatch:
+concurrency:
+  group: d158-codeql-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  source-codeql:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Initialize pinned official CodeQL for own JS/TS sources only
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+          config: |
+            name: suliko-ci-own-code-only
+            paths:
+              - plugins
+              - scripts
+      - name: Run official scanner without uploading SARIF
+        id: scan
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066
+        with:
+          upload: never
+          upload-database: false
+          output: ${{ runner.temp }}/d158-codeql-results
+      - name: Require actual scanner output and zero findings, never log source details
+        shell: bash
+        env:
+          SARIF_DIR: ${{ steps.scan.outputs.sarif-output }}
+        run: |
+          set -euo pipefail
+          case "$SARIF_DIR" in "$RUNNER_TEMP"/d158-codeql-results) ;; *) echo 'Unexpected SARIF output directory' >&2; exit 1 ;; esac
+          test -d "$SARIF_DIR" && test ! -L "$SARIF_DIR"
+          trap 'rm -rf -- "$SARIF_DIR"' EXIT
+          node - "$SARIF_DIR" <<'NODE'
+          const fs=require('node:fs');
+          const path=require('node:path');
+          const dir=process.argv[2];
+          // Nothing about source paths, snippets, messages, traces or scanner stderr is emitted.
+          const queue=[dir]; const sarif=[];
+          while(queue.length){
+            const current=queue.shift();
+            for(const ent of fs.readdirSync(current,{withFileTypes:true})){
+              const full=path.join(current,ent.name);
+              if(ent.isDirectory()) queue.push(full);
+              else if(ent.isFile() && ent.name.endsWith('.sarif')) sarif.push(full);
+              else if(ent.isSymbolicLink()) throw Error('CodeQL output symlink refused');
+            }
+          }
+          if(sarif.length===0) throw Error('CodeQL produced no SARIF results');
+          let findings=0;const rules=new Set();
+          for(const file of sarif){
+            const doc=JSON.parse(fs.readFileSync(file,'utf8'));
+            if(doc.version!=='2.1.0'||!Array.isArray(doc.runs)||doc.runs.length===0)
+              throw Error('CodeQL SARIF structure rejected');
+            for(const run of doc.runs){
+              if(!Array.isArray(run.results)) throw Error('CodeQL result list absent');
+              if(run.invocations?.some(x=>x.executionSuccessful===false))
+                throw Error('CodeQL scanner reported unsuccessful invocation');
+              findings+=run.results.length;
+              for(const v of run.results){
+                const id=v.ruleId;
+                if(typeof id==='string'&&/^[A-Za-z0-9_.:/-]{1,120}$/.test(id))rules.add(id);
+                else rules.add('unclassified');
+              }
+            }
+          }
+          console.log('D158 CodeQL security-extended SARIF files:',sarif.length,'findings:',findings);
+          if(findings){
+            for(const id of [...rules].sort()) console.log('D158 safe rule id:',id);
+            process.exit(1);
+          }
+          NODE
+          echo 'D158_CODEQL_OWN_CODE_FINDINGS=0; independent source-only scanner, not SEC04 or signed release.' >> "$GITHUB_STEP_SUMMARY"
