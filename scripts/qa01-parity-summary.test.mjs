@@ -96,3 +96,24 @@ test("untrusted Playwright test results type is rejected without disclosure", ()
   const r = run(f); assert.equal(r.status, 1); noLeak(r.output);
   assert.match(r.output, /contract rejected/);
 });
+
+test("strict J05/J06 checkpoints show only whitelisted fixed phase booleans", () => {
+  const f=base();
+  const j05=f.suites[0].specs[4].tests[0];
+  j05.results=[{status:"failed",stdout:[
+    {text:"QA01_STAGE_J05_LAUNCHER\n"},
+    {text:"QA01_STAGE_J05_OPTION\n"},
+    {text:"UNTRUSTED "+syntheticKey+" "+syntheticPath+" "+syntheticEmail+"\\n"}
+  ],error:{message:syntheticKey}}];
+  const j06=f.suites[0].specs[5].tests[1];
+  j06.results=[{status:"failed",stdout:[
+    {text:"QA01_STAGE_J06_LAUNCHER\n"},
+    {text:"QA01_STAGE_J06_OPTION\n"},
+    {text:"QA01_STAGE_J06_CLICKED\n"}
+  ]}];
+  const r=run(f);
+  assert.equal(r.status,1); noLeak(r.output);
+  assert.match(r.output,/J05:web launcher=true option=true clicked=false selected=false/);
+  assert.match(r.output,/J06:desktop launcher=true option=true clicked=true selected=false/);
+  assert.match(r.output,/J05:desktop launcher=false option=false clicked=false selected=false/);
+});

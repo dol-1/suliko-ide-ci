@@ -154,31 +154,41 @@ async function openStockFileLauncher(page: Page) {
 
 test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
   const search = await openStockFileLauncher(appPage);
+  // All diagnostic checkpoints are FIXED constants captured only inside
+  // Playwright JSON; never print raw DOM, filenames, paths or errors.
+  console.log("QA01_STAGE_J05_LAUNCHER");
   // The only file in the isolated repository is deterministic and harmless.
   await search.fill("README");
   const file = appPage.getByRole("group", { name: /^Files$/i })
     .getByRole("option", { name: /README\.md/i }).first();
   await expect(file).toBeVisible({ timeout: 15000 });
+  console.log("QA01_STAGE_J05_OPTION");
   await file.click();
+  console.log("QA01_STAGE_J05_CLICKED");
   // A real opened file tab is required, not just the application root.
   await expect(appPage.getByRole("button", { name: /README\.md/i })
     .and(appPage.locator('button[aria-pressed="true"]')).first())
     .toBeVisible({ timeout: 10000 });
+  console.log("QA01_STAGE_J05_SELECTED");
 });
 
 test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
   const search = await openStockFileLauncher(appPage);
+  console.log("QA01_STAGE_J06_LAUNCHER");
   // Pinned stock NewTabFileSearch only exposes action role=option after a matching query.
   // Empty-query actions are separate buttons; exercise the actual accessible search flow.
   await search.fill("terminal");
   const terminal = appPage.getByRole("option", { name: /Start terminal/i }).first();
   await expect(terminal).toBeVisible({ timeout: 10000 });
   await expect(terminal).toBeEnabled();
+  console.log("QA01_STAGE_J06_OPTION");
   // Do not execute commands; starting a disposable terminal UI is sufficient.
   await terminal.click();
+  console.log("QA01_STAGE_J06_CLICKED");
   await expect(appPage.getByRole("button", { name: /terminal/i })
     .and(appPage.locator('button[aria-pressed="true"]')).first())
     .toBeVisible({ timeout: 10000 });
+  console.log("QA01_STAGE_J06_SELECTED");
 });
 
 test("J07: Suliko Hello plugin panel appears on both clients", async ({ appPage }) => {

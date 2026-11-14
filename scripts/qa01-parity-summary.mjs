@@ -16,6 +16,8 @@ try {
 
 const found = new Map();
 const diagnostics = new Map();
+const strictStages = new Map();
+const PHASES = ["LAUNCHER", "OPTION", "CLICKED", "SELECTED"];
 const VALID_STATUSES = new Set(["passed", "failed", "timedOut", "skipped", "interrupted", "not-run"]);
 
 function category(raw) {
@@ -47,6 +49,21 @@ function walk(suites) {
         const final = results.length === 1 ? results[0]?.status : (results.length ? "retry-detected" : "not-run");
         const status = VALID_STATUSES.has(final) ? final : "unknown";
         found.set(key, status);
+        if (id === "J05" || id === "J06") {
+          const observed = new Set();
+          // The public runner captures test stdout in JSON. Only four exact,
+          // source-owned marker tokens are admitted; raw text is never logged.
+          const output = results.length === 1 && Array.isArray(results[0]?.stdout)
+            ? results[0].stdout.slice(0, 80) : [];
+          for (const item of output) {
+            const raw = typeof item === "string" ? item : item?.text;
+            if (typeof raw !== "string" || raw.length > 96) continue;
+            for (const phase of PHASES) {
+              if (raw.trim() === "QA01_STAGE_" + id + "_" + phase) observed.add(phase);
+            }
+          }
+          strictStages.set(key, observed);
+        }
         const nonpassing = results.find(r => r?.status !== "passed");
         if (nonpassing || results.length !== 1) {
           diagnostics.set(key, results.length > 1 ? "retry-detected" :
@@ -75,6 +92,14 @@ lines.push("", "Expected 14 test executions; found " + found.size +
   ". Missing, retry, skip and failure states never pass.");
 lines.push("", "Safe failure classifications (raw Playwright errors withheld):");
 for (const [key, kind] of diagnostics) lines.push("- " + key + ": " + kind);
+lines.push("", "Fixed stage checkpoints (no DOM or raw error output):");
+for (const id of ["J05", "J06"]) {
+  for (const project of ["web", "desktop"]) {
+    const state = strictStages.get(id + ":" + project) ?? new Set();
+    lines.push("- " + id + ":" + project + " " +
+      PHASES.map(phase => phase.toLowerCase() + "=" + state.has(phase)).join(" "));
+  }
+}
 console.log(lines.join("\n"));
 if (found.size !== 14 || [...found.values()].some(s => s !== "passed"))
   process.exitCode = 1;
