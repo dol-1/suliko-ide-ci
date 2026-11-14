@@ -198,9 +198,17 @@ test("J06: terminal affordance exists with an enrolled disposable host", async (
   // Do not execute commands; starting a disposable terminal UI is sufficient.
   await terminal.click();
   console.log("QA01_STAGE_J06_CLICKED");
-  await expect(appPage.getByRole("button", { name: /terminal/i })
-    .and(appPage.locator('button[aria-pressed="true"]')).first())
+  // Pinned stock BB presents terminal tabs using session?.title (often shell
+  // name), NOT necessarily the word "terminal". Its terminal-only React
+  // branch mounts <section aria-label="Terminal" data-app-terminal> when
+  // the real terminal tab is active. Require that stock terminal surface
+  // AND an active actual panel tab; never accept a search result alone.
+  // Source: BB desktop-v0.49.0 RootComposePanelTabContent.tsx,
+  // ThreadTerminalPanel.tsx, usePanelTabPresenter.tsx.
+  await expect(appPage.locator('section[data-app-terminal][aria-label="Terminal"]'))
     .toBeVisible({ timeout: 15000 });
+  await expect(appPage.locator('[data-testid="secondary-panel-tab-strip"] button[aria-pressed="true"]'))
+    .toBeVisible();
   console.log("QA01_STAGE_J06_SELECTED");
 });
 
