@@ -1,7 +1,7 @@
 name: D-158 pinned CodeQL JS TS source security gate (SARIF not uploaded)
 on:
   push:
-    branches: [feat/d158-private-sarif-codeql, feat/d159-native-gui-published-same-runtime, main]
+    branches: [feat/d158-private-sarif-codeql, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, main]
     paths:
       - '.github/workflows/d158-codeql-own-source.yml'
       - 'plugins/**'
