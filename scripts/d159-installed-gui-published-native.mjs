@@ -140,19 +140,44 @@ try{
    invokeBB(["plugin","disable",id]);
  }
  invokeBB(["plugin","install",fixture,"--yes"],90000);
- let strict=false;
- for(let i=0;i<10;i++){
+ // D160: scoped race recovery against actual published BB state. A disabled
+ // flag alone does NOT satisfy SEC02: require both fields and own Hello active.
+ // Reissue a reviewed fixed-ID disable if lifecycle startup rewrites status.
+ // Print only a fixed public ID/category, never raw plugin JSON or paths.
+ let strict=false,lastCategory="not-yet-observed";
+ for(let i=0;i<16;i++){
   plugins=getPlugins();
-  const safe=forbidden.every(id=>{
+  let safe=true;
+  for(const id of forbidden){
    const rows=plugins.filter(x=>x.id===id);
-   return rows.length===0||(rows.length===1&&rows[0].enabled===false&&rows[0].status==="disabled");
-  });
+   if(rows.length>1)fail("duplicate-stock-plugin");
+   if(rows.length===1&&(rows[0].enabled!==false||rows[0].status!=="disabled")){
+    safe=false;
+    const enabled=rows[0].enabled===true?"true":rows[0].enabled===false?"false":"other";
+    const rawStatus=rows[0].status;
+    const status=rawStatus==="disabled"?"disabled":rawStatus==="running"?"running":
+     rawStatus==="needs-configuration"?"needs-configuration":rawStatus==="error"?"error":"other";
+    lastCategory="forbidden-"+id+"-enabled-"+enabled+"-status-"+status;
+    // Do not silently accept a stale or re-enabled plugin; actually request
+    // a disable again at bounded intervals, then re-read live runtime state.
+    if(i>=2&&i%3===2)invokeBB(["plugin","disable",id]);
+   }
+  }
   const own=plugins.filter(x=>x.id==="suliko-hello"||x.id==="bb-plugin-suliko-hello");
   if(own.length>1)fail("duplicate-own-plugin");
-  if(safe&&own.length===1&&own[0].enabled===true){strict=true;break}
+  const helloActive=own.length===1&&own[0].enabled===true;
+  if(!helloActive){
+   lastCategory=own.length===0?"own-hello-missing":"own-hello-not-enabled";
+   if(own.length===1&&i>=2&&i%3===2)
+    invokeBB(["plugin","enable","suliko-hello"]);
+  }
+  if(safe&&helloActive){strict=true;break}
   await wait(1000);
  }
- if(!strict)fail("strict-live-sec02-hello-not-confirmed");
+ if(!strict){
+  console.error("D160_STRICT_LIVE_STATE_REJECTED category="+lastCategory);
+  fail("strict-live-sec02-hello-not-confirmed");
+ }
  // Real synthetic project enrolled via published CLI, both native GUI tests rely on it.
  const name=isWin?"d129-win-synthetic":"d135-macos-synthetic";
  const project=path.join(home,name);

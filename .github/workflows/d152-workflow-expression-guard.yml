@@ -1,7 +1,7 @@
 name: D-152 refuse escaped GitHub runner and concurrency expressions before mirror
 on:
   push:
-    branches: [main, fix/d152-workflow-expression-guard, feat/d159-native-gui-published-same-runtime]
+    branches: [main, fix/d152-workflow-expression-guard, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state]
     paths: ['.github/workflows/**', 'scripts/d152-workflow-expression-check.mjs', 'scripts/d152-workflow-expression-check.test.mjs']
   workflow_dispatch:
 concurrency:
