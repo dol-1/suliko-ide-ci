@@ -28,6 +28,13 @@ try{
  await projects.waitFor({state:"visible",timeout:45000});
  const skip=page.getByRole("button",{name:/skip setup/i}).first();
  if(await skip.isVisible().catch(()=>false))await skip.click();
+ // Real project enrollment is required for stock BB workspace navigation.
+ if(await projects.isEnabled().catch(()=>false)){
+  await projects.click();
+  const synthetic=page.getByText(/d129-win-synthetic/i).first();
+  await synthetic.waitFor({state:"visible",timeout:10000});
+  await synthetic.click();
+ }
  const nav=page.getByRole("link",{name:/suliko hello/i})
   .or(page.getByRole("button",{name:/suliko hello/i})).first();
  await expect(nav).toBeVisible({timeout:35000});

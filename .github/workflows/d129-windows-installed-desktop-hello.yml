@@ -150,6 +150,17 @@ jobs:
               if ('BB_SERVER_BIND_HOST=127.0.0.1' -cnotin $profile -or 'BB_TELEMETRY=false' -cnotin $profile) { throw 'D126 SEC02 contract drift' }
               Write-Output 'D129_REAL_CLI_SEC02_HELLO_ENABLED=PASS; official UI check next'
               # Genuine Windows installed app, no source-built Desktop substitute.
+              # Stock BB own panels are project-scoped; enroll one real
+              # synthetic local project before launching installed Desktop UI.
+              $project = Join-Path $work 'd129-win-synthetic'
+              New-Item -ItemType Directory -Path $project -Force | Out-Null
+              'Disposable project only' | Set-Content -LiteralPath (Join-Path $project 'README.md') -Encoding utf8
+              & git -C $project init -b main *> $null
+              if ($LASTEXITCODE -ne 0) { throw 'D129 synthetic git init failed' }
+              & git -C $project add README.md *> $null
+              if ($LASTEXITCODE -ne 0) { throw 'D129 synthetic file staging failed' }
+              & node $bbCli project create --name d129-win-synthetic --root $project *> $null
+              if ($LASTEXITCODE -ne 0) { throw 'D129 real synthetic BB project enrollment failed' }
               $env:D129_OFFICIAL_EXE = $app
               $env:D129_BB_WEB_URL = 'http://127.0.0.1:38895/'
               & node tests/parity/d129-windows-installed-desktop.mjs
