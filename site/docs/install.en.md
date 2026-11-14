@@ -17,7 +17,7 @@ The following are **separate disposable GitHub-hosted CI experiments**, not inst
 | Platform | What has been observed | Still missing |
 | --- | --- | --- |
 | Linux x86_64 | Official SHA-verified AppImage staged in a fresh unprivileged home, launched, and owned files removed. A separate real stock BB loopback profile disabled forbidden built-ins and enabled a local Hello plugin. | One released setup command, RC marketplace tag, packaged-plugin integration and full uninstall |
-| macOS Apple Silicon | Official SHA-verified DMG read-only mounted, user-local app copied, macOS code signature checked, launched briefly and removed. | Live hardened profile, marketplace/plugin and complete setup command |
+| macOS Apple Silicon | Official SHA-verified, code-signed DMG user-app launched and cleaned. In the **same CI job**, a **separate same-stock-source CLI** demonstrated live loopback SEC-02 and enabled local Hello ([public test](https://github.com/dol-1/suliko-ide-ci/actions/runs/43494714262)); this does **not** prove plugin installation into the signed app. | Integrated one-command setup, signed-app marketplace RC installation, and full uninstall |
 | Windows x64 | Official EXE SHA-256 matches the release digest, but hosted Windows reported **NotSigned**. | A reviewed publisher-trust policy and safe installed-plugin E2E; no installer was executed by the signed-execution test |
 
 A CI job marked GREEN for **diagnostic inspection** must never be interpreted as an approved installation. The four beta gates, including three-platform setup and a live docs site, are not all met. Do not run unreleased Suliko scripts on production systems.
