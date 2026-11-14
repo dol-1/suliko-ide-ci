@@ -1,0 +1,63 @@
+name: D-130 Windows 2025 VS2026 pinned toolchain compatibility probe (NO E1 acceptance)
+on:
+  push:
+    branches: [feat/d130-win2025-vs2026-toolchain-probe]
+    paths:
+      - '.github/workflows/d130-win2025-vs2026-gyp-probe.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  native-source-toolchain:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Verify source and provision pinned CI-only node-gyp >=12.1 for VS2026
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git -C stock-bb rev-parse HEAD).Trim() -cne '7b26cae79ec978fafd0a5db0e8517e94f12eb8f4') { throw 'Stock BB commit drift' }
+          if ($env:RUNNER_OS -cne 'Windows') { throw 'Wrong OS' }
+          # GH 43561843039: pnpm 9.15 bundles node-gyp 10.2, which cannot
+          # discover VS2026. Official node-gyp >=12.1 adds VS2026 support.
+          # This external tool is installed into runner TEMP, not BB source.
+          $gypRoot = Join-Path $env:RUNNER_TEMP 'd130-gyp'
+          npm --prefix $gypRoot install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund 'node-gyp@13.1.0'
+          if ($LASTEXITCODE -ne 0) { throw 'CI-only node-gyp provisioning failed' }
+          $gyp = Join-Path $gypRoot 'node_modules/node-gyp/bin/node-gyp.js'
+          if (-not (Test-Path -LiteralPath $gyp -PathType Leaf)) { throw 'Pinned node-gyp missing' }
+          $version = (& node $gyp --version).Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -cne 'v13.1.0') { throw 'Pinned node-gyp unexpected version' }
+          # pnpm documents honoring preexisting npm_config_node_gyp for scripts.
+          # Fail closed if the old embedded gyp is still selected at build time.
+          "npm_config_node_gyp=$gyp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          'D130_CI_TOOLCHAIN_PROBE=pinned node-gyp 13.1.0 on windows-2025; NO INSTALL/GUI' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+      - name: Re-run unchanged BB pinned native source dependency install with CI-only gyp
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if (-not (Test-Path -LiteralPath $env:npm_config_node_gyp -PathType Leaf)) { throw 'Explicit node-gyp override missing' }
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned pnpm unavailable' }
+          pnpm --dir stock-bb install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned stock native install failed; D115 still blocked' }
+          pnpm --dir stock-bb run build
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned stock build failed; D115 still blocked' }
+          'D130_WINDOWS_2025_STOCK_NATIVE_BUILD=PASS; NO official NSIS install, SEC02, Hello UI, tagged RC or beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
