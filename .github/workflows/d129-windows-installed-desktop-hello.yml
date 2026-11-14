@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d129-win-installed-desktop-hello]
+    branches: [feat/d133-win2025-installed-hello-gyp13]
     paths:
       - '.github/workflows/d129-windows-installed-desktop-hello.yml'
       - 'tests/parity/d129-windows-installed-desktop.mjs'
@@ -14,7 +14,7 @@ permissions: read-all
 jobs:
   windows-x64-nonadmin:
     if: github.repository == 'dol-1/suliko-ide-ci'
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 60
     env:
       CI: 'true'
@@ -36,15 +36,27 @@ jobs:
         with:
           node-version: '22.19.0'
           package-manager-cache: false
-      # windows-2025 switched to VS 2026 in 2026; pinned pnpm/node-gyp
-      # cannot discover that toolchain (GH 43561843039 RED). Official runner
-      # guidance uses windows-2022 for VS 2022 / legacy node-gyp.
-      # This is a partial same-Windows-family CI test, NOT 2025 E1 acceptance.
+      # D130 exact Windows-2025 public GH 43569139827 established that
+      # CI-temporary pinned node-gyp 13.1 handles VS2026 native stock BB build
+      # without changing upstream source or pnpm frozen lock. Restore the
+      # official installed GUI+SEC02/Hello assertions on windows-2025.
+      # This is NOT three-OS one-command E1 or tagged RC acceptance.
       - name: Compile immutable stock CLI for disposable E1 SEC02 checks
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           if ((git -C stock-bb rev-parse HEAD).Trim() -cne '7b26cae79ec978fafd0a5db0e8517e94f12eb8f4') { throw 'D126 upstream source mismatch' }
+          # Bounded build-tool compatibility workaround in disposable RUNNER_TEMP;
+          # no node-gyp or source/lockfile modifications inside stock-bb.
+          $gypRoot = Join-Path $env:RUNNER_TEMP 'd133-node-gyp'
+          npm --prefix $gypRoot install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund 'node-gyp@13.1.0'
+          if ($LASTEXITCODE -ne 0) { throw 'D133 pinned CI toolchain install failed' }
+          $gyp = Join-Path $gypRoot 'node_modules/node-gyp/bin/node-gyp.js'
+          if (-not (Test-Path -LiteralPath $gyp -PathType Leaf)) { throw 'D133 pinned node-gyp script missing' }
+          if ((& node $gyp --version).Trim() -cne 'v13.1.0') { throw 'D133 node-gyp version drift' }
+          # Environment is scoped to this PowerShell job step; D130 proved
+          # pnpm 9.15 lifecycle honors explicit npm_config_node_gyp here.
+          $env:npm_config_node_gyp = $gyp
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           pnpm --dir stock-bb install --frozen-lockfile
@@ -113,7 +125,7 @@ jobs:
             # Playwright Electron after stock source CLI + Hello is mounted.
             # A second ordinary bb.exe would break Electron single-instance lock.
             # CI-only stock source CLI bound to the same synthetic data directory.
-            # This does NOT prove that the officially installed GUI mounted Hello.
+            # The actual official GUI is asserted by genuine Playwright below.
             $appCli = 'stock-bb/packages/bb-app/dist/bb-app.js'
             $bbCli = 'stock-bb/packages/bb-app/dist/bb.js'
             $daemon = Start-Process -FilePath 'node' -ArgumentList @($appCli,'start','--data-dir',$env:BB_DATA_DIR,'--server-bind-host','127.0.0.1','--server-port','38895','--host-daemon-port','38896','--no-in-app-updates') -PassThru
@@ -182,7 +194,7 @@ jobs:
             $watch.Stop()
             $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
             "WINDOWS_INSTALL_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            'D129 real official installed Windows-2022 bb.exe Electron Hello panel + same-root stock CLI SEC02/Hello, 15s liveness and uninstall. NOT windows-2025 or RC Git marketplace, and NOT beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            'D133 real official installed Windows-2025 bb.exe Electron Hello panel + same-root stock CLI SEC02/Hello, 15s liveness and uninstall. NOT integrated one-command 3OS, tagged RC Git marketplace or beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             if ($elapsed -ge 900) { throw 'Windows install exceeded 15 minutes' }
           } finally {
             if ($null -ne $process) {
