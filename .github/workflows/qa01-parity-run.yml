@@ -1,9 +1,10 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: QA-01 seven-by-two parity run (Linux experimental)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: d144-qa-strict-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main, feat/d140-qa01-strict-main]

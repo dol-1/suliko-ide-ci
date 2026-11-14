@@ -1,8 +1,9 @@
 name: D-091 macOS official DMG user-app and separate stock CLI live SEC02 Hello (PARTIAL E1)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: d144-macos-installed-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [main, feat/d091-macos-installed-profile-hello, feat/d135-macos-official-installed-hello, feat/d138-macos-gatekeeper-hello-main-gate]
     paths:

@@ -120,3 +120,42 @@ test("strict J05/J06 checkpoints show only whitelisted fixed phase booleans", ()
   assert.match(r.output,/J06:desktop panel=false plus=false search=false launcher=true option=true clicked=true selected=false/);
   assert.match(r.output,/J05:desktop panel=false plus=false search=false launcher=false option=false clicked=false selected=false/);
 });
+
+
+test("strict J07 own panel checkpoints report only allowlisted source-owned markers", () => {
+  const f = base();
+  const j07 = f.suites[0].specs[6].tests[1];
+  j07.results = [{status:"failed", stdout:[
+    {text:"QA01_STAGE_J07_NAV_WAIT\n"},
+    {text:"QA01_STAGE_J07_NAV_VISIBLE\n"},
+    {text:"UNTRUSTED "+syntheticKey+" "+syntheticPath+" "+syntheticEmail+"\n"},
+    {text:"QA01_STAGE_J07_FORGED_SECRET\n"}
+  ], error:{message:"Timeout "+syntheticKey}}];
+  const r = run(f);
+  assert.equal(r.status, 1);
+  noLeak(r.output);
+  assert.match(r.output, /J07:desktop: timeout/);
+  assert.match(r.output,
+    /J07:desktop nav_wait=true nav_visible=true clicked=false panel_mounted=false/);
+  assert.match(r.output,
+    /J07:web nav_wait=false nav_visible=false clicked=false panel_mounted=false/);
+});
+
+test("strict J04 dialog checkpoints are source-owned and redact all test output", () => {
+  const f = base();
+  const j04 = f.suites[0].specs[3].tests[0];
+  j04.results = [{status:"failed", stdout:[
+    {text:"QA01_STAGE_J04_COMPOSER\n"},
+    {text:"QA01_STAGE_J04_PICKER_VISIBLE\n"},
+    {text:"QA01_STAGE_J04_PICKER_ENABLED\n"},
+    {text:"QA01_STAGE_J04_PICKER_CLICKED\n"},
+    {text:"UNTRUSTED "+syntheticKey+" "+syntheticEmail+" "+syntheticPath+"\n"},
+    {text:"QA01_STAGE_J04_FORGED_SECRET\n"}
+  ], error:{message:"Timeout "+syntheticKey}}];
+  const r = run(f);
+  assert.equal(r.status, 1);
+  noLeak(r.output);
+  assert.match(r.output, /J04:web: timeout/);
+  assert.match(r.output, /J04:web composer=true picker_visible=true picker_enabled=true picker_clicked=true dialog=false/);
+  assert.match(r.output, /J04:desktop composer=false picker_visible=false picker_enabled=false picker_clicked=false dialog=false/);
+});
