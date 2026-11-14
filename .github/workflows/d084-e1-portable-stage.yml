@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d084-e1-portable-stage]
+    branches: [main, feat/d084-e1-portable-stage, feat/d106-portable-verified-staging-main-gate]
     paths:
       - '.github/workflows/d084-e1-portable-stage.yml'
       - 'scripts/suliko-setup.sh'
