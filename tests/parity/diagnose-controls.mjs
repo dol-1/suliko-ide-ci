@@ -240,12 +240,12 @@ async function diagnose(page, target) {
     if(await search.isVisible().catch(()=>false)) {
       await search.fill("README");
       const file=page.getByRole("group",{name:/^Files$/i})
-        .getByRole("option",{name:/README\\.md/i}).first();
+        .getByRole("option",{name:/README\.md/i}).first();
       realFileOption=await file.waitFor({state:"visible",timeout:6000})
         .then(()=>true).catch(()=>false);
       if(realFileOption) {
         realFileClicked=await file.click({timeout:3000}).then(()=>true).catch(()=>false);
-        realFileTabActive=realFileClicked && await page.getByRole("button",{name:/README\\.md/i})
+        realFileTabActive=realFileClicked && await page.getByRole("button",{name:/README\.md/i})
           .and(page.locator('button[aria-pressed="true"]')).first()
           .isVisible().catch(()=>false);
       }
