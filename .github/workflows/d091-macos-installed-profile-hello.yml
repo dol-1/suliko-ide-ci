@@ -1,6 +1,6 @@
 name: D-091 macOS official DMG user-app and separate stock CLI live SEC02 Hello (PARTIAL E1)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: d144-macos-installed-${{ github.ref }}
   cancel-in-progress: true
 on:
   workflow_call:

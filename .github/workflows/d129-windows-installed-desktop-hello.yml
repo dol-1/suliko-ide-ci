@@ -1,6 +1,6 @@
 name: D-129 official installed Windows Desktop Hello own-panel + stock SEC02 (NO release)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: d144-windows-installed-${{ github.ref }}
   cancel-in-progress: true
 on:
   workflow_call:

@@ -1,6 +1,6 @@
 name: D-091 Linux verified AppImage + live SEC02 and local Hello (PARTIAL E1, NOT marketplace)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: d144-linux-installed-${{ github.ref }}
   cancel-in-progress: true
 on:
   workflow_call:

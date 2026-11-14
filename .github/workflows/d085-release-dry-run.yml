@@ -1,6 +1,6 @@
 name: D-144 E8 source dry-run gated by 3 installed GUI OS + strict 7x2 QA (NO release)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: d144-release-parent-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
