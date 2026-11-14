@@ -133,7 +133,7 @@ test("J04: provider/model selection can be opened", async ({ appPage }, info) =>
   // different global Providers/Models link, opening no genuine dialog.
   // Match ONLY the real BB accessible picker; never click a fabricated UI.
   const picker = appPage.getByRole("button", {
-    name: /^Provider, model and reasoning(?: \\(.+\\))?$/i,
+    name: /^Provider, model and reasoning(?: \(.+\))?$/i,
   });
   await expect(picker).toBeVisible({ timeout: 15000 });
   console.log("QA01_STAGE_J04_PICKER_VISIBLE");
