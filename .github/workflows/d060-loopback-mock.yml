@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d060-remote-loopback-reader, fix/e3-demo-approval-url-credentials, main]
+    branches: [feat/d060-remote-loopback-reader, fix/e3-demo-approval-url-credentials, feat/d113-remote-panel-mounted-states, main]
     paths:
       - '.github/workflows/d060-loopback-mock.yml'
       - 'plugins/suliko-remote-panel/loopback-test-reader.ts'
