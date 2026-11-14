@@ -23,7 +23,7 @@ pkg="$RUNNER_TEMP/d151-published-cli"
 [[ ! -e "$work" && ! -L "$work" && ! -e "$pkg" && ! -L "$pkg" ]] ||
   { echo 'D151 refuses reused disposable test directories' >&2; exit 2; }
 export HOME="$work" BB_DATA_DIR="$work/bb-disposable" BB_TELEMETRY=false
-export BB_SERVER_BIND_HOST=127.0.0.1 BB_SERVER_PORT=38956 BB_HOST_DAEMON_PORT=38957
+export BB_SERVER_BIND_HOST=127.0.0.1 BB_SERVER_PORT=38906 BB_HOST_DAEMON_PORT=38907 APPIMAGE_EXTRACT_AND_RUN=1
 mkdir -m 700 -p "$HOME" "$BB_DATA_DIR" "$pkg"
 begin="$(date +%s)"
 app_pid=""
@@ -88,7 +88,7 @@ kill -0 "$app_pid" 2>/dev/null || { echo 'D151 official AppImage GUI exited befo
 kill -TERM -- "-$app_pid" >/dev/null 2>&1 || true
 wait "$app_pid" >/dev/null 2>&1 || true
 app_pid=""
-bb-app start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38956 --host-daemon-port 38957 --no-in-app-updates >"$RUNNER_TEMP/d151-server.log" 2>&1 &
+bb-app start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38906 --host-daemon-port 38907 --no-in-app-updates >"$RUNNER_TEMP/d151-server.log" 2>&1 &
 bb_app_pid="$!"
 ready=0
 for i in $(seq 1 60); do
@@ -129,11 +129,11 @@ printf '%s\n' 'D151 synthetic public runner project only' >"$project/README.md"
 git -C "$project" init -b main >/dev/null
 git -C "$project" add README.md
 bb project create --name d134-linux-synthetic --root "$project" >/dev/null
-export D134_OFFICIAL_APPIMAGE="$app" D134_BB_WEB_URL='http://127.0.0.1:38956/'
+export D134_OFFICIAL_APPIMAGE="$app" D134_BB_WEB_URL='http://127.0.0.1:38906/'
 xvfb-run -a node tests/parity/d134-linux-installed-appimage.mjs
 ss -ltn >"$RUNNER_TEMP/d151-listeners"
-grep -Eq '127[.]0[.]0[.]1:38956([[:space:]]|$)' "$RUNNER_TEMP/d151-listeners"
-grep -Eq '127[.]0[.]0[.]1:38957([[:space:]]|$)' "$RUNNER_TEMP/d151-listeners"
+grep -Eq '127[.]0[.]0[.]1:38906([[:space:]]|$)' "$RUNNER_TEMP/d151-listeners"
+grep -Eq '127[.]0[.]0[.]1:38907([[:space:]]|$)' "$RUNNER_TEMP/d151-listeners"
 bb-app stop --data-dir "$BB_DATA_DIR" >/dev/null
 bash scripts/suliko-setup.sh --uninstall >/dev/null
 test ! -e "$app" && test ! -L "$launcher" && test ! -e "$HOME/.cache/suliko-ide/bb-0.49.0-x86_64.AppImage"
