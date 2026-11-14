@@ -27,16 +27,25 @@ const env = {
   BB_HOST_DAEMON_PORT: "39062",
 };
 function npm(args, maxMs) {
-  // GitHub's stock Win2025 exposes npm.cmd, while macOS has executable npm.
-  // All arguments are fixed in CI except a path derived from RUNNER_TEMP.
-  const cmd = process.platform === "win32" ? "npm.cmd" : "npm";
-  const result = spawnSync(cmd, args, {
+  // Never shell-expand CLI arguments: the earlier Windows npm.cmd + shell=true
+  // was caught by main security scanning. Use Node's own pinned bundled npm JS
+  // instead. The candidates are fixed paths next to setup-node's executable;
+  // no PATH-discovery or arbitrary shell execution is permitted.
+  const nodeDir = path.dirname(process.execPath);
+  const options = [
+    path.join(nodeDir, "node_modules", "npm", "bin", "npm-cli.js"),
+    path.resolve(nodeDir, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
+  ];
+  const npmCli = options.find(candidate => {
+    try { return fs.lstatSync(candidate).isFile(); } catch { return false; }
+  });
+  if (!npmCli) category("pinned-node-npm-cli-not-found");
+  const result = spawnSync(process.execPath, [npmCli, ...args], {
     encoding: "utf8",
     env,
     cwd: root,
     timeout: maxMs,
     windowsHide: true,
-    shell: process.platform === "win32",
     maxBuffer: 2_000_000,
   });
   if (result.status !== 0 || result.error) category("npm-operation");
