@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/d129-windows-installed-desktop-hello.yml
     permissions: read-all
   strict-qa-seven-by-two:
+    needs: [installed-linux, installed-macos, installed-windows]
     uses: ./.github/workflows/qa01-parity-run.yml
     permissions: read-all
   dry-run:
