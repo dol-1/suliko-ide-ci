@@ -140,3 +140,22 @@ test("strict J07 own panel checkpoints report only allowlisted source-owned mark
   assert.match(r.output,
     /J07:web nav_wait=false nav_visible=false clicked=false panel_mounted=false/);
 });
+
+test("strict J04 dialog checkpoints are source-owned and redact all test output", () => {
+  const f = base();
+  const j04 = f.suites[0].specs[3].tests[0];
+  j04.results = [{status:"failed", stdout:[
+    {text:"QA01_STAGE_J04_COMPOSER\n"},
+    {text:"QA01_STAGE_J04_PICKER_VISIBLE\n"},
+    {text:"QA01_STAGE_J04_PICKER_ENABLED\n"},
+    {text:"QA01_STAGE_J04_PICKER_CLICKED\n"},
+    {text:"UNTRUSTED "+syntheticKey+" "+syntheticEmail+" "+syntheticPath+"\n"},
+    {text:"QA01_STAGE_J04_FORGED_SECRET\n"}
+  ], error:{message:"Timeout "+syntheticKey}}];
+  const r = run(f);
+  assert.equal(r.status, 1);
+  noLeak(r.output);
+  assert.match(r.output, /J04:web: timeout/);
+  assert.match(r.output, /J04:web composer=true picker_visible=true picker_enabled=true picker_clicked=true dialog=false/);
+  assert.match(r.output, /J04:desktop composer=false picker_visible=false picker_enabled=false picker_clicked=false dialog=false/);
+});
