@@ -143,3 +143,26 @@ test("bundle sanitizes tampered provider presence without reflecting unexpected 
     assert.doesNotMatch(readFileSync(path,"utf8"),/SENTINEL|OPENAI_API_KEY/);
   }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+test("support bundle never launders a forged partial-runtime-pass into success",()=>{
+  const safeReport=inspectLive(config(),plugins(),"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
+  const cases=[
+    {checks:{...safeReport.checks,serverLoopback:false}},
+    {checks:{...safeReport.checks,stockVersionMatchesPin:false}},
+    {pluginStates:{...safeReport.pluginStates,"account-pool":"enabled"}},
+    {pluginStates:{...safeReport.pluginStates,"bb--mcp":"unknown"}},
+    {providerKeyPresence:{...safeReport.providerKeyPresence,anthropic:"SENTINEL-FORGED"}}
+  ];
+  for(const change of cases){
+    const root=mkdtempSync(join(tmpdir(),"d122-claim-"));
+    try{
+      const report={...safeReport,...change,status:"partial-runtime-pass",raw:"SENTINEL-PRIVATE-DATA"};
+      const path=join(root,"d059-support-bundle.json");
+      const clean=writeCiSafeBundle(report,path,root);
+      assert.equal(clean.status,"review-required");
+      assert.doesNotMatch(readFileSync(path,"utf8"),/SENTINEL|PRIVATE-DATA/);
+      assert.equal(readFileSync(path,"utf8").includes("ci/disposable"),false);
+      assert.equal(clean.evidence,"actual-disposable-stock-bb-cli-reads-only");
+    }finally{rmSync(root,{recursive:true,force:true});}
+  }
+});
