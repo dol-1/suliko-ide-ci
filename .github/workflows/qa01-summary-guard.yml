@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [fix/qa01-categorical-summary-guard]
+    branches: [fix/qa01-categorical-summary-guard, feat/qa01-45s-categorical-controls]
     paths: ['scripts/qa01-parity-summary.mjs', 'scripts/qa01-parity-summary.test.mjs', '.github/workflows/qa01-summary-guard.yml']
   workflow_dispatch:
 permissions: read-all
@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '22.19.0'
           package-manager-cache: false
-      - name: Exactly 12 synthetic leak/contract-negative cases, no Playwright runtime
+      - name: Synthetic leak/contract-negative cases with fixed phase whitelist, no Playwright runtime
         shell: bash
         run: |
           set -euo pipefail
