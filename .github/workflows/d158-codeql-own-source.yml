@@ -63,7 +63,27 @@ jobs:
             }
           }
           if(sarif.length===0) throw Error('CodeQL produced no SARIF results');
-          let findings=0;const rules=new Set();
+          // Number source locations by stable *public owned-file index* only:
+          // no full paths, repo filenames, source text or runner user data in logs.
+          const {execFileSync}=require('node:child_process');
+          const repo=process.env.GITHUB_WORKSPACE;
+          if(!repo||!path.isAbsolute(repo)) throw Error('Missing public checkout');
+          const owned=execFileSync('git',['ls-files','--','plugins','scripts'],
+            {cwd:repo,encoding:'utf8',timeout:10000,maxBuffer:1000000})
+            .split('\n').filter(Boolean).sort();
+          const slots=new Map(owned.map((filename,index)=>[filename,index+1]));
+          function safeSourceSlot(location){
+            const physical=location?.physicalLocation;
+            let uri=physical?.artifactLocation?.uri;
+            if(typeof uri!=='string')return ['unmapped',0];
+            try{uri=decodeURIComponent(uri);}catch{return ['unmapped',0];}
+            if(uri.startsWith('file://'))uri=uri.slice('file://'.length);
+            const rel=path.isAbsolute(uri)?path.relative(repo,uri):uri.replace(/^\.\//,'');
+            const slot=slots.get(rel);
+            const line=physical?.region?.startLine;
+            return [slot||'unmapped',Number.isSafeInteger(line)&&line>0?line:0];
+          }
+          let findings=0;const rules=new Set();const diagnostics=[];
           for(const file of sarif){
             const doc=JSON.parse(fs.readFileSync(file,'utf8'));
             if(doc.version!=='2.1.0'||!Array.isArray(doc.runs)||doc.runs.length===0)
@@ -77,12 +97,14 @@ jobs:
                 const id=v.ruleId;
                 if(typeof id==='string'&&/^[A-Za-z0-9_.:/-]{1,120}$/.test(id))rules.add(id);
                 else rules.add('unclassified');
+                const [slot,line]=safeSourceSlot(v.locations?.[0]);
+                diagnostics.push({rule:typeof id==='string'&&/^[A-Za-z0-9_.:/-]{1,120}$/.test(id)?id:'unclassified',slot,line});
               }
             }
           }
           console.log('D158 CodeQL security-extended SARIF files:',sarif.length,'findings:',findings);
           if(findings){
-            for(const id of [...rules].sort()) console.log('D158 safe rule id:',id);
+            for(const item of diagnostics) console.log('D158 safe finding rule:',item.rule,'public-file-slot:',item.slot,'source-line:',item.line);
             process.exit(1);
           }
           NODE
