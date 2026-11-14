@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/d159-installed-gui-published-native.yml'
       - 'scripts/d159-installed-gui-published-native.mjs'
+      - 'scripts/d159-installed-gui-published-native.test.mjs'
       - 'scripts/suliko-setup.sh'
       - 'scripts/suliko-setup.ps1'
       - 'plugins/suliko-hello/**'
@@ -40,6 +41,11 @@ jobs:
         run: |
           set -euo pipefail
           npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+      - name: Require fail-closed non-CI / wrong-repository guard before accessing fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/d159-installed-gui-published-native.test.mjs
       - name: Real official per-user installed Electron GUI with published BB CLI live on SAME synthetic BB data
         shell: bash
         run: |

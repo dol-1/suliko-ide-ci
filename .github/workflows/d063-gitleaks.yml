@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d063-gitleaks-public-history, feat/d063-gitleaks-all-prs, main]
+    branches: [feat/d063-gitleaks-public-history, feat/d063-gitleaks-all-prs, feat/d159-native-gui-published-same-runtime, main]
   pull_request:
     branches: [main]
   schedule:
