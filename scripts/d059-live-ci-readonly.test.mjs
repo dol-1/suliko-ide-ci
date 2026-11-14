@@ -161,7 +161,7 @@ test("support bundle never launders a forged partial-runtime-pass into success",
       const clean=writeCiSafeBundle(report,path,root);
       assert.equal(clean.status,"review-required");
       assert.doesNotMatch(readFileSync(path,"utf8"),/SENTINEL|PRIVATE-DATA/);
-      assert.doesNotMatch(readFileSync(path,"utf8"),/ci/disposable/);
+      assert.equal(readFileSync(path,"utf8").includes("ci/disposable"),false);
       assert.equal(clean.evidence,"actual-disposable-stock-bb-cli-reads-only");
     }finally{rmSync(root,{recursive:true,force:true});}
   }
