@@ -1,0 +1,121 @@
+name: D-141 published immutable-version stock npm CLI live SEC02 plus local Hello (NOT release)
+on:
+  push:
+    branches: [feat/d141-npm-live-sec02-hello]
+    paths:
+      - '.github/workflows/e1-npm-live-sec02-hello.yml'
+  workflow_dispatch:
+concurrency:
+  group: d141-npm-sec02-hello-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  pinned-npm-cli-disposable-linux:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38937'
+      BB_HOST_DAEMON_PORT: '38938'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Inspect exact published package registry digest; source pin NOT YET approved
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm view bb-app@0.49.0 --json >"$RUNNER_TEMP/d141-npm-metadata.json"
+          node - "$RUNNER_TEMP/d141-npm-metadata.json" <<'NODE'
+          const fs=require('node:fs'),j=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(j.name!=='bb-app'||j.version!=='0.49.0'||!/^sha512-[A-Za-z0-9+/]+=*$/.test(j.dist?.integrity||''))
+            throw Error('Unrecognized official npm tarball metadata; refuse install');
+          // Registry digest is a candidate for independent supply-chain review,
+          // not itself authenticated publisher provenance.
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            'D141 bb-app 0.49.0 registry-reported integrity candidate '+j.dist.integrity+
+            '; independent registry/source correspondence NOT proven.\n');
+          NODE
+      - name: Disposable published bb-app CLI native install and real local plugin SEC02
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$EUID" -ne 0 && "$(uname -s)" = Linux ]]
+          home="$RUNNER_TEMP/d141-npm-home"
+          pkg="$RUNNER_TEMP/d141-npm-stock-pkg"
+          export HOME="$home" BB_DATA_DIR="$home/bb-disposable"
+          mkdir -m 700 -p "$home" "$BB_DATA_DIR" "$pkg"
+          # Native install hooks are executed only for the official versioned
+          # npm package in disposable public CI, never on an owner computer.
+          npm --prefix "$pkg" install --no-audit --no-fund --save-exact bb-app@0.49.0
+          test -x "$pkg/node_modules/.bin/bb"
+          test -x "$pkg/node_modules/.bin/bb-app"
+          node - "$pkg/node_modules/bb-app/package.json" <<'NODE'
+          const p=require(process.argv[2]);
+          if(p.name!=='bb-app'||p.version!=='0.49.0'||p.engines.node===undefined)
+            throw Error('Unexpected npm package identity');
+          NODE
+          # Start only fixed loopback disposable server; no native agents,
+          # provider configuration, remote backend, sudo or user credentials.
+          "$pkg/node_modules/.bin/bb-app" start --data-dir "$BB_DATA_DIR" \
+            --server-bind-host 127.0.0.1 --server-port 38937 --host-daemon-port 38938 \
+            --no-in-app-updates >"$RUNNER_TEMP/d141-npm-server.log" 2>&1 &
+          server=$!
+          cleanup() {
+            set +e
+            "$pkg/node_modules/.bin/bb-app" stop --data-dir "$BB_DATA_DIR" >/dev/null 2>&1 || true
+            kill "$server" >/dev/null 2>&1 || true
+            wait "$server" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          ready=0
+          for i in $(seq 1 60); do
+            if "$pkg/node_modules/.bin/bb" plugin list --json >"$RUNNER_TEMP/d141-npm-plugins.json" 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          [[ "$ready" = 1 ]] || { echo 'Published bb-app 0.49.0 CLI did not become ready' >&2; exit 1; }
+          # Only stock published npm CLI manages the real disposable BB
+          # instance. This is the functionality user-facing setup lacks today.
+          node - "$RUNNER_TEMP/d141-npm-plugins.json" <<'NODE' >"$RUNNER_TEMP/d141-npm-enabled-forbidden.txt"
+          const fs=require('node:fs'),j=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(j.plugins))throw Error('Invalid published BB CLI plugin list');
+          const forbidden=new Set(['account-pool','bb--mcp','connect','bb--connect-next','memory']);
+          for(const id of forbidden){
+            const found=j.plugins.filter(p=>p.id===id);
+            if(found.length>1)throw Error('Duplicate forbidden plugin ID');
+            if(found.length===1&&found[0].enabled===true)console.log(id);
+          }
+          NODE
+          while IFS= read -r plugin; do
+            [[ -n "$plugin" ]] || continue
+            "$pkg/node_modules/.bin/bb" plugin disable "$plugin" >/dev/null
+          done <"$RUNNER_TEMP/d141-npm-enabled-forbidden.txt"
+          "$pkg/node_modules/.bin/bb" plugin install ./plugins/suliko-hello --yes >/dev/null
+          "$pkg/node_modules/.bin/bb" plugin list --json >"$RUNNER_TEMP/d141-npm-after.json"
+          node - "$RUNNER_TEMP/d141-npm-after.json" <<'NODE'
+          const fs=require('node:fs'),j=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(j.plugins))throw Error('Published stock plugin status unavailable');
+          for(const id of ['account-pool','bb--mcp','connect','bb--connect-next','memory']){
+            const found=j.plugins.filter(p=>p.id===id);
+            if(found.length>1||found.length===1&&(found[0].enabled!==false||found[0].status!=='disabled'))
+              throw Error('Forbidden plugin still active or ambiguous');
+          }
+          const hello=j.plugins.filter(p=>p.id==='suliko-hello'||p.id==='bb-plugin-suliko-hello');
+          if(hello.length!==1||hello[0].enabled!==true)throw Error('Local own Hello not enabled in published npm CLI');
+          console.log('D141_REAL_PUBLISHED_NPM_SEC02_HELLO_ENABLED=PASS');
+          NODE
+          grep -Fxq 'BB_TELEMETRY=false' config/hardened/.env.hardened
+          grep -Fxq 'BB_SERVER_BIND_HOST=127.0.0.1' config/hardened/.env.hardened
+          ss -ltn >"$RUNNER_TEMP/d141-npm-listeners"
+          grep -Eq '127[.]0[.]0[.]1:38937([[:space:]]|$)' "$RUNNER_TEMP/d141-npm-listeners"
+          grep -Eq '127[.]0[.]0[.]1:38938([[:space:]]|$)' "$RUNNER_TEMP/d141-npm-listeners"
+          curl --silent --show-error --fail --max-time 3 --output /dev/null http://127.0.0.1:38937/
+          echo 'D141 published exact 0.49.0 npm CLI live synthetic loopback SEC02 disabled builtins+local own Hello active; no complete end-user installer, signed RC, full 3OS or beta GO.' >> "$GITHUB_STEP_SUMMARY"
