@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, main]
+    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, main]
     paths:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
