@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/pilot-signup]
+    branches: [main, feat/pilot-signup, feat/d119-pilot-bilingual-form]
     paths:
       - '.github/ISSUE_TEMPLATE/pilot-signup.yml'
       - '.github/workflows/pilot-signup-lint.yml'
