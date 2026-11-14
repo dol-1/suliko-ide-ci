@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d063-semgrep-own-code, main]
+    branches: [feat/d063-semgrep-own-code, feat/d153-native-published-npm-sec02-hello, main]
     paths:
       - '.github/workflows/d063-semgrep.yml'
       - 'plugins/**'
