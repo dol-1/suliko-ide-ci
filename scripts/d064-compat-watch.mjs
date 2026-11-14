@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 const PIN_SHA="7b26cae79ec978fafd0a5db0e8517e94f12eb8f4";
 const PIN_VERSION="0.6.132";
-const KNOWN_MAIN_VERSION="0.6.141";
+// Reviewed upstream metadata: main da3e60b81d560e114a2bec724bb59c997aaaae7f
+// reports 0.6.144. This is a drift WARNING only, NOT runtime SDK approval.
+const KNOWN_MAIN_VERSION="0.6.144";
 const ISSUE="https://gitlab.com/dol-1-group/suliko-ide/-/work_items/49";
 function parts(v) {
   if(!/^\d+\.\d+\.\d+$/.test(v)) throw Error("Unreviewed semver syntax");
