@@ -1,7 +1,7 @@
-name: D-153 actual published BB native Mac/Windows SEC02 and own Hello (NO E1 release)
+name: D-155 actual published BB native three-OS SEC02 and own Hello (NO E1 release)
 on:
   push:
-    branches: [feat/d153-native-published-npm-sec02-hello-v2, main]
+    branches: [feat/d155-published-native-3os-sec02-hello, main]
     paths:
       - '.github/workflows/e1-npm-native-sec02-2os.yml'
       - 'scripts/d153-published-npm-sec02-native.mjs'
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2025, macos-15]
+        os: [windows-2025, macos-15, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:
@@ -37,4 +37,4 @@ jobs:
         shell: bash
         run: |
           node scripts/d153-published-npm-sec02-native.mjs
-          echo 'Actual published bb-app@0.49.0 live native SEC02 forbidden plugin disable + own local Hello active on synthetic loopback, independent publisher digest/user installer/RC not established.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Actual published bb-app@0.49.0 live native 3OS SEC02 forbidden plugin disable + own local Hello active on synthetic loopback, independent publisher digest/user installer/RC not established.' >> "$GITHUB_STEP_SUMMARY"

@@ -4,13 +4,13 @@ import path from "node:path";
 import http from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 
-// D153: actual *published* immutable-version upstream bb-app CLI on two native
+// D153: actual *published* immutable-version upstream bb-app CLI on three native
 // free public CI OSes. No provider, owner machine, Remote, BB core edit or GUI
 // install. Registry digest is a candidate, not proof of publisher identity.
 const category = (reason) => { throw Object.assign(new Error("D153"), { category: reason }); };
 const root = process.env.RUNNER_TEMP;
 if (!root || !path.isAbsolute(root) || !fs.existsSync(root)) category("missing-runner-temp");
-if (!["win32", "darwin"].includes(process.platform)) category("unsupported-native-os");
+if (!["win32", "darwin", "linux"].includes(process.platform)) category("unsupported-native-os");
 if (process.versions.node !== "22.19.0") category("node-version");
 const pkg = path.join(root, "d153-published-pkg");
 const home = path.join(root, "d153-isolated-home");
@@ -154,7 +154,7 @@ try {
   if (hello.length !== 1 || hello[0].enabled !== true) category("own-hello-not-enabled");
   console.log("D153_PUBLISHED_NATIVE_SEC02_HELLO=PASS");
   console.log("D153_PUBLISHED_NPM_NATIVE_LOOPBACK=PASS");
-  console.log("D153_PUBLISHED_NPM_OS=" + (process.platform === "win32" ? "windows-2025" : "macos-15"));
+  console.log("D153_PUBLISHED_NPM_OS=" + (process.platform === "win32" ? "windows-2025" : process.platform === "darwin" ? "macos-15" : "ubuntu-24.04"));
   console.log("D153_SCOPE=real-published-native-SEC02-and-local-Hello; no-packaged-GUI-no-user-installer-no-RC-no-beta");
 } catch (e) {
   console.error("D153_PUBLISHED_NPM_NATIVE=FAIL category=" + (e.category || "runtime"));
