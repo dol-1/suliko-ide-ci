@@ -1,0 +1,182 @@
+name: D-129 official installed Windows Desktop Hello own-panel + stock SEC02 (NO release)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d129-win-installed-desktop-hello]
+    paths:
+      - '.github/workflows/d129-windows-installed-desktop-hello.yml'
+      - 'tests/parity/d129-windows-installed-desktop.mjs'
+      - 'scripts/suliko-setup.ps1'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  windows-x64-nonadmin:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38895'
+      BB_HOST_DAEMON_PORT: '38896'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      # windows-2025 switched to VS 2026 in 2026; pinned pnpm/node-gyp
+      # cannot discover that toolchain (GH 43561843039 RED). Official runner
+      # guidance uses windows-2022 for VS 2022 / legacy node-gyp.
+      # This is a partial same-Windows-family CI test, NOT 2025 E1 acceptance.
+      - name: Compile immutable stock CLI for disposable E1 SEC02 checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git -C stock-bb rev-parse HEAD).Trim() -cne '7b26cae79ec978fafd0a5db0e8517e94f12eb8f4') { throw 'D126 upstream source mismatch' }
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm --dir stock-bb install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'D126 pinned install failed' }
+          pnpm --dir stock-bb run build
+          if ($LASTEXITCODE -ne 0) { throw 'D126 pinned build failed' }
+      - name: Install pinned Electron Playwright harness inside disposable public CI fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+          if ($LASTEXITCODE -ne 0) { throw 'D129 pinned Playwright test dependency missing' }
+      - name: Official fixed-SHA NSIS per-user install + real installed own Hello panel and cleanup
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64') { throw 'Only x64 runner allowed' }
+          $runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          if ([string]::IsNullOrWhiteSpace($runnerTemp) -or $runnerTemp -match '[\x00-\x1f"]') { throw 'Unsafe temporary root' }
+          $work = Join-Path $runnerTemp 'd084-windows-synthetic-user'
+          $env:USERPROFILE = Join-Path $work 'Profile'
+          $env:LOCALAPPDATA = Join-Path $work 'LocalAppData'
+          $env:APPDATA = Join-Path $work 'RoamingAppData'
+          $env:BB_DATA_DIR = Join-Path $work 'bb-disposable'
+          foreach ($dir in @($env:USERPROFILE, $env:LOCALAPPDATA, $env:APPDATA, $env:BB_DATA_DIR)) {
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          }
+          $target = Join-Path $work 'InstalledBB'
+          if ($target -match '\s|"') { throw 'NSIS /D target cannot contain whitespace or quotes' }
+          if (Test-Path -LiteralPath $target) { throw 'Target must not preexist' }
+          $process = $null
+          $installed = $false
+          $watch = [Diagnostics.Stopwatch]::StartNew()
+          try {
+            & ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null
+            $installer = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/bb-0.49.0-x64.exe'
+            if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw 'Pinned official installer not staged' }
+            $got = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($got -cne '201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f') {
+              throw 'Windows official installer digest mismatch'
+            }
+            $sig = Get-AuthenticodeSignature -LiteralPath $installer
+            # Only categorical OS trust metadata; never print signer paths,
+            # raw errors or publisher certificate content into public logs.
+            $known = @('Valid','NotSigned','UnknownError','HashMismatch','NotTrusted','NotSupportedFileFormat','Incompatible')
+            $status = [string]$sig.Status
+            if ($status -notin $known) { $status = 'UnknownError' }
+            "D084_WINDOWS_AUTHENTICODE_STATUS=$status" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            # Fixed enum only; no publisher certificate, raw sig object or paths in logs.
+            Write-Output "D084_WINDOWS_AUTHENTICODE_STATUS=$status"
+            # Claude #42 D-090: official asset SHA256 is the trust anchor here.
+            # Upstream Windows artifact is unsigned; any status except exact
+            # NotSigned fails closed (including NotTrusted and HashMismatch).
+            if ($status -cne 'NotSigned') {
+              throw 'Unexpected Windows Authenticode status; refused launch'
+            }
+            # Pinned stock NSIS has oneClick=true, perMachine=false; /S is silent,
+            # /D chooses only our empty disposable user target, never Program Files.
+            $install = Start-Process -FilePath $installer -ArgumentList @('/S', ("/D=" + $target)) -Wait -PassThru
+            if ($install.ExitCode -ne 0) { throw 'Non-admin NSIS installer failed' }
+            $app = Join-Path $target 'bb.exe'
+            if (-not (Test-Path -LiteralPath $app -PathType Leaf)) { throw 'Expected user-space bb.exe missing' }
+            $installed = $true
+            # D129 launches the *actual official installed* bb.exe through
+            # Playwright Electron after stock source CLI + Hello is mounted.
+            # A second ordinary bb.exe would break Electron single-instance lock.
+            # CI-only stock source CLI bound to the same synthetic data directory.
+            # This does NOT prove that the officially installed GUI mounted Hello.
+            $appCli = 'stock-bb/packages/bb-app/dist/bb-app.js'
+            $bbCli = 'stock-bb/packages/bb-app/dist/bb.js'
+            $daemon = Start-Process -FilePath 'node' -ArgumentList @($appCli,'start','--data-dir',$env:BB_DATA_DIR,'--server-bind-host','127.0.0.1','--server-port','38895','--host-daemon-port','38896','--no-in-app-updates') -PassThru
+            try {
+              $ready = $false
+              for ($i=0; $i -lt 45; $i++) {
+                Start-Sleep -Seconds 2
+                $json = & node $bbCli plugin list --json 2>$null
+                if ($LASTEXITCODE -ne 0) { continue }
+                try { $parsed = ConvertFrom-Json -InputObject ($json -join "`n") -ErrorAction Stop } catch { continue }
+                if ($null -ne $parsed.plugins) { $ready = $true; break }
+              }
+              if (-not $ready) { throw 'D126 stock CLI not ready' }
+              foreach ($id in @('account-pool','bb--mcp','connect','bb--connect-next','memory')) {
+                $found = @($parsed.plugins | Where-Object { $_.id -ceq $id })
+                if ($found.Count -gt 1) { throw 'D126 ambiguous forbidden ID' }
+                if ($found.Count -eq 1 -and $found[0].enabled -eq $true) {
+                  & node $bbCli plugin disable $id *> $null
+                  if ($LASTEXITCODE -ne 0) { throw 'D126 disable failed' }
+                }
+              }
+              & node $bbCli plugin install ./plugins/suliko-hello --yes *> $null
+              if ($LASTEXITCODE -ne 0) { throw 'D126 own plugin install failed' }
+              $json = & node $bbCli plugin list --json 2>$null
+              if ($LASTEXITCODE -ne 0) { throw 'D126 live plugin state unavailable' }
+              try { $parsed = ConvertFrom-Json -InputObject ($json -join "`n") -ErrorAction Stop } catch { throw 'D126 live status invalid' }
+              foreach ($id in @('account-pool','bb--mcp','connect','bb--connect-next','memory')) {
+                $found = @($parsed.plugins | Where-Object { $_.id -ceq $id })
+                if ($found.Count -gt 1 -or ($found.Count -eq 1 -and ($found[0].enabled -ne $false -or $found[0].status -cne 'disabled'))) { throw 'D126 unsafe stock plugin state' }
+              }
+              $hello = @($parsed.plugins | Where-Object { $_.id -ceq 'suliko-hello' })
+              if ($hello.Count -ne 1 -or $hello[0].enabled -ne $true) { throw 'D126 Hello not active in real CLI' }
+              $profile = Get-Content -LiteralPath 'config/hardened/.env.hardened'
+              if ('BB_SERVER_BIND_HOST=127.0.0.1' -cnotin $profile -or 'BB_TELEMETRY=false' -cnotin $profile) { throw 'D126 SEC02 contract drift' }
+              Write-Output 'D129_REAL_CLI_SEC02_HELLO_ENABLED=PASS; official UI check next'
+              # Genuine Windows installed app, no source-built Desktop substitute.
+              $env:D129_OFFICIAL_EXE = $app
+              $env:D129_BB_WEB_URL = 'http://127.0.0.1:38895/'
+              & node tests/parity/d129-windows-installed-desktop.mjs
+              if ($LASTEXITCODE -ne 0) { throw 'D129 official installed Windows Hello panel mount failed' }
+              Write-Output 'D129_OFFICIAL_INSTALLED_WINDOWS_HELLO_PANEL=PASS'
+            } finally {
+              try { & node $appCli stop --data-dir $env:BB_DATA_DIR *> $null } catch {}
+              if ($null -ne $daemon) { try { if (-not $daemon.HasExited) { $daemon.Kill($true); $daemon.WaitForExit(10000) | Out-Null } } catch {} }
+            }
+            # Official installed child GUI is closed by Playwright's own
+            # finally, with actual 15s liveness enforced before test returns.
+            $uninstall = Join-Path $target 'Uninstall bb.exe'
+            if (-not (Test-Path -LiteralPath $uninstall -PathType Leaf)) { throw 'NSIS uninstaller missing' }
+            $exit = Start-Process -FilePath $uninstall -ArgumentList @('/S') -Wait -PassThru
+            if ($exit.ExitCode -ne 0) { throw 'NSIS uninstaller failed' }
+            if (Test-Path -LiteralPath $app) { throw 'User-space bb.exe persisted after uninstall' }
+            & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
+            if (Test-Path -LiteralPath $installer) { throw 'Suliko-owned cached installer persisted' }
+            $watch.Stop()
+            $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
+            "WINDOWS_INSTALL_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            'D129 real official installed Windows-2022 bb.exe Electron Hello panel + same-root stock CLI SEC02/Hello, 15s liveness and uninstall. NOT windows-2025 or RC Git marketplace, and NOT beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            if ($elapsed -ge 900) { throw 'Windows install exceeded 15 minutes' }
+          } finally {
+            if ($null -ne $process) {
+              try { if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit(10000) | Out-Null } } catch {}
+            }
+            # Only our exact fresh hosted-runner temp tree, never user/system files.
+            if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
+          }
