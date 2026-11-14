@@ -1,0 +1,27 @@
+name: D-152 refuse escaped GitHub runner and concurrency expressions before mirror
+on:
+  push:
+    branches: [main, fix/d152-workflow-expression-guard]
+    paths: ['.github/workflows/**', 'scripts/d152-workflow-expression-check.mjs', 'scripts/d152-workflow-expression-check.test.mjs']
+  workflow_dispatch:
+concurrency:
+  group: d152-workflow-expr-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  workflow-expression-integrity:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Pure source-owned expression negative tests
+        run: node --test scripts/d152-workflow-expression-check.test.mjs
+      - name: Lint all public CI workflow group and runs-on expressions
+        run: node scripts/d152-workflow-expression-check.mjs .github/workflows

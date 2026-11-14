@@ -7,7 +7,7 @@ on:
       - 'scripts/d151-ci-e1-one-entry-linux.sh'
   workflow_dispatch:
 concurrency:
-  group: d151-linux-ci-config-\${{ github.ref }}
+  group: d151-linux-ci-config-${{ github.ref }}
   cancel-in-progress: true
 permissions: read-all
 jobs:
