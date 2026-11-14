@@ -4,11 +4,13 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d060-remote-loopback-reader, main]
+    branches: [feat/d060-remote-loopback-reader, fix/e3-demo-approval-url-credentials, main]
     paths:
       - '.github/workflows/d060-loopback-mock.yml'
       - 'plugins/suliko-remote-panel/loopback-test-reader.ts'
       - 'plugins/suliko-remote-panel/loopback-test-reader.test.mjs'
+      - 'plugins/suliko-remote-panel/mock-remote.ts'
+      - 'plugins/suliko-remote-panel/app.test.tsx'
   workflow_dispatch:
 permissions:
   contents: read
