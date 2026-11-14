@@ -127,8 +127,8 @@ test("J04: provider/model selection can be opened", async ({ appPage }) => {
 // RootComposeView useAppCommandHandler("file.quickOpen") opens NewTab;
 // NewTabFileSearch renders file results as role=option; NewTabActions renders
 // "Start terminal" as role=option when the project source host is connected.
-// These tests now require ACTUAL file search + open, and ACTUAL terminal start,
-// stronger than the previous nonexistent-sidebar-label assertions.
+// J05 requires actual file search + opened selected file tab. J06 requires
+// the real upstream terminal shortcut and live terminal + selected tab.
 async function openStockFileLauncher(page: Page, journey: "J05" | "J06") {
   // The actual stock New Tab button was visible/clickable on BOTH Web and
   // packaged Desktop in GH 43533416898 post-journey diagnostic. An already
@@ -182,25 +182,17 @@ test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
 });
 
 test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
-  const search = await openStockFileLauncher(appPage, "J06");
-  console.log("QA01_STAGE_J06_LAUNCHER");
-  // Pinned stock NewTabFileSearch only exposes action role=option after a matching query.
-  // Empty-query actions are separate buttons; exercise the actual accessible search flow.
-  await search.fill("terminal");
-  const terminal = appPage.getByRole("option", { name: /Start terminal/i }).first();
-  await expect(terminal).toBeVisible({ timeout: 10000 });
-  await expect(terminal).toBeEnabled();
-  console.log("QA01_STAGE_J06_OPTION");
-  // Do not execute commands; starting a disposable terminal UI is sufficient.
-  await terminal.click();
-  console.log("QA01_STAGE_J06_CLICKED");
-  // Pinned stock BB presents terminal tabs using session?.title (often shell
-  // name), NOT necessarily the word "terminal". Its terminal-only React
-  // branch mounts <section aria-label="Terminal" data-app-terminal> when
-  // the real terminal tab is active. Require that stock terminal surface
-  // AND an active actual panel tab; never accept a search result alone.
-  // Source: BB desktop-v0.49.0 RootComposePanelTabContent.tsx,
-  // ThreadTerminalPanel.tsx, usePanelTabPresenter.tsx.
+  // Stock BB desktop-v0.49.0 docs/configuration.md specifies the genuine
+  // Workspace > Open terminal shortcut: Mod+Shift+Enter on ALL clients.
+  // The previous New Tab action-search route was intermittently unavailable
+  // after real J05 (GH 43549325613: 12/14). Exercise the upstream keyboard
+  // affordance instead of falsely assuming that the launcher is required.
+  // Both targets run on isolated 127.0.0.1 disposable hosts/projects.
+  // Never type or execute any command in the spawned terminal.
+  await appPage.keyboard.press("Control+Shift+Enter");
+  console.log("QA01_J06_STOCK_SHORTCUT_DELIVERED");
+  // Real terminal UI and real selected right-panel tab MUST both appear.
+  // A keyboard event alone, inert shell or unrelated pane cannot pass.
   await expect(appPage.locator('section[data-app-terminal][aria-label="Terminal"]'))
     .toBeVisible({ timeout: 15000 });
   await expect(appPage.locator('[data-testid="secondary-panel-tab-strip"] button[aria-pressed="true"]'))
