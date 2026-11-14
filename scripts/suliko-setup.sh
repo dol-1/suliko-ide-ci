@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Suliko E1 preflight: official BB asset only, checksum verified, never executed.
+# Suliko E1 user-only partial native stage: verified official BB asset, not a released setup.
+# Full SEC02 and own plugin are independent until the unified E1 matrix passes.
 set -euo pipefail
 umask 077
 version="0.49.0"
@@ -7,13 +8,14 @@ tag="desktop-v0.49.0"
 mode="dry-run"
 verify_path=""
 usage() {
-  printf '%s\n' 'Usage: suliko-setup.sh [--dry-run|--download-verified|--verify-file PATH|--uninstall]'
-  printf '%s\n' 'PREVIEW ONLY: downloads and verifies the official BB installer; does not install BB or plugins.'
+  printf '%s\n' 'Usage: suliko-setup.sh [--dry-run|--download-verified|--install|--verify-file PATH|--uninstall]'
+  printf '%s\n' 'PREVIEW ONLY: --install stages the official Linux AppImage in user space; SEC02 and plugins are not configured.'
 }
 if [[ $# -gt 0 ]]; then
   case "$1" in
     --dry-run) mode="dry-run"; shift ;;
     --download-verified) mode="download-verified"; shift ;;
+    --install) mode="install"; shift ;;
     --uninstall) mode="uninstall"; shift ;;
     --verify-file) mode="verify-file"; shift; [[ $# -gt 0 ]] || { usage; exit 2; }; verify_path="$1"; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -53,6 +55,19 @@ check_file() {
   printf '%s\n' 'Official release SHA-256 verified'
 }
 case "$mode" in
+  install)
+    # Only the verified Linux user-stage is implemented here. No claim of
+    # user plugin/SEC02 provisioning, release readiness, or new macOS behavior.
+    [[ "$(uname -s)-$(uname -m)" = "Linux-x86_64" ]] ||
+      { printf '%s\n' 'macOS full user-only install remains unimplemented; no fallback or partial adoption.' >&2; exit 2; }
+    [[ "$EUID" -ne 0 ]] || { printf '%s\n' 'Non-privileged user required; no sudo or service creation.' >&2; exit 2; }
+    ensure_managed_cache_path
+    if [[ ! -e "$destination" && ! -L "$destination" && ! -e "$marker" && ! -L "$marker" ]]; then
+      bash "$0" --download-verified >/dev/null
+    fi
+    bash "$(cd -- "$(dirname -- "$0")" && pwd)/suliko-stage-linux.sh" --stage
+    printf '%s\n' 'D141 Linux verified official AppImage staged user-only; SEC02/Hello/RC are NOT installed by this command.'
+    ;;
   dry-run)
     printf 'PREVIEW ONLY | official BB %s | asset: %s\n' "$version" "$asset"
     printf '%s\n' 'A real install, plugin configuration, and service changes are NOT implemented.'
@@ -82,6 +97,9 @@ case "$mode" in
     ;;
   uninstall)
     ensure_managed_cache_path
+    if [[ "$(uname -s)" = "Linux" ]]; then
+      bash "$(cd -- "$(dirname -- "$0")" && pwd)/suliko-stage-linux.sh" --remove-stage >/dev/null
+    fi
     # A matching marker is required: filename alone never establishes ownership.
     if [[ -e "$marker" || -L "$marker" ]]; then
       [[ -f "$marker" && ! -L "$marker" && "$(cat "$marker")" == "$marker_record" ]] ||
