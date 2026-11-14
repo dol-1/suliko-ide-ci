@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/d058-linux-user-stage, fix/d110-linux-direct-helper-guards-current-main]
+    branches: [main, feat/d058-linux-user-stage, fix/d110-linux-direct-helper-guards-current-main, fix/d112-linux-euid-guard]
     paths:
       - scripts/suliko-stage-linux.sh
       - scripts/suliko-setup.sh
@@ -29,14 +29,22 @@ jobs:
           mkdir -p "$test_home"
           HOME="$test_home" bash scripts/suliko-setup.sh --download-verified >/dev/null
           HOME="$test_home" bash scripts/suliko-stage-linux.sh --stage
-          # Simulate a root UID at the first guard; must refuse without mutation.
-          fakebin="$RUNNER_TEMP/d110-id-fixture"
+          # Never trust an id executable from a caller-controlled PATH when
+          # deciding if this shell is root. EUID is Bash's effective UID builtin.
+          grep -Fq '"$EUID" -eq 0' scripts/suliko-stage-linux.sh
+          grep -Fq '"$EUID" -eq 0' scripts/suliko-linux-preview.sh
+          if grep -Fq '$(id -u)' scripts/suliko-stage-linux.sh ||
+             grep -Fq '$(id -u)' scripts/suliko-linux-preview.sh; then
+            echo 'FAIL: root guard still delegates to PATH-controlled id'; exit 1
+          fi
+          fakebin="$RUNNER_TEMP/d112-fake-id"
           mkdir -m 700 -p "$fakebin"
           printf '#!/bin/sh\nif [ "$1" = "-u" ]; then echo 0; else /usr/bin/id "$@"; fi\n' > "$fakebin/id"
           chmod 700 "$fakebin/id"
-          if HOME="$test_home" PATH="$fakebin:$PATH" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1; then
-            echo 'FAIL: helper allowed root-UID stage mutation'; exit 1
-          fi
+          # This runner is unprivileged: malicious PATH reporting UID 0 must
+          # not influence the helper's actual kernel-backed EUID result.
+          HOME="$test_home" PATH="$fakebin:$PATH" bash scripts/suliko-stage-linux.sh --stage >/dev/null
+          test -f "$test_home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
           # A symlinked HOME may never redirect managed stage removal.
           ln -s "$test_home" "$RUNNER_TEMP/d110-linked-home"
           if HOME="$RUNNER_TEMP/d110-linked-home" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1; then

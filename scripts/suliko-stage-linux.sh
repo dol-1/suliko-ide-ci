@@ -8,7 +8,7 @@ if [[ $# -ne 1 || ( "$1" != "--stage" && "$1" != "--remove-stage" ) ]]; then
   exit 2
 fi
 if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ||
-      "$(id -u)" -eq 0 || -z "$HOME" || "$HOME" = "/" ||
+      "$EUID" -eq 0 || -z "$HOME" || "$HOME" = "/" ||
       "$HOME" != /* || -L "$HOME" ]]; then
   echo 'Only nonprivileged Linux x86_64 user staging is supported' >&2
   exit 2

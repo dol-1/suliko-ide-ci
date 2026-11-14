@@ -14,7 +14,7 @@ case "$1" in
   *) usage >&2; exit 2 ;;
 esac
 if [[ "$(uname -s)-$(uname -m)" != "Linux-x86_64" ||
-      -z "$HOME" || "$HOME" = "/" || "$(id -u)" -eq 0 ]]; then
+      -z "$HOME" || "$HOME" = "/" || "$EUID" -eq 0 ]]; then
   printf '%s\n' 'Refusing unsupported platform, root account, or invalid home.' >&2
   exit 2
 fi
