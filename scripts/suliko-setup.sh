@@ -54,12 +54,90 @@ check_file() {
   [[ "$digest" == "$sha" ]] || { printf '%s\n' 'SHA-256 mismatch; file rejected' >&2; return 1; }
   printf '%s\n' 'Official release SHA-256 verified'
 }
+mac_user_root_check() {
+  [[ "$(uname -s)-$(uname -m)" = "Darwin-arm64" && "$EUID" -ne 0 &&
+     -n "$HOME" && "$HOME" = /* && "$HOME" != "/" &&
+     -d "$HOME" && ! -L "$HOME" ]] ||
+    { printf '%s\n' 'macOS signed user-only install requires nonprivileged arm64 user and unlinked HOME' >&2; return 2; }
+  local app_dir="$HOME/Applications"
+  [[ ! -L "$app_dir" && ( ! -e "$app_dir" || -d "$app_dir" ) ]] ||
+    { printf '%s\n' 'Refusing symlinked or non-directory user Applications' >&2; return 1; }
+}
+mac_app="$HOME/Applications/bb.app"
+mac_owner="$HOME/Applications/.suliko-owned-bb-0.49.0-arm64.sha256"
+mac_record="SULIKO-IDE-MAC-USER-APP-v1 $asset $sha"
+mac_install_user() {
+  mac_user_root_check
+  ensure_managed_cache_path
+  local app_dir="$HOME/Applications" dmg="$destination" owner="$mac_owner" app="$mac_app"
+  [[ ! -e "$app" && ! -L "$app" && ! -e "$owner" && ! -L "$owner" ]] ||
+    { printf '%s\n' 'User app/ownership record already occupied; refusing overwrite' >&2; return 1; }
+  if [[ ! -e "$dmg" && ! -L "$dmg" && ! -e "$marker" && ! -L "$marker" ]]; then
+    bash "$0" --download-verified >/dev/null
+  fi
+  [[ -f "$marker" && ! -L "$marker" && "$(cat "$marker")" = "$marker_record" ]] ||
+    { printf '%s\n' 'Refusing unowned official DMG cache' >&2; return 1; }
+  check_file "$dmg" >/dev/null || return
+  mkdir -m 700 -p "$app_dir"
+  mac_user_root_check
+  local mount source_app
+  mount="$(mktemp -d "$HOME/.suliko-dmg-readonly.XXXXXXXX")" || return
+  local mounted=0
+  mac_detach() {
+    if [[ "$mounted" = 1 ]]; then hdiutil detach -quiet "$mount" >/dev/null 2>&1 || true; fi
+    rmdir "$mount" >/dev/null 2>&1 || true
+  }
+  trap mac_detach EXIT
+  hdiutil attach -readonly -nobrowse -quiet -mountpoint "$mount" "$dmg" || return
+  mounted=1
+  source_app="$(find "$mount" -maxdepth 2 -type d -name 'bb.app' -print -quit)"
+  [[ -n "$source_app" && -d "$source_app" && ! -L "$source_app" ]] ||
+    { printf '%s\n' 'Verified DMG did not contain regular bb.app' >&2; return 1; }
+  [[ ! -e "$app" && ! -L "$app" ]] ||
+    { printf '%s\n' 'User app target appeared during mount; refusing overwrite' >&2; return 1; }
+  # Copy preserves quarantine; never pass ditto --noqtn or bypass Gatekeeper.
+  ditto "$source_app" "$app" || return
+  [[ -d "$app" && ! -L "$app" && -x "$app/Contents/MacOS/bb" && ! -L "$app/Contents/MacOS/bb" ]] ||
+    { printf '%s\n' 'Installed app missing regular launcher; preserving untracked bundle' >&2; return 1; }
+  codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
+    { printf '%s\n' 'macOS code-signature rejected; preserving untracked app' >&2; return 1; }
+  spctl --assess --type execute "$app" >/dev/null 2>&1 ||
+    { printf '%s\n' 'Gatekeeper rejected app; preserving untracked app without launch' >&2; return 1; }
+  # Exact own marker is created EXCLUSIVELY after official signature and OS trust pass.
+  # If marker creation fails the orphan is preserved, never silently adopted.
+  ( set -C; printf '%s\n' "$mac_record" > "$owner" ) ||
+    { printf '%s\n' 'Mac app owner marker unavailable; app preserved without uninstall right' >&2; return 1; }
+  mac_detach
+  trap - EXIT
+  printf '%s\n' 'D141 signed official macOS BB app installed current-user only, code-signature and Gatekeeper PASS; SEC02/Hello/RC not provisioned by setup.'
+}
+mac_uninstall_user() {
+  mac_user_root_check
+  local app="$mac_app" owner="$mac_owner"
+  if [[ -e "$owner" || -L "$owner" ]]; then
+    [[ -f "$owner" && ! -L "$owner" && "$(cat "$owner")" = "$mac_record" ]] ||
+      { printf '%s\n' 'Refusing unexpected macOS app ownership marker' >&2; return 1; }
+    [[ -d "$app" && ! -L "$app" && -x "$app/Contents/MacOS/bb" && ! -L "$app/Contents/MacOS/bb" ]] ||
+      { printf '%s\n' 'Refusing modified/nonregular owned app path' >&2; return 1; }
+    codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
+      { printf '%s\n' 'Refusing to remove tampered signed app bundle' >&2; return 1; }
+    rm -rf -- "$app"
+    rm -f -- "$owner"
+  elif [[ -e "$app" || -L "$app" ]]; then
+    printf '%s\n' 'Untracked macOS app preserved; never adopt a foreign installation.'
+  fi
+}
+
 case "$mode" in
   install)
-    # Only the verified Linux user-stage is implemented here. No claim of
-    # user plugin/SEC02 provisioning, release readiness, or new macOS behavior.
+    # Both OSes stage/execute exact signed/hashed official BB user binaries
+    # only. Real user SEC02/plugin installation remains a separate next gate.
+    if [[ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ]]; then
+      mac_install_user
+      exit 0
+    fi
     [[ "$(uname -s)-$(uname -m)" = "Linux-x86_64" ]] ||
-      { printf '%s\n' 'macOS full user-only install remains unimplemented; no fallback or partial adoption.' >&2; exit 2; }
+      { printf '%s\n' 'Unsupported user setup platform/CPU' >&2; exit 2; }
     [[ "$EUID" -ne 0 ]] || { printf '%s\n' 'Non-privileged user required; no sudo or service creation.' >&2; exit 2; }
     ensure_managed_cache_path
     if [[ ! -e "$destination" && ! -L "$destination" && ! -e "$marker" && ! -L "$marker" ]]; then
@@ -97,6 +175,9 @@ case "$mode" in
     ;;
   uninstall)
     ensure_managed_cache_path
+    if [[ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ]]; then
+      mac_uninstall_user
+    fi
     if [[ "$(uname -s)" = "Linux" ]]; then
       bash "$(cd -- "$(dirname -- "$0")" && pwd)/suliko-stage-linux.sh" --remove-stage >/dev/null
     fi
