@@ -51,10 +51,22 @@ async function main() {
   const result=inspect({mainVersion:latest.version,pinVersion:pinned.version,mainSha:sha,pinSha:PIN_SHA,manifests});
   const finding=result.state==="known-drift"?"KNOWN OUTSIDE REVIEWED RANGES, existing "+ISSUE+"; not yet proven to break at runtime":"Version pin matches; real plugin compilation still pending";
   console.log("D064 main SHA="+sha+" SDK="+latest.version+" frozen="+pinned.version+" state="+result.state);
-  if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-    "### D064 upstream contract watch\n- Main SHA: "+sha+"\n- Main SDK: "+latest.version+
-    "\n- Pinned SHA: "+PIN_SHA+"\n- Pinned SDK: "+pinned.version+"\n- "+finding+
-    "\nThis is a version-contract check, NOT an upstream main plugin SDK compile/test.\n");
+  if(process.env.GITHUB_STEP_SUMMARY) {
+    // Never persist network-origin JSON fields to a filesystem report. Report
+    // only fixed, explicitly reviewed literals after inspect() validates input.
+    const reviewedVersion=result.state==="known-drift"?KNOWN_MAIN_VERSION:PIN_VERSION;
+    const reviewedState=result.state==="known-drift"
+      ?"KNOWN OUTSIDE REVIEWED RANGES; see existing review issue; not runtime-proven"
+      :"Reviewed version pin matches; runtime compilation still pending";
+    const safeSummary="### D064 upstream contract watch\n"+
+      "- Main commit: validated 40-hex source (omitted from report)\n"+
+      "- Main SDK reviewed value: "+reviewedVersion+"\n"+
+      "- Pinned SHA: "+PIN_SHA+"\n"+
+      "- Pinned SDK: "+PIN_VERSION+"\n"+
+      "- "+reviewedState+"\n"+
+      "Version-contract check only; upstream main plugin compile/test not proven.\n";
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY,safeSummary);
+  }
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)
   main().catch(e=>{console.error("D064 FAIL CLOSED: "+e.message);process.exitCode=1;});
