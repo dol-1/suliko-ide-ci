@@ -4,8 +4,8 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d063-security-policy, main]
-    paths: [SECURITY.md, CONTRIBUTING.md, .github/workflows/d063-policy-lint.yml]
+    branches: [feat/d063-security-policy, feat/d156-public-ci-readme-safety, main]
+    paths: [SECURITY.md, CONTRIBUTING.md, README.md, .github/workflows/d063-policy-lint.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,13 +24,18 @@ jobs:
           const fs=require('node:fs');
           const security=fs.readFileSync('SECURITY.md','utf8');
           const contribute=fs.readFileSync('CONTRIBUTING.md','utf8');
+          const readme=fs.readFileSync('README.md','utf8');
           for(const value of ['Report a vulnerability','if the maintainer has enabled','do not','synthetic','not','BB upstream']) {
             if(!security.toLowerCase().includes(value.toLowerCase())) throw Error('Missing security policy safeguard');
           }
           for(const value of ['exact source-head','UTC completion','before merging','SECURITY.md','No automatic publishing','license']) {
             if(!contribute.toLowerCase().includes(value.toLowerCase())) throw Error('Missing contribution safeguard');
           }
-          if(/\bmailto:\s*\S+/i.test(security)||/\b(sk-[a-z0-9_-]{12,}|ghp_[a-z0-9]{12,})/i.test(security+contribute))
+          for(const value of ['Pre-release','GitLab','GitHub Actions','SECURITY.md','CONTRIBUTING.md','independent security','No published Suliko release','not a license grant']) {
+            if(!readme.toLowerCase().includes(value.toLowerCase())) throw Error('Missing public README scope or safety note');
+          }
+          if(/# Getting started\s*\n\s*To make it easy to get started with GitLab/i.test(readme)) throw Error('Unreviewed template README');
+          if(/\bmailto:\s*\S+/i.test(security)||/\b(sk-[a-z0-9_-]{12,}|ghp_[a-z0-9]{12,})/i.test(security+contribute+readme))
             throw Error('Unexpected contact address or token-like text');
           console.log('D063 security policy & contributor guidance validated; not proof of a response channel or score increase.');
           NODE
