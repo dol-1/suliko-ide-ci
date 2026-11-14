@@ -42,18 +42,22 @@ export function paths(platform=process.platform,arch=process.arch,env=process.en
   const stage=platform==="darwin"
     ?[root,join(root,"Library"),join(root,"Library","Application Support"),join(root,"Library","Application Support","SulikoIDE"),join(root,"Library","Application Support","SulikoIDE","Stage")]
     :[root,join(root,"SulikoIDE"),join(root,"SulikoIDE","Stage")];
+  const cacheMarker=join(cache.at(-1),".suliko-managed-"+pair[0]+".sha256");
+  const cacheMarkerRecord="SULIKO-IDE-VERIFIED-v1 "+pair[0]+" "+pair[1];
   const marker=join(stage.at(-1),".suliko-owned-stage-"+pair[0]+".sha256");
   const markerRecord="SULIKO-IDE-PORTABLE-STAGE-v1 "+pair[0]+" "+pair[1];
-  return {asset:pair[0],sha:pair[1],cache,stage,source:join(cache.at(-1),pair[0]),dest:join(stage.at(-1),pair[0]),marker,markerRecord};
+  return {asset:pair[0],sha:pair[1],cache,stage,source:join(cache.at(-1),pair[0]),dest:join(stage.at(-1),pair[0]),cacheMarker,cacheMarkerRecord,marker,markerRecord};
 }
 // The SHA-256 pin proves bytes only, NOT file ownership. A foreign user's
 // identical official asset must never be deleted or implicitly adopted.
-function hasGenuineStageMarker(p) {
-  const s=stat(p.marker);
+function markerMatches(path,expected) {
+  const s=stat(path);
   if(!s)return false;
   if(s.isSymbolicLink()||!s.isFile()||s.size>256)
-    throw Error("Refusing nonregular or oversized stage ownership marker");
-  return readFileSync(p.marker,"utf8").trimEnd()===(p.markerRecord);
+    throw Error("Refusing nonregular or oversized ownership marker");
+  // Linux/macOS shell and Windows PowerShell StreamWriter emit one line.
+  const record=readFileSync(path,"utf8");
+  return record===expected+"\n"||record===expected+"\r\n";
 }
 export async function preview(mode,p=paths()) {
   if(!["--stage","--remove-stage"].includes(mode))throw Error("Preview mode required");
@@ -61,7 +65,7 @@ export async function preview(mode,p=paths()) {
   const exists=file(p.dest);
   const markerExists=!!stat(p.marker);
   // Never assume ownership based solely on the official binary's identical digest.
-  const owned=markerExists&&hasGenuineStageMarker(p);
+  const owned=markerExists&&markerMatches(p.marker,p.markerRecord);
   if(mode==="--remove-stage"){
     if(exists||markerExists){
       if(!exists||!owned||await hash(p.dest)!==p.sha)
@@ -71,6 +75,10 @@ export async function preview(mode,p=paths()) {
     }
     return "removed";
   }
+  // A same-digest cache file is not proof that the preflight created it.
+  // Cache cleanup remains the separate preflight's responsibility.
+  if(!markerMatches(p.cacheMarker,p.cacheMarkerRecord))
+    throw Error("Refusing unowned official cache");
   if(!file(p.source)||await hash(p.source)!==p.sha)throw Error("Missing/mismatched official cache");
   if(exists||markerExists){
     if(!exists||!owned||await hash(p.dest)!==p.sha)

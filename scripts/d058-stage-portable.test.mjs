@@ -9,12 +9,21 @@ const p=paths();
 assert.ok(lstatSync(p.source).isFile(),"Official verified cache asset required");
 const srcHash=createHash("sha256").update(readFileSync(p.source)).digest("hex");
 assert.equal(srcHash,p.sha,"Official download digest differs from approved pin");
+assert.equal(readFileSync(p.cacheMarker,"utf8").trimEnd(),p.cacheMarkerRecord,"Preflight must have claimed cache");
 assert.equal(await preview("--stage"),"verified-staged");
 assert.equal(createHash("sha256").update(readFileSync(p.dest)).digest("hex"),p.sha);
 assert.equal(lstatSync(p.dest).isSymbolicLink(),false);
 if(process.platform!=="win32")assert.equal(lstatSync(p.dest).mode&0o777,0o600);
 assert.equal(readFileSync(p.marker,"utf8").trimEnd(),p.markerRecord);
 if(process.platform!=="win32")assert.equal(lstatSync(p.marker).mode&0o777,0o600);
+assert.equal(await preview("--stage"),"already-verified");
+// The correct official cached BYTES alone cannot authorize a new or
+// idempotent stage operation when the preflight ownership claim is forged.
+const originalCacheMarker=readFileSync(p.cacheMarker,"utf8");
+writeFileSync(p.cacheMarker,"FORGED-CACHE-OWNER\n");
+await assert.rejects(preview("--stage"),/Refusing/);
+assert.equal(createHash("sha256").update(readFileSync(p.dest)).digest("hex"),p.sha);
+writeFileSync(p.cacheMarker,originalCacheMarker);
 assert.equal(await preview("--stage"),"already-verified");
 // A forged marker cannot authorize removing a real correct-hash staged asset.
 writeFileSync(p.marker,"FORGED-OWNERSHIP\n");
