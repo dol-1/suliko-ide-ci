@@ -1,0 +1,61 @@
+name: D-125 native disposable Mac and Windows stock BB CLI doctor (NO user data)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d125-doctor-native-3os]
+    paths:
+      - '.github/workflows/d125-doctor-native.yml'
+      - 'scripts/d059-native-ci-probe.mjs'
+      - 'scripts/d059-live-ci-readonly.mjs'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  native-real-cli:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022]
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38884'
+      BB_HOST_DAEMON_PORT: '38885'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Compile immutable BB source (no source changes, no release)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $sha=(git -C stock-bb rev-parse HEAD).Trim()
+          if ($sha -cne '7b26cae79ec978fafd0a5db0e8517e94f12eb8f4') { throw 'Pinned source mismatch' }
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm --dir stock-bb install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned install failed' }
+          pnpm --dir stock-bb run build
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned build failed' }
+      - name: Actual sandbox stock BB server + read-only doctor + native private redacted bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          node scripts/d059-native-ci-probe.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'D125 native actual CLI doctor failed' }
+          'D125 actual native disposable stock BB CLI evidence only, no user/provider secrets or owner machines. Independent security approval and published 3-OS installation NOT claimed.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
