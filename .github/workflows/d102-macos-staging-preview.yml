@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/d102-macos-user-staging-preview, feat/d105-e1-staging-main-regression, fix/d108-macos-preview-quarantine-current-main]
+    branches: [main, feat/d102-macos-user-staging-preview, feat/d105-e1-staging-main-regression, fix/d108-macos-preview-quarantine-current-main, fix/d114-macos-euid-path-injection-guard]
     paths:
       - 'scripts/suliko-macos-preview.sh'
       - 'scripts/suliko-setup.sh'
@@ -48,6 +48,18 @@ jobs:
           mkdir -m 700 -p "$HOME" "$HOME/Applications" "$HOME/unrelated-app"
           echo 'foreign untouched' >"$HOME/unrelated-app/owner.txt"
           start="$(date +%s)"
+          # Root refusal must use Bash's effective UID, not PATH-controlled 'id'.
+          grep -Fq '$EUID -eq 0' scripts/suliko-macos-preview.sh
+          if grep -Fq '$(id -u)' scripts/suliko-macos-preview.sh; then
+            echo 'D114 refused: macOS preview root guard uses PATH-controlled id' >&2; exit 1
+          fi
+          fake_bin="$RUNNER_TEMP/d114-hostile-bin"
+          mkdir -m 700 -p "$fake_bin"
+          printf '%s\n' '#!/bin/sh' 'printf "0\\n"' > "$fake_bin/id"
+          chmod 700 "$fake_bin/id"
+          test "$(PATH="$fake_bin:$PATH" id -u)" = 0
+          PATH="$fake_bin:$PATH" bash scripts/suliko-macos-preview.sh --dry-run >/dev/null
+          test ! -e "$HOME/.cache"
           bash scripts/suliko-macos-preview.sh --dry-run >/dev/null
           test ! -e "$HOME/.cache"
           # A redirected app directory must be refused rather than followed.

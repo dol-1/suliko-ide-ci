@@ -10,7 +10,7 @@ case "$1" in
   *) usage >&2; exit 2;;
 esac
 if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ||
-      -z "$HOME" || "$HOME" = "/" || "$(id -u)" -eq 0 ||
+      -z "$HOME" || "$HOME" = "/" || $EUID -eq 0 ||
       -L "$HOME" || -L "$HOME/Applications" ||
       -L "$HOME/.cache" || -L "$HOME/.cache/suliko-ide" ]]; then
   echo 'D102 refused privileged, unsupported or redirected managed location' >&2
