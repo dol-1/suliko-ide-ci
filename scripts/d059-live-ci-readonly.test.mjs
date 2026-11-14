@@ -41,16 +41,16 @@ test("duplicate plugin IDs fail closed instead of selecting a safe-looking first
   const base=plugins().plugins;
   for(const id of ["account-pool","bb--mcp","connect","bb--connect-next","memory"]){
     const duplicate={plugins:[...base,{id,enabled:true,secrets:"SENTINEL-NEVER-PRINT"}]};
-    const r=inspectLive(config(),duplicate,"/ci/disposable",38884,"0.49.0\\n","No bb-app env set.\\n");
+    const r=inspectLive(config(),duplicate,"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
     assert.equal(r.pluginStates[id],"unknown");
     assert.equal(r.checks.forbiddenPluginsSafe,false);
     assert.equal(r.status,"review-required");
-    assert.doesNotMatch(JSON.stringify(r),/SENTINEL|\\/ci\\/disposable/);
+    assert.doesNotMatch(JSON.stringify(r),/SENTINEL|\/ci\/disposable/);
   }
   const sameDisabled={plugins:[...base,{id:"account-pool",enabled:false}]};
-  assert.equal(inspectLive(config(),sameDisabled,"/ci/disposable",38884,"0.49.0\\n","No bb-app env set.\\n").status,"review-required");
+  assert.equal(inspectLive(config(),sameDisabled,"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n").status,"review-required");
   const duplicateOwned={plugins:[...base,{id:"suliko-hello",enabled:false}]};
-  const own=inspectLive(config(),duplicateOwned,"/ci/disposable",38884,"0.49.0\\n","No bb-app env set.\\n");
+  const own=inspectLive(config(),duplicateOwned,"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
   assert.equal(own.pluginStates["suliko-hello"],"unknown");
 });
 test("malformed CLI shape is rejected, never serialized",()=>{
