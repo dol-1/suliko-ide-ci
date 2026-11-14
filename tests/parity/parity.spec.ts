@@ -219,9 +219,18 @@ test("J06: terminal affordance exists with an enrolled disposable host", async (
 });
 
 test("J07: Suliko Hello plugin panel appears on both clients", async ({ appPage }) => {
-  // Requires approved test-only plugin install; no production/private auth.
+  // Requires actual pinned own-plugin mount on BOTH real clients. The first
+  // main-branch-port run 43609776274 passed J01-J06 on both and Web J07,
+  // but packaged Desktop J07 timed out on the default five-second assertion.
+  // The unmodified plugin may hydrate asynchronously after a new Electron
+  // window attaches to the disposable BB server. Wait for the SAME strict
+  // actual UI objects, do not retry/force-click/skip or infer PASS from launch.
   const panel = navigation(appPage, /suliko hello/i);
-  await expect(panel).toBeVisible();
+  console.log("QA01_STAGE_J07_NAV_WAIT");
+  await expect(panel).toBeVisible({ timeout: 20000 });
+  console.log("QA01_STAGE_J07_NAV_VISIBLE");
   await panel.click();
-  await expect(appPage.getByLabel("Suliko Hello panel")).toBeVisible();
+  console.log("QA01_STAGE_J07_CLICKED");
+  await expect(appPage.getByLabel("Suliko Hello panel")).toBeVisible({ timeout: 20000 });
+  console.log("QA01_STAGE_J07_PANEL_MOUNTED");
 });
