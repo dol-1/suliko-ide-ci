@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import http from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 
 // D150: actual *published* immutable-version upstream bb-app CLI on two native
@@ -100,9 +101,21 @@ try {
   }
   if (!found) category("native-cli-not-ready");
   // Require real independently reachable HTTP loopback, not mere JSON fixture.
-  const response = await fetch("http://127.0.0.1:39061/", { signal: AbortSignal.timeout(5000) })
-    .catch(() => null);
-  if (!response || !response.ok) category("loopback-http");
+  // Direct IPv4 loopback HTTP probe: fixed IP/port, no DNS, redirects,
+  // credentials or external host. Require live 2xx from the published BB server.
+  const loopbackOk = await new Promise(resolve => {
+    const req = http.get({
+      host: "127.0.0.1", port: 39061, path: "/", family: 4,
+      agent: false, timeout: 5000,
+    }, response => {
+      const ok = response.statusCode >= 200 && response.statusCode < 300;
+      response.resume();
+      resolve(ok);
+    });
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => resolve(false));
+  });
+  if (!loopbackOk) category("loopback-http");
   if (!Array.isArray(found.plugins)) category("plugin-list-shape");
   console.log("D150_PUBLISHED_NPM_NATIVE_LOOPBACK=PASS");
   console.log("D150_PUBLISHED_NPM_OS=" + (process.platform === "win32" ? "windows-2025" : "macos-15"));
