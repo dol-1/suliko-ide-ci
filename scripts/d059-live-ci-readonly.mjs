@@ -87,8 +87,20 @@ export function writeCiSafeBundle(report,requestedPath,tempRoot) {
       anthropic:["present","absent"].includes(report?.providerKeyPresence?.anthropic)?report.providerKeyPresence.anthropic:"unknown",
     },
     providerSettingsAndHooks:"NOT_INSPECTED",
-    status:report?.status==="partial-runtime-pass"?"partial-runtime-pass":"review-required",
+    // A caller-supplied success string is NOT authority to mark a reduced
+    // support bundle green. Re-derive from the sanitized booleans and the
+    // complete set of forbidden plugin categories; reject contradictory or
+    // unknown provider observations without including any raw value.
+    status:"review-required",
   };
+  const safe=report?.status==="partial-runtime-pass" &&
+    Object.values(clean.checks).every(value=>value===true) &&
+    forbidden.every(id=>clean.pluginStates[id]==="absent"||clean.pluginStates[id]==="disabled") &&
+    ["openai","anthropic"].every(id=>
+      clean.providerKeyPresence[id]==="present"||clean.providerKeyPresence[id]==="absent");
+  if(safe)clean.status="partial-runtime-pass";
+  // The input report can include unknown states or forged claims. Always
+  // serialize review-required in those cases rather than laundering success.
   // wx = exclusive create. Never overwrite a user file or follow an existing
   // symlink; private permissions, fail closed without echoing OS paths/errors.
   try { writeFileSync(requestedPath,JSON.stringify(clean,null,2)+"\n",{flag:"wx",mode:0o600}); }
