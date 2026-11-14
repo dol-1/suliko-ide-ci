@@ -80,17 +80,23 @@ mac_install_user() {
   check_file "$dmg" >/dev/null || return
   mkdir -m 700 -p "$app_dir"
   mac_user_root_check
-  local mount source_app
-  mount="$(mktemp -d "$HOME/.suliko-dmg-readonly.XXXXXXXX")" || return
-  local mounted=0
+  local source_app
+  # Mount state deliberately survives function return so the EXIT trap can
+  # detach even when a preceding command fails under set -e.
+  mac_mount_target="$(mktemp -d "$HOME/.suliko-dmg-readonly.XXXXXXXX")" || return
+  mac_mounted=0
   mac_detach() {
-    if [[ "$mounted" = 1 ]]; then hdiutil detach -quiet "$mount" >/dev/null 2>&1 || true; fi
-    rmdir "$mount" >/dev/null 2>&1 || true
+    if [[ "${mac_mounted:-0}" = 1 ]]; then
+      hdiutil detach -quiet "$mac_mount_target" >/dev/null 2>&1 ||
+        { printf '%s\\n' 'Could not safely detach official DMG' >&2; return 1; }
+      mac_mounted=0
+    fi
+    rmdir "$mac_mount_target" >/dev/null 2>&1 || return 1
   }
   trap mac_detach EXIT
-  hdiutil attach -readonly -nobrowse -quiet -mountpoint "$mount" "$dmg" || return
-  mounted=1
-  source_app="$(find "$mount" -maxdepth 2 -type d -name 'bb.app' -print -quit)"
+  hdiutil attach -readonly -nobrowse -quiet -mountpoint "$mac_mount_target" "$dmg" || return
+  mac_mounted=1
+  source_app="$(find "$mac_mount_target" -maxdepth 2 -type d -name 'bb.app' -print -quit)"
   [[ -n "$source_app" && -d "$source_app" && ! -L "$source_app" ]] ||
     { printf '%s\n' 'Verified DMG did not contain regular bb.app' >&2; return 1; }
   [[ ! -e "$app" && ! -L "$app" ]] ||
