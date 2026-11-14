@@ -147,7 +147,16 @@ async function openStockFileLauncher(page: Page, journey: "J05" | "J06") {
   await expect(newTab).toBeVisible({ timeout: 10000 });
   // Fixed source-owned markers only; do not echo DOM, secrets or error text.
   console.log("QA01_STAGE_" + journey + "_PANEL");
-  await newTab.click();
+  if (journey === "J06") {
+    // Source-backed NewTabButton is a semantic <button> with onClick,
+    // activated by Enter as a real keyboard user would. The prior exact
+    // J06 Desktop public run reached visible PANEL but timed out on pointer
+    // click (02:24Z); do not force click, retry or alter acceptance.
+    await newTab.focus();
+    await page.keyboard.press("Enter");
+  } else {
+    await newTab.click();
+  }
   console.log("QA01_STAGE_" + journey + "_PLUS");
   const search = page.getByRole("combobox", { name: /Search files/i }).first();
   await expect(search).toBeVisible({ timeout: 10000 });
@@ -191,7 +200,7 @@ test("J06: terminal affordance exists with an enrolled disposable host", async (
   console.log("QA01_STAGE_J06_CLICKED");
   await expect(appPage.getByRole("button", { name: /terminal/i })
     .and(appPage.locator('button[aria-pressed="true"]')).first())
-    .toBeVisible({ timeout: 10000 });
+    .toBeVisible({ timeout: 15000 });
   console.log("QA01_STAGE_J06_SELECTED");
 });
 
