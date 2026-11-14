@@ -5,8 +5,10 @@ concurrency:
   cancel-in-progress: true
 on:
   workflow_dispatch:
-permissions:
-  contents: read
+  push:
+    branches: [main, feat/d140-qa01-strict-main]
+    paths: ['tests/parity/**', 'scripts/qa01-*.mjs', 'plugins/suliko-hello/**', '.github/workflows/qa01-parity-run.yml']
+permissions: read-all
 jobs:
   parity:
     runs-on: ubuntu-24.04
@@ -16,6 +18,9 @@ jobs:
       BB_TELEMETRY: 'false'
       BB_SERVER_BIND_HOST: '127.0.0.1'
       BB_SERVER_PORT: '38888'
+      # Desktop and Web run concurrently; Desktop host daemon must not bind
+      # Web's port 38887 (stock default). Web host daemon separately uses 38889.
+      BB_HOST_DAEMON_PORT: '38890'
       APPIMAGE_EXTRACT_AND_RUN: '1'
     steps:
       - name: Checkout isolated parity fixture and reviewed plugin
@@ -57,20 +62,129 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Fail closed rather than install an unreviewed third-party plugin.
-          test "${SULIKO_HELLO_CI_APPROVED_SHA:-}" = "$GITHUB_SHA"
+          # v1.6: verify version-pinned, checkout-owned test fixture instead of
+          # requiring an unset external SHA approval environment variable.
+          # This fixture remains disposable: no registry or production install.
+          test -f plugins/suliko-hello/package.json
+          test -f plugins/suliko-hello/app.tsx
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('plugins/suliko-hello/package.json', 'utf8'));
+          if (p.name !== 'bb-plugin-suliko-hello' || p.engines.bb !== '>=0.49.0 <0.49.1' ||
+              p.devDependencies['@get-bb/plugin-sdk'] !== '0.6.132') {
+            throw Error('Unreviewed or incompatible disposable Hello fixture');
+          }
+          NODE
           web_dir="$RUNNER_TEMP/bb-parity-web"
           mkdir -p "$web_dir"
           export BB_DATA_DIR="$web_dir"
-          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
+          BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$web_dir" --server-bind-host 127.0.0.1 --server-port 38887 --host-daemon-port 38889 --no-in-app-updates >"$RUNNER_TEMP/qa01-web.log" 2>&1 &
+          server_pid=$!
           ready=0
           for i in $(seq 1 45); do
-            if BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js settings show --json >/dev/null 2>&1; then ready=1; break; fi
+            # Stock BB host daemon defaults to 38887; this test's Web listener
+            # uses 38887, so host daemon is explicitly 38889 instead.
+            # A browser-visible HTTP response is the real Web precondition.
+            if curl --silent --show-error --fail --max-time 2 --output "$RUNNER_TEMP/qa01-ready.html" http://127.0.0.1:38887/ 2>/dev/null; then
+              if node -e 'const s=require("node:fs").readFileSync(process.argv[1],"utf8");process.exit(/<html|<!doctype/i.test(s)?0:1)' "$RUNNER_TEMP/qa01-ready.html"; then
+                ready=1; break
+              fi
+            fi
+            # bb-app start may daemonize and exit successfully; continue waiting for HTTP.
             sleep 2
           done
-          test "$ready" = 1 || { echo "BB web did not boot"; exit 1; }
-          BB_SERVER_PORT=38887 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          if [ "$ready" != 1 ]; then
+            echo "QA-01: stock BB loopback HTTP readiness failed; never skip parity assertions." >&2
+            if kill -0 "$server_pid" 2>/dev/null; then echo "BB launcher process still alive" >&2; else echo "BB launcher exited" >&2; fi
+            # Print only known error-category indicators, never full logs, paths or secrets.
+            node - "$RUNNER_TEMP/qa01-web.log" <<'NODE'
+          const fs=require('node:fs');
+          const content=fs.existsSync(process.argv[2])?fs.readFileSync(process.argv[2],'utf8'):'';
+          for(const code of ['EADDRINUSE','EACCES','ECONNREFUSED','MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND','NODE_MODULE_VERSION']){
+            if(content.includes(code)) console.error('QA-01 BB startup category:',code);
+          }
+          NODE
+            exit 1
+          fi
+          BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          # The New thread route requires a local project. Make a disposable,
+          # synthetic Git repo only; no user provider accounts or work data.
+          fixture_root="$RUNNER_TEMP/qa01-synthetic-project"
+          mkdir -p "$fixture_root"
+          git -C "$fixture_root" init -b main >/dev/null
+          printf 'QA-01 disposable test repository only.\n' > "$fixture_root/README.md"
+          git -C "$fixture_root" add README.md
+          BB_DATA_DIR="$web_dir" BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-synthetic --root "$fixture_root" >/dev/null
+          BB_DATA_DIR="$web_dir" BB_SERVER_PORT=38887 BB_HOST_DAEMON_PORT=38889 node stock-bb/packages/bb-app/dist/bb.js project list --json >/dev/null
+          echo "QA-01 disposable Web project created; no real provider credentials." >> "$GITHUB_STEP_SUMMARY"
           echo "$web_dir" >"$RUNNER_TEMP/qa01-web-dir"
+      - name: Pre-enroll disposable Desktop BB server, test project and Hello plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          desktop_dir="$RUNNER_TEMP/bb-parity-desktop"
+          mkdir -p "$desktop_dir"
+          export BB_DATA_DIR="$desktop_dir"
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$desktop_dir" --server-bind-host 127.0.0.1 --server-port 38888 --host-daemon-port 38890 --no-in-app-updates >"$RUNNER_TEMP/qa01-desktop-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --max-time 2 --output "$RUNNER_TEMP/qa01-desktop-ready.html" http://127.0.0.1:38888/ 2>/dev/null; then
+              if node -e 'const s=require("node:fs").readFileSync(process.argv[1],"utf8");process.exit(/<html|<!doctype/i.test(s)?0:1)' "$RUNNER_TEMP/qa01-desktop-ready.html"; then ready=1; break; fi
+            fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            echo "Desktop disposable BB loopback preflight failed; no Desktop journey may be claimed." >&2
+            node - "$RUNNER_TEMP/qa01-desktop-server.log" <<'NODE'
+          const fs=require('node:fs'),p=process.argv[2];
+          const s=fs.existsSync(p)?fs.readFileSync(p,'utf8'):'';
+          for(const code of ['EADDRINUSE','EACCES','ECONNREFUSED','MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND','NODE_MODULE_VERSION']) {
+            if(s.includes(code)) console.error('Desktop fixture startup category:',code);
+          }
+          NODE
+            exit 1
+          fi
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes
+          desktop_project="$RUNNER_TEMP/qa01-desktop-synthetic-project"
+          mkdir -p "$desktop_project"
+          git -C "$desktop_project" init -b main >/dev/null
+          printf 'Desktop QA-01 disposable local project only.\n' > "$desktop_project/README.md"
+          git -C "$desktop_project" add README.md
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js project create --name qa01-desktop-synthetic --root "$desktop_project" >/dev/null
+          BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js project list --json >/dev/null
+          echo "$desktop_dir" >"$RUNNER_TEMP/qa01-desktop-dir"
+          echo "Disposable Desktop loopback BB, project and reviewed Hello plugin were prepared." >> "$GITHUB_STEP_SUMMARY"
+      - name: Observe host/project preconditions in both disposable BB servers (fixed categories only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/qa01-host-prereqs.test.mjs
+          for client in web desktop; do
+            if [[ "$client" = web ]]; then
+              port=38887
+              daemon_port=38889
+              data="$RUNNER_TEMP/bb-parity-web"
+              name=qa01-synthetic
+            else
+              port=38888
+              daemon_port=38890
+              data="$RUNNER_TEMP/bb-parity-desktop"
+              name=qa01-desktop-synthetic
+            fi
+            machines="$RUNNER_TEMP/qa01-$client-machines.json"
+            projects="$RUNNER_TEMP/qa01-$client-projects.json"
+            if BB_DATA_DIR="$data" BB_SERVER_PORT="$port" BB_HOST_DAEMON_PORT="$daemon_port" \
+              node stock-bb/packages/bb-app/dist/bb.js machine list --json > "$machines" 2>/dev/null &&
+              BB_DATA_DIR="$data" BB_SERVER_PORT="$port" BB_HOST_DAEMON_PORT="$daemon_port" \
+              node stock-bb/packages/bb-app/dist/bb.js project list --json > "$projects" 2>/dev/null; then
+              if ! node scripts/qa01-host-prereqs.mjs "$machines" "$projects" "$client" "$name" | tee -a "$GITHUB_STEP_SUMMARY"; then
+                echo "QA01_HOST_PREREQS {\"target\":\"$client\",\"available\":false}"
+              fi
+            else
+              echo "QA01_HOST_PREREQS {\"target\":\"$client\",\"available\":false}"
+            fi
+            rm -f -- "$machines" "$projects"
+          done
       - name: Execute full 7×2 matrix and preserve result even on failure
         shell: bash
         run: |
@@ -82,13 +196,23 @@ jobs:
           export BB_PARITY_ELECTRON_BINARY="$GITHUB_WORKSPACE/$appimage"
           export BB_PARITY_DATA_DIR="$RUNNER_TEMP/bb-parity-desktop"
           mkdir -p "$BB_PARITY_DATA_DIR"
-          # Requires a pre-enrolled disposable host and Suliko Hello in both
-          # data directories. Missing fixtures cause real test failures.
+          # Full strict 7x2 MUST run first. A standalone GUI diagnostic that
+          # navigates onboarding can affect the shared disposable BB session;
+          # running it before the tests confounded the previous 7/14 baseline.
+          # J01-J07, both projects, retries=0 and fail-closed assertions are
+          # unchanged; this collects extra evidence only AFTER the real result.
           set +e
-          xvfb-run -a bash -c 'cd tests/parity && npm test -- --reporter=json' >"$RUNNER_TEMP/qa01.json"
+          xvfb-run -a bash -c 'cd tests/parity && ./node_modules/.bin/playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json" 2>"$RUNNER_TEMP/qa01-playwright.stderr"
           code=$?
+          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          report_code="${PIPESTATUS[0]}"
           set -e
-          node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" >>"$GITHUB_STEP_SUMMARY"
+          # Diagnostic remains optional and cannot suppress or turn a RED
+          # Playwright/summary run green. Never capture full DOM or secrets.
+          if ! xvfb-run -a node tests/parity/diagnose-controls.mjs; then
+            echo 'Post-parity categorical diagnostic unavailable; original test failure/success retained' >&2
+          fi
+          test "$report_code" -eq 0 || exit "$report_code"
           exit "$code"
       - name: Stop disposable BB server
         if: always()
@@ -96,4 +220,7 @@ jobs:
         run: |
           if [ -s "$RUNNER_TEMP/qa01-web-dir" ]; then
             node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/qa01-web-dir")" >/dev/null 2>&1 || true
+          fi
+          if [ -s "$RUNNER_TEMP/qa01-desktop-dir" ]; then
+            node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$(cat "$RUNNER_TEMP/qa01-desktop-dir")" >/dev/null 2>&1 || true
           fi

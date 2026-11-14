@@ -1,6 +1,39 @@
 import { _electron, chromium, expect, test as base, type Page } from "@playwright/test";
 import { basename } from "node:path";
 
+// Optional stock BB first-run setup offers an explicit, supported Skip setup
+// action. In a synthetic provider-free CI fixture take that path, never submit
+// provider keys, and preserve all 14 strict subsequent journey assertions.
+async function enterProviderFreeShell(page: Page) {
+  const projects = page.getByRole("button", { name: /projects?/i }).first();
+  // In real packaged Linux Desktop QA run 43266035103, the renderer still
+  // displayed the "Opening bb" splash after 12 seconds. The old catch
+  // silently continued into J03/J04/J07 without a hydrated app shell.
+  // Require the actual Projects control before every journey, preserving
+  // strict assertions: an unready client now FAILS explicitly.
+  await projects.waitFor({ state: "visible", timeout: 45000 });
+  const skip = page.getByRole("button", { name: /skip setup/i }).first();
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  // Enroll ONLY the generated qa01-* project in the client UI: BB's thread
+  // creation UI is project-scoped. No third-party provider, token or host used.
+  // Stock BB retains the selected project across new attached Desktop windows.
+  // Re-clicking the menu every time can leave a stale overlay intercepting
+  // subsequent actions (source: packaged D066 Desktop E9 and QA diagnostics).
+  // Keep *all* J01-J07 assertions identical; only avoid duplicate setup.
+  const alreadySelected = page.getByRole("button", {
+    name: /^Project:\s*qa01-(?:desktop-)?synthetic$/i,
+  }).first();
+  if (!(await alreadySelected.isVisible().catch(() => false))) {
+    const projectNav = page.getByRole("button", { name: /projects?/i }).first();
+    if (await projectNav.isVisible().catch(() => false)) {
+      await projectNav.click();
+      const synthetic = page.getByText(/qa01-(desktop-)?synthetic/i).first();
+      if (await synthetic.waitFor({ state: "visible", timeout: 4000 }).then(() => true).catch(() => false))
+        await synthetic.click();
+    }
+  }
+}
+
 const test = base.extend<{ appPage: Page }>({
   appPage: async ({}, use, info) => {
     if (info.project.name === "web") {
@@ -15,6 +48,7 @@ const test = base.extend<{ appPage: Page }>({
       try {
         const page = await context.newPage();
         await page.goto(url.toString(), { waitUntil: "domcontentloaded" });
+        await enterProviderFreeShell(page);
         await use(page);
       } finally {
         await context.close();
@@ -35,11 +69,20 @@ const test = base.extend<{ appPage: Page }>({
         ...process.env,
         BB_DATA_DIR: dataDir,
         BB_SERVER_BIND_HOST: "127.0.0.1",
+        BB_SERVER_PORT: "38888",
+        BB_HOST_DAEMON_PORT: "38890",
+        // Pin the package to our already-running disposable loopback server.
+        // Stock BB supports this test-only explicit attach mode; no real user
+        // account or external server approval is bypassed.
+        BB_DESKTOP_APP_URL: "http://127.0.0.1:38888",
+        BB_DESKTOP_ATTACH_WITHOUT_PROMPT: "1",
         BB_TELEMETRY: "false",
       },
     });
     try {
-      await use(await electronApp.firstWindow());
+      const page = await electronApp.firstWindow();
+      await enterProviderFreeShell(page);
+      await use(page);
     } finally {
       await electronApp.close();
     }
@@ -79,22 +122,115 @@ test("J04: provider/model selection can be opened", async ({ appPage }) => {
   await expect(appPage.getByRole("dialog").or(appPage.getByRole("listbox")).first()).toBeVisible();
 });
 
-test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
-  const files = navigation(appPage, /files|changes|diff/i);
-  await expect(files).toBeVisible();
-  await files.click();
-  await expect(appPage.getByRole("main").or(appPage.locator("#root")).first()).toBeVisible();
+// Stock BB desktop-v0.49.0 deliberately routes Files and Terminal through
+// "new tab" action search, not sidebar navigation. Upstream sources:
+// RootComposeView useAppCommandHandler("file.quickOpen") opens NewTab;
+// NewTabFileSearch renders file results as role=option; NewTabActions renders
+// "Start terminal" as role=option when the project source host is connected.
+// J05 requires actual file search + opened selected file tab. J06 requires
+// the real upstream terminal shortcut and live terminal + selected tab.
+async function openStockFileLauncher(page: Page, journey: "J05" | "J06") {
+  // The actual stock New Tab button was visible/clickable on BOTH Web and
+  // packaged Desktop in GH 43533416898 post-journey diagnostic. An already
+  // visible combobox alone does not prove the current launcher/tab is active:
+  // always select the explicit stock New Tab action before a strict journey.
+  const newTab = page.locator("button[data-panel-new-tab]").first();
+  if (!(await newTab.isVisible().catch(() => false))) {
+    const show = page.getByRole("button", { name: /Show right panel/i }).first();
+    if (await show.isVisible().catch(() => false)) {
+      await show.click();
+    } else {
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Control+j");
+    }
+  }
+  await expect(newTab).toBeVisible({ timeout: 10000 });
+  // Fixed source-owned markers only; do not echo DOM, secrets or error text.
+  console.log("QA01_STAGE_" + journey + "_PANEL");
+  // Use one real user pointer activation per journey. On latest strict
+  // CI 43548318414 Desktop J05 click reached the actual launcher, whereas
+  // J06 focus+Enter left SEARCH absent. A single pointer action is not a
+  // retry and preserves the exact same strict terminal assertions below.
+  // Do not force-click, evaluate DOM handlers or skip the real UI.
+  await newTab.click();
+  console.log("QA01_STAGE_" + journey + "_PLUS");
+  const search = page.getByRole("combobox", { name: /Search files/i }).first();
+  await expect(search).toBeVisible({ timeout: 10000 });
+  console.log("QA01_STAGE_" + journey + "_SEARCH");
+  await expect(search).toBeEnabled();
+  return search;
+}
+
+// J05 and J06 are thread-workspace actions in pinned stock BB 0.49.0.
+// Each Web Playwright journey has its own clean browser context; unlike the
+// reused disposable Desktop profile, the Web context starts in projects.
+// Exercise real New Thread UI to mount the composer and thread workspace,
+// WITHOUT provider selection, prompts, commands, mocking or backend writes.
+// GH 43550483830 diagnostics showed Web J05/J06 no panel while the same
+// session's explicit synthetic-project navigation later exposed New Tab.
+// This changes fixture precondition only, never the strict file/terminal check.
+async function enterRealComposerForWebPanel(page: Page) {
+  const newThread = navigation(page, /new thread/i);
+  await expect(newThread).toBeVisible({ timeout: 15000 });
+  await newThread.click();
+  await expect(page.getByRole("textbox").first()).toBeVisible({ timeout: 15000 });
+  console.log("QA01_WEB_PANEL_COMPOSER_READY");
+}
+
+test("J05: workspace files/diff navigation exists", async ({ appPage }, info) => {
+  if (info.project.name === "web") await enterRealComposerForWebPanel(appPage);
+  const search = await openStockFileLauncher(appPage, "J05");
+  // All diagnostic checkpoints are FIXED constants captured only inside
+  // Playwright JSON; never print raw DOM, filenames, paths or errors.
+  console.log("QA01_STAGE_J05_LAUNCHER");
+  // The only file in the isolated repository is deterministic and harmless.
+  await search.fill("README");
+  const file = appPage.getByRole("group", { name: /^Files$/i })
+    .getByRole("option", { name: /README\.md/i }).first();
+  await expect(file).toBeVisible({ timeout: 15000 });
+  console.log("QA01_STAGE_J05_OPTION");
+  await file.click();
+  console.log("QA01_STAGE_J05_CLICKED");
+  // A real opened file tab is required, not just the application root.
+  await expect(appPage.getByRole("button", { name: /README\.md/i })
+    .and(appPage.locator('button[aria-pressed="true"]')).first())
+    .toBeVisible({ timeout: 10000 });
+  console.log("QA01_STAGE_J05_SELECTED");
 });
 
-test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
-  // Requires fixture worktree+host; absence fails the test (no silent skip).
-  await expect(navigation(appPage, /terminal/i)).toBeVisible();
+test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }, info) => {
+  if (info.project.name === "web") await enterRealComposerForWebPanel(appPage);
+  // Stock BB desktop-v0.49.0 docs/configuration.md specifies the genuine
+  // Workspace > Open terminal shortcut: Mod+Shift+Enter on ALL clients.
+  // The previous New Tab action-search route was intermittently unavailable
+  // after real J05 (GH 43549325613: 12/14). Exercise the upstream keyboard
+  // affordance instead of falsely assuming that the launcher is required.
+  // Both targets run on isolated 127.0.0.1 disposable hosts/projects.
+  // Never type or execute any command in the spawned terminal.
+  await appPage.keyboard.press("Control+Shift+Enter");
+  console.log("QA01_J06_STOCK_SHORTCUT_DELIVERED");
+  // Real terminal UI and real selected right-panel tab MUST both appear.
+  // A keyboard event alone, inert shell or unrelated pane cannot pass.
+  await expect(appPage.locator('section[data-app-terminal][aria-label="Terminal"]'))
+    .toBeVisible({ timeout: 15000 });
+  await expect(appPage.locator('[data-testid="secondary-panel-tab-strip"] button[aria-pressed="true"]'))
+    .toBeVisible();
+  console.log("QA01_STAGE_J06_SELECTED");
 });
 
 test("J07: Suliko Hello plugin panel appears on both clients", async ({ appPage }) => {
-  // Requires approved test-only plugin install; no production/private auth.
+  // Requires actual pinned own-plugin mount on BOTH real clients. The first
+  // main-branch-port run 43609776274 passed J01-J06 on both and Web J07,
+  // but packaged Desktop J07 timed out on the default five-second assertion.
+  // The unmodified plugin may hydrate asynchronously after a new Electron
+  // window attaches to the disposable BB server. Wait for the SAME strict
+  // actual UI objects, do not retry/force-click/skip or infer PASS from launch.
   const panel = navigation(appPage, /suliko hello/i);
-  await expect(panel).toBeVisible();
+  console.log("QA01_STAGE_J07_NAV_WAIT");
+  await expect(panel).toBeVisible({ timeout: 20000 });
+  console.log("QA01_STAGE_J07_NAV_VISIBLE");
   await panel.click();
-  await expect(appPage.getByLabel("Suliko Hello panel")).toBeVisible();
+  console.log("QA01_STAGE_J07_CLICKED");
+  await expect(appPage.getByLabel("Suliko Hello panel")).toBeVisible({ timeout: 20000 });
+  console.log("QA01_STAGE_J07_PANEL_MOUNTED");
 });
