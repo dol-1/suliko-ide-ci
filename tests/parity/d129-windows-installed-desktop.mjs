@@ -2,12 +2,12 @@
 // Only disposable public Windows-2022 CI; no local owners, real user data,
 // provider keys, network to Remote, terminal commands, or BB source changes.
 import { _electron, expect } from "@playwright/test";
-import { basename, join, resolve, isAbsolute } from "node:path";
+import { basename, resolve, isAbsolute, sep } from "node:path";
 const env=process.env;
 const bin=env.D129_OFFICIAL_EXE, tmp=env.RUNNER_TEMP, data=env.BB_DATA_DIR;
 if(env.CI!=="true"||env.GITHUB_ACTIONS!=="true"||env.RUNNER_OS!=="Windows"||
    env.BB_TELEMETRY!=="false"||!tmp||!bin||!isAbsolute(bin)||!data||
-   !resolve(data).startsWith(resolve(tmp)+String.raw`\\`)||
+   !resolve(data).startsWith(resolve(tmp)+sep)||
    !basename(bin).toLowerCase().endsWith("bb.exe")||
    env.D129_BB_WEB_URL!=="http://127.0.0.1:38895/") {
  throw Error("D129 refuses non-disposable official native Windows Electron test");
