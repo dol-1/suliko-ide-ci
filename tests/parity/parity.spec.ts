@@ -161,7 +161,24 @@ async function openStockFileLauncher(page: Page, journey: "J05" | "J06") {
   return search;
 }
 
-test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
+// J05 and J06 are thread-workspace actions in pinned stock BB 0.49.0.
+// Each Web Playwright journey has its own clean browser context; unlike the
+// reused disposable Desktop profile, the Web context starts in projects.
+// Exercise real New Thread UI to mount the composer and thread workspace,
+// WITHOUT provider selection, prompts, commands, mocking or backend writes.
+// GH 43550483830 diagnostics showed Web J05/J06 no panel while the same
+// session's explicit synthetic-project navigation later exposed New Tab.
+// This changes fixture precondition only, never the strict file/terminal check.
+async function enterRealComposerForWebPanel(page: Page) {
+  const newThread = navigation(page, /new thread/i);
+  await expect(newThread).toBeVisible({ timeout: 15000 });
+  await newThread.click();
+  await expect(page.getByRole("textbox").first()).toBeVisible({ timeout: 15000 });
+  console.log("QA01_WEB_PANEL_COMPOSER_READY");
+}
+
+test("J05: workspace files/diff navigation exists", async ({ appPage }, info) => {
+  if (info.project.name === "web") await enterRealComposerForWebPanel(appPage);
   const search = await openStockFileLauncher(appPage, "J05");
   // All diagnostic checkpoints are FIXED constants captured only inside
   // Playwright JSON; never print raw DOM, filenames, paths or errors.
@@ -181,7 +198,8 @@ test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
   console.log("QA01_STAGE_J05_SELECTED");
 });
 
-test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
+test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }, info) => {
+  if (info.project.name === "web") await enterRealComposerForWebPanel(appPage);
   // Stock BB desktop-v0.49.0 docs/configuration.md specifies the genuine
   // Workspace > Open terminal shortcut: Mod+Shift+Enter on ALL clients.
   // The previous New Tab action-search route was intermittently unavailable
