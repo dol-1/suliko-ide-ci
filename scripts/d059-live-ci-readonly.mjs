@@ -33,14 +33,21 @@ export function inspectLive(config,plugins,expectedDir,port,rawVersion,redactedE
   if(plugins===null||typeof plugins!=="object"||!Array.isArray(plugins.plugins))throw Error("Invalid BB plugin list shape");
   let url=null;
   try{url=new URL(config.serverUrl);}catch{throw Error("Invalid live server URL");}
-  const loopback=url.protocol==="http:"&&url.hostname==="127.0.0.1"&&url.port===String(port);
+  const loopback=url.protocol==="http:"&&url.hostname==="127.0.0.1"&&url.port===String(port)&&
+    !url.username&&!url.password&&!url.search&&!url.hash&&url.pathname==="/";
   const dataDirMatches=config.dataDir===expectedDir;
   const versionMatches=stockVersionMatchesPin(rawVersion);
   const providerPresence=inspectManagedProviderKeys(redactedEnvList);
   const states={};
   for(const id of [...forbidden,...owned]){
-    const x=plugins.plugins.find(x=>x?.id===id);
-    states[id]=x===undefined?"absent":typeof x.enabled==="boolean"?(x.enabled?"enabled":"disabled"):"unknown";
+    // One ID cannot have two independently reported states. First-match
+    // logic could accept a disabled record and silently ignore a later
+    // enabled forbidden plugin in an inconsistent/untrusted CLI response.
+    const matches=plugins.plugins.filter(x=>x?.id===id);
+    const x=matches[0];
+    states[id]=matches.length===0?"absent":
+      matches.length!==1||typeof x.enabled!=="boolean"?"unknown":
+      x.enabled?"enabled":"disabled";
   }
   const forbiddenSafe=forbidden.every(x=>states[x]==="absent"||states[x]==="disabled");
   return {
