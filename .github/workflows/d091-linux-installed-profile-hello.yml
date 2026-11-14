@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d091-linux-installed-profile-hello]
+    branches: [main, feat/d091-linux-installed-profile-hello, feat/d131-linux-installed-hello-main-gate]
     paths:
       - '.github/workflows/d091-linux-installed-profile-hello.yml'
       - 'scripts/suliko-setup.sh'
