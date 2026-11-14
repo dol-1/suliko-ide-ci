@@ -22,6 +22,10 @@ test("non-loopback host, port, or data directory cannot pass",()=>{
     {serverUrl:"https://example.org:38884"},
     {serverUrl:"http://127.0.0.1:38885"},
     {serverUrl:"http://0.0.0.0:38884"},
+    {serverUrl:"http://user:pass@127.0.0.1:38884"},
+    {serverUrl:"http://127.0.0.1:38884/?token=SENTINEL-NO-ECHO"},
+    {serverUrl:"http://127.0.0.1:38884/#SENTINEL-NO-ECHO"},
+    {serverUrl:"http://127.0.0.1:38884/other-base"},
     {dataDir:"/user/home"}]){
     const r=inspectLive(config(c),plugins(),"/ci/disposable",38884,"0.49.0\n","No bb-app env set.\n");
     assert.equal(r.status,"review-required");

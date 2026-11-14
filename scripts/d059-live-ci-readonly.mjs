@@ -33,7 +33,8 @@ export function inspectLive(config,plugins,expectedDir,port,rawVersion,redactedE
   if(plugins===null||typeof plugins!=="object"||!Array.isArray(plugins.plugins))throw Error("Invalid BB plugin list shape");
   let url=null;
   try{url=new URL(config.serverUrl);}catch{throw Error("Invalid live server URL");}
-  const loopback=url.protocol==="http:"&&url.hostname==="127.0.0.1"&&url.port===String(port);
+  const loopback=url.protocol==="http:"&&url.hostname==="127.0.0.1"&&url.port===String(port)&&
+    !url.username&&!url.password&&!url.search&&!url.hash&&url.pathname==="/";
   const dataDirMatches=config.dataDir===expectedDir;
   const versionMatches=stockVersionMatchesPin(rawVersion);
   const providerPresence=inspectManagedProviderKeys(redactedEnvList);
