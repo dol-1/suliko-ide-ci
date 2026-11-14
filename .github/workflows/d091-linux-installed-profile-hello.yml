@@ -3,6 +3,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [main, feat/d091-linux-installed-profile-hello, feat/d131-linux-installed-hello-main-gate, feat/d134-linux-appimage-installed-hello]
     paths:

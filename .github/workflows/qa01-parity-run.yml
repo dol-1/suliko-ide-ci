@@ -4,6 +4,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main, feat/d140-qa01-strict-main]

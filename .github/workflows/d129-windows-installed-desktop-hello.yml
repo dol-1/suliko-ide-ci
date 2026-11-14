@@ -3,6 +3,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [main, feat/d133-win2025-installed-hello-gyp13, feat/d137-win2025-installed-hello-main-gate]
     paths:

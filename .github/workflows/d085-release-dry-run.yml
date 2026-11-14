@@ -1,16 +1,28 @@
-name: D-085 E8 consolidated source-only beta release dry-run (NO publication)
+name: D-144 E8 source dry-run gated by 3 installed GUI OS + strict 7x2 QA (NO release)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d085-release-dry-run, feat/d089-sbom-lock-coverage, feat/d104-main-ephemeral-release-dryrun, main]
-    paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**']
+    branches: [feat/d085-release-dry-run, feat/d089-sbom-lock-coverage, feat/d104-main-ephemeral-release-dryrun, feat/d144-release-gated-by-3os-qa, main]
+    paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**', '.github/workflows/d129-windows-installed-desktop-hello.yml', '.github/workflows/d091-linux-installed-profile-hello.yml', '.github/workflows/d091-macos-installed-profile-hello.yml', '.github/workflows/qa01-parity-run.yml']
   workflow_dispatch:
-permissions:
-  contents: read
+permissions: read-all
 jobs:
+  installed-linux:
+    uses: ./.github/workflows/d091-linux-installed-profile-hello.yml
+    permissions: read-all
+  installed-macos:
+    uses: ./.github/workflows/d091-macos-installed-profile-hello.yml
+    permissions: read-all
+  installed-windows:
+    uses: ./.github/workflows/d129-windows-installed-desktop-hello.yml
+    permissions: read-all
+  strict-qa-seven-by-two:
+    uses: ./.github/workflows/qa01-parity-run.yml
+    permissions: read-all
   dry-run:
+    needs: [installed-linux, installed-macos, installed-windows, strict-qa-seven-by-two]
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     permissions:
