@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/d099-linux-one-command-staging-preview, feat/d105-e1-staging-main-regression, fix/d110-linux-direct-helper-guards-current-main]
+    branches: [main, feat/d099-linux-one-command-staging-preview, feat/d105-e1-staging-main-regression, fix/d110-linux-direct-helper-guards-current-main, fix/d112-linux-euid-guard]
     paths:
       - 'scripts/suliko-linux-preview.sh'
       - 'scripts/suliko-setup.sh'
@@ -35,6 +35,11 @@ jobs:
           echo 'preserve synthetic BB user data' > "$HOME/bb-test-data/foreign.txt"
           test ! -e "$HOME/.cache"
           bash scripts/suliko-linux-preview.sh --dry-run >/dev/null
+          # Root gating relies on Bash EUID, not a caller-supplied 'id' binary.
+          grep -Fq '"$EUID" -eq 0' scripts/suliko-linux-preview.sh
+          if grep -Fq '$(id -u)' scripts/suliko-linux-preview.sh; then
+            echo 'D112 fail: PATH-controlled id still used for privilege guard' >&2; exit 1
+          fi
           test ! -e "$HOME/.cache"
           start="$(date +%s)"
           bash scripts/suliko-linux-preview.sh --install-preview >/dev/null
