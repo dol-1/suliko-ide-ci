@@ -147,16 +147,12 @@ async function openStockFileLauncher(page: Page, journey: "J05" | "J06") {
   await expect(newTab).toBeVisible({ timeout: 10000 });
   // Fixed source-owned markers only; do not echo DOM, secrets or error text.
   console.log("QA01_STAGE_" + journey + "_PANEL");
-  if (journey === "J06") {
-    // Source-backed NewTabButton is a semantic <button> with onClick,
-    // activated by Enter as a real keyboard user would. The prior exact
-    // J06 Desktop public run reached visible PANEL but timed out on pointer
-    // click (02:24Z); do not force click, retry or alter acceptance.
-    await newTab.focus();
-    await page.keyboard.press("Enter");
-  } else {
-    await newTab.click();
-  }
+  // Use one real user pointer activation per journey. On latest strict
+  // CI 43548318414 Desktop J05 click reached the actual launcher, whereas
+  // J06 focus+Enter left SEARCH absent. A single pointer action is not a
+  // retry and preserves the exact same strict terminal assertions below.
+  // Do not force-click, evaluate DOM handlers or skip the real UI.
+  await newTab.click();
   console.log("QA01_STAGE_" + journey + "_PLUS");
   const search = page.getByRole("combobox", { name: /Search files/i }).first();
   await expect(search).toBeVisible({ timeout: 10000 });
