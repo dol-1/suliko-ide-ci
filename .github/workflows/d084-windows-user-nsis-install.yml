@@ -1,0 +1,105 @@
+name: D-115 Windows official SHA256-pinned NotSigned NSIS user install smoke (NO release)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d084-windows-user-nsis-install]
+    paths:
+      - '.github/workflows/d084-windows-user-nsis-install.yml'
+      - 'scripts/suliko-setup.ps1'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  windows-x64-nonadmin:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38895'
+      BB_HOST_DAEMON_PORT: '38896'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Official fixed-SHA NSIS per-user silent install, process liveness and uninstall
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64') { throw 'Only x64 runner allowed' }
+          $runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          if ([string]::IsNullOrWhiteSpace($runnerTemp) -or $runnerTemp -match '[\x00-\x1f"]') { throw 'Unsafe temporary root' }
+          $work = Join-Path $runnerTemp 'd084-windows-synthetic-user'
+          $env:USERPROFILE = Join-Path $work 'Profile'
+          $env:LOCALAPPDATA = Join-Path $work 'LocalAppData'
+          $env:APPDATA = Join-Path $work 'RoamingAppData'
+          $env:BB_DATA_DIR = Join-Path $work 'bb-disposable'
+          foreach ($dir in @($env:USERPROFILE, $env:LOCALAPPDATA, $env:APPDATA, $env:BB_DATA_DIR)) {
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          }
+          $target = Join-Path $work 'InstalledBB'
+          if ($target -match '\s|"') { throw 'NSIS /D target cannot contain whitespace or quotes' }
+          if (Test-Path -LiteralPath $target) { throw 'Target must not preexist' }
+          $process = $null
+          $installed = $false
+          $watch = [Diagnostics.Stopwatch]::StartNew()
+          try {
+            & ./scripts/suliko-setup.ps1 -DownloadVerified | Out-Null
+            $installer = Join-Path $env:LOCALAPPDATA 'SulikoIDE/Cache/bb-0.49.0-x64.exe'
+            if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw 'Pinned official installer not staged' }
+            $got = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($got -cne '201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f') {
+              throw 'Windows official installer digest mismatch'
+            }
+            $sig = Get-AuthenticodeSignature -LiteralPath $installer
+            # Only categorical OS trust metadata; never print signer paths,
+            # raw errors or publisher certificate content into public logs.
+            $known = @('Valid','NotSigned','UnknownError','HashMismatch','NotTrusted','NotSupportedFileFormat','Incompatible')
+            $status = [string]$sig.Status
+            if ($status -notin $known) { $status = 'UnknownError' }
+            "D084_WINDOWS_AUTHENTICODE_STATUS=$status" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            # Fixed enum only; no publisher certificate, raw sig object or paths in logs.
+            Write-Output "D084_WINDOWS_AUTHENTICODE_STATUS=$status"
+            # Claude #42 D-090: official asset SHA256 is the trust anchor here.
+            # Upstream Windows artifact is unsigned; any status except exact
+            # NotSigned fails closed (including NotTrusted and HashMismatch).
+            if ($status -cne 'NotSigned') {
+              throw 'Unexpected Windows Authenticode status; refused launch'
+            }
+            # Pinned stock NSIS has oneClick=true, perMachine=false; /S is silent,
+            # /D chooses only our empty disposable user target, never Program Files.
+            $install = Start-Process -FilePath $installer -ArgumentList @('/S', ("/D=" + $target)) -Wait -PassThru
+            if ($install.ExitCode -ne 0) { throw 'Non-admin NSIS installer failed' }
+            $app = Join-Path $target 'bb.exe'
+            if (-not (Test-Path -LiteralPath $app -PathType Leaf)) { throw 'Expected user-space bb.exe missing' }
+            $installed = $true
+            $process = Start-Process -FilePath $app -PassThru
+            Start-Sleep -Seconds 15
+            $process.Refresh()
+            if ($process.HasExited) { throw 'Installed non-admin bb.exe did not remain alive for 15 seconds' }
+            $process.Kill($true)
+            $process.WaitForExit(10000) | Out-Null
+            $process = $null
+            $uninstall = Join-Path $target 'Uninstall bb.exe'
+            if (-not (Test-Path -LiteralPath $uninstall -PathType Leaf)) { throw 'NSIS uninstaller missing' }
+            $exit = Start-Process -FilePath $uninstall -ArgumentList @('/S') -Wait -PassThru
+            if ($exit.ExitCode -ne 0) { throw 'NSIS uninstaller failed' }
+            if (Test-Path -LiteralPath $app) { throw 'User-space bb.exe persisted after uninstall' }
+            & ./scripts/suliko-setup.ps1 -Uninstall | Out-Null
+            if (Test-Path -LiteralPath $installer) { throw 'Suliko-owned cached installer persisted' }
+            $watch.Stop()
+            $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
+            "WINDOWS_INSTALL_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            'D115 official Windows x64 NSIS /S user-app install: SHA256 pinned, Authenticode NotSigned (upstream unsigned), 15s GUI liveness and uninstaller. SEC02/marketplace/Hello still unverified; NO beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            if ($elapsed -ge 900) { throw 'Windows install exceeded 15 minutes' }
+          } finally {
+            if ($null -ne $process) {
+              try { if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit(10000) | Out-Null } } catch {}
+            }
+            # Only our exact fresh hosted-runner temp tree, never user/system files.
+            if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
+          }
