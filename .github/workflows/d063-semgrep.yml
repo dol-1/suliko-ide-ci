@@ -44,14 +44,14 @@ jobs:
           const v=JSON.parse(fs.readFileSync(file,'utf8'));
           if(!Array.isArray(v.results)||!Array.isArray(v.errors)) throw Error('Malformed scanner report');
           console.log('D063 plugin/CLI Semgrep findings:',v.results.length,'scanner errors:',v.errors.length);
-// Only fixed public Semgrep rule IDs, not paths, source lines, snippets,
-// messages or trace contents. This lets us correct code without muting CI.
-const ids=[...new Set(v.results.map(r => r?.check_id))].sort();
-for(const id of ids) {
-  if(typeof id==='string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(id))
-    console.log('D063 safe public rule identifier:', id);
-  else console.log('D063 safe public rule identifier: unclassified');
-}
+          // Only fixed public Semgrep rule IDs, not paths, source lines, snippets,
+          // messages or trace contents. This lets us correct code without muting CI.
+          const ids=[...new Set(v.results.map(r => r?.check_id))].sort();
+          for(const id of ids) {
+            if(typeof id==='string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(id))
+              console.log('D063 safe public rule identifier:', id);
+            else console.log('D063 safe public rule identifier: unclassified');
+          }
           NODE
           if [ "$code" -ne 0 ]; then
             echo 'D063 Semgrep scan did not pass; raw findings stay private to ephemeral runner, not uploaded.' >&2
