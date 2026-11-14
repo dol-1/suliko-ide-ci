@@ -1,7 +1,7 @@
 // E1 macOS arm64 / Windows x64 official BB asset staging PREVIEW.
 // A .dmg or .exe is NEVER executed, installed, mounted or uploaded.
 import { createHash,randomUUID } from "node:crypto";
-import { createReadStream,copyFileSync,existsSync,linkSync,lstatSync,mkdirSync,unlinkSync,constants } from "node:fs";
+import { createReadStream,copyFileSync,existsSync,linkSync,lstatSync,mkdirSync,unlinkSync,readFileSync,writeFileSync,constants } from "node:fs";
 import { homedir } from "node:os";
 import { dirname,isAbsolute,join,resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -42,18 +42,49 @@ export function paths(platform=process.platform,arch=process.arch,env=process.en
   const stage=platform==="darwin"
     ?[root,join(root,"Library"),join(root,"Library","Application Support"),join(root,"Library","Application Support","SulikoIDE"),join(root,"Library","Application Support","SulikoIDE","Stage")]
     :[root,join(root,"SulikoIDE"),join(root,"SulikoIDE","Stage")];
-  return {asset:pair[0],sha:pair[1],cache,stage,source:join(cache.at(-1),pair[0]),dest:join(stage.at(-1),pair[0])};
+  const cacheMarker=join(cache.at(-1),".suliko-managed-"+pair[0]+".sha256");
+  const cacheMarkerRecord="SULIKO-IDE-VERIFIED-v1 "+pair[0]+" "+pair[1];
+  const marker=join(stage.at(-1),".suliko-owned-stage-"+pair[0]+".sha256");
+  const markerRecord="SULIKO-IDE-PORTABLE-STAGE-v1 "+pair[0]+" "+pair[1];
+  return {asset:pair[0],sha:pair[1],cache,stage,source:join(cache.at(-1),pair[0]),dest:join(stage.at(-1),pair[0]),cacheMarker,cacheMarkerRecord,marker,markerRecord};
+}
+// The SHA-256 pin proves bytes only, NOT file ownership. A foreign user's
+// identical official asset must never be deleted or implicitly adopted.
+function markerMatches(path,expected) {
+  const s=stat(path);
+  if(!s)return false;
+  if(s.isSymbolicLink()||!s.isFile()||s.size>256)
+    throw Error("Refusing nonregular or oversized ownership marker");
+  // Linux/macOS shell and Windows PowerShell StreamWriter emit one line.
+  const record=readFileSync(path,"utf8");
+  return record===expected+"\n"||record===expected+"\r\n";
 }
 export async function preview(mode,p=paths()) {
   if(!["--stage","--remove-stage"].includes(mode))throw Error("Preview mode required");
   dirs(p.cache);dirs(p.stage);
   const exists=file(p.dest);
+  const markerExists=!!stat(p.marker);
+  // Never assume ownership based solely on the official binary's identical digest.
+  const owned=markerExists&&markerMatches(p.marker,p.markerRecord);
   if(mode==="--remove-stage"){
-    if(exists){if(await hash(p.dest)!==p.sha)throw Error("Refusing foreign staged asset");unlinkSync(p.dest);}
+    if(exists||markerExists){
+      if(!exists||!owned||await hash(p.dest)!==p.sha)
+        throw Error("Refusing unowned or modified stage; manual review required");
+      unlinkSync(p.dest);
+      unlinkSync(p.marker);
+    }
     return "removed";
   }
+  // A same-digest cache file is not proof that the preflight created it.
+  // Cache cleanup remains the separate preflight's responsibility.
+  if(!markerMatches(p.cacheMarker,p.cacheMarkerRecord))
+    throw Error("Refusing unowned official cache");
   if(!file(p.source)||await hash(p.source)!==p.sha)throw Error("Missing/mismatched official cache");
-  if(exists){if(await hash(p.dest)!==p.sha)throw Error("Refusing occupied stage");return "already-verified";}
+  if(exists||markerExists){
+    if(!exists||!owned||await hash(p.dest)!==p.sha)
+      throw Error("Refusing occupied or ambiguous stage");
+    return "already-verified";
+  }
   dirs(p.stage,true);
   const temp=join(dirname(p.dest),".stage-"+randomUUID());
   try{
@@ -61,6 +92,9 @@ export async function preview(mode,p=paths()) {
     if(await hash(temp)!==p.sha)throw Error("Copied asset digest mismatch");
     // Hard-link is an atomic no-clobber create, including on NTFS.
     linkSync(temp,p.dest);
+    // Exclusive marker creation; failure leaves an UNOWNED orphan and never
+    // grants an implicit right to delete. Manual review is safer than adoption.
+    writeFileSync(p.marker,p.markerRecord+"\n",{flag:"wx",mode:0o600});
   }finally{if(existsSync(temp))unlinkSync(temp);}
   return "verified-staged";
 }

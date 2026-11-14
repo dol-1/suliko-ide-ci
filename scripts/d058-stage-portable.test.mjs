@@ -2,20 +2,45 @@
 import { paths,preview } from "./d058-stage-portable.mjs";
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
-import { readFileSync,writeFileSync,mkdirSync,symlinkSync,lstatSync,existsSync } from "node:fs";
+import { readFileSync,writeFileSync,mkdirSync,symlinkSync,lstatSync,existsSync,copyFileSync,unlinkSync } from "node:fs";
 import { join } from "node:path";
 const env=process.env;
 const p=paths();
 assert.ok(lstatSync(p.source).isFile(),"Official verified cache asset required");
 const srcHash=createHash("sha256").update(readFileSync(p.source)).digest("hex");
 assert.equal(srcHash,p.sha,"Official download digest differs from approved pin");
+assert.equal(readFileSync(p.cacheMarker,"utf8").trimEnd(),p.cacheMarkerRecord,"Preflight must have claimed cache");
 assert.equal(await preview("--stage"),"verified-staged");
 assert.equal(createHash("sha256").update(readFileSync(p.dest)).digest("hex"),p.sha);
 assert.equal(lstatSync(p.dest).isSymbolicLink(),false);
 if(process.platform!=="win32")assert.equal(lstatSync(p.dest).mode&0o777,0o600);
+assert.equal(readFileSync(p.marker,"utf8").trimEnd(),p.markerRecord);
+if(process.platform!=="win32")assert.equal(lstatSync(p.marker).mode&0o777,0o600);
 assert.equal(await preview("--stage"),"already-verified");
+// The correct official cached BYTES alone cannot authorize a new or
+// idempotent stage operation when the preflight ownership claim is forged.
+const originalCacheMarker=readFileSync(p.cacheMarker,"utf8");
+writeFileSync(p.cacheMarker,"FORGED-CACHE-OWNER\n");
+await assert.rejects(preview("--stage"),/Refusing/);
+assert.equal(createHash("sha256").update(readFileSync(p.dest)).digest("hex"),p.sha);
+writeFileSync(p.cacheMarker,originalCacheMarker);
+assert.equal(await preview("--stage"),"already-verified");
+// A forged marker cannot authorize removing a real correct-hash staged asset.
+writeFileSync(p.marker,"FORGED-OWNERSHIP\n");
+await assert.rejects(preview("--remove-stage"),/Refusing/);
+await assert.rejects(preview("--stage"),/Refusing/);
+assert.equal(createHash("sha256").update(readFileSync(p.dest)).digest("hex"),p.sha);
+writeFileSync(p.marker,p.markerRecord+"\n");
 assert.equal(await preview("--remove-stage"),"removed");
 assert.equal(existsSync(p.dest),false);
+assert.equal(existsSync(p.marker),false);
+// Foreign bytes may be IDENTICAL to the pinned release: ownership remains absent.
+copyFileSync(p.source,p.dest);
+await assert.rejects(preview("--remove-stage"),/Refusing/);
+await assert.rejects(preview("--stage"),/Refusing/);
+assert.equal(createHash("sha256").update(readFileSync(p.dest)).digest("hex"),p.sha);
+assert.equal(existsSync(p.marker),false);
+unlinkSync(p.dest);
 // A foreign file with the same name must NOT be overwritten/deleted.
 writeFileSync(p.dest,"FOREIGN-DO-NOT-TOUCH");
 await assert.rejects(preview("--stage"),/Refusing/);

@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d058-macos-win-stage-preview, main]
+    branches: [feat/d058-macos-win-stage-preview, fix/d109-portable-stage-ownership, main]
     paths:
       - scripts/d058-stage-portable.mjs
       - scripts/d058-stage-portable.test.mjs
