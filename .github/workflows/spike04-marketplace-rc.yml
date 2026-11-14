@@ -1,0 +1,152 @@
+name: D-117 prerelease RC marketplace Desktop plus Web (tag-gated)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [main, feat/d117-rc-tag-gated-marketplace]
+    paths:
+      - '.github/workflows/spike04-marketplace-rc.yml'
+      - 'marketplace/rc/**'
+      - 'tests/parity/spike04-rc-panels.mjs'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  rc-gate:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      tag_present: ${{ steps.verify.outputs.tag_present }}
+      approved_sha: ${{ steps.verify.outputs.approved_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Match canonical and mirrored immutable RC tag, otherwise explicit SKIP
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='suliko-hello/v0.1.0-rc.1'
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('marketplace/rc/marketplace.json','utf8'));
+          const g=p.plugins?.[0]?.source?.git;
+          if(p.schemaVersion!==1||p.name!=='suliko-rc-preview'||p.plugins.length!==1||
+             p.plugins[0].id!=='suliko-hello'||g?.url!=='https://github.com/dol-1/suliko-ide-ci.git'||
+             g?.subdir!=='plugins/suliko-hello'||g?.range!=='0.1.0-rc.1'||g?.tagPrefix!=='suliko-hello/')
+            throw Error('D117 rejected RC catalog drift');
+          NODE
+          canonical="$(git ls-remote --refs --tags https://gitlab.com/dol-1-group/suliko-ide-ci.git "refs/tags/$tag")"
+          mirror="$(git ls-remote --refs --tags https://github.com/dol-1/suliko-ide-ci.git "refs/tags/$tag")"
+          if [[ -z "$canonical" && -z "$mirror" ]]; then
+            echo 'tag_present=false' >> "$GITHUB_OUTPUT"
+            echo 'D117_RC_TAG=ABSENT; Desktop/Web RC install SKIPPED (NOT acceptance or beta GO).' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ -n "$canonical" && -n "$mirror" && "$canonical" == "$mirror" ]] ||
+            { echo 'RC tag mirror absent/mismatched; fail closed' >&2; exit 1; }
+          sha="${canonical%%$'\t'*}"
+          [[ "$canonical" == "$sha"$'\t'"refs/tags/$tag" && "$sha" =~ ^[0-9a-f]{40}$ ]] ||
+            { echo 'Unexpected RC tag format; lightweight exact commit only' >&2; exit 1; }
+          expected="$(cat marketplace/rc/EXPECTED_SHA)"
+          [[ "$expected" =~ ^[0-9a-f]{40}$ && "$expected" != '0000000000000000000000000000000000000000' && "$sha" == "$expected" ]] ||
+            { echo 'RC ref SHA not explicitly reviewed/approved; fail closed' >&2; exit 1; }
+          echo 'tag_present=true' >> "$GITHUB_OUTPUT"
+          echo "approved_sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "D117_RC_TAG_VERIFIED=$tag sha=$sha; actual install required next." >> "$GITHUB_STEP_SUMMARY"
+  install-both-clients:
+    if: needs.rc-gate.outputs.tag_present == 'true'
+    needs: rc-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 95
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      BB_SERVER_BIND_HOST: '127.0.0.1'
+      BB_SERVER_PORT: '38886'
+      BB_HOST_DAEMON_PORT: '38889'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: get-bb/bb
+          ref: desktop-v0.49.0
+          path: stock-bb
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Verify canonical and GitHub SHA have not changed
+        env:
+          APPROVED_SHA: ${{ needs.rc-gate.outputs.approved_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for repo in https://gitlab.com/dol-1-group/suliko-ide-ci.git https://github.com/dol-1/suliko-ide-ci.git; do
+            entry="$(git ls-remote --refs --tags "$repo" refs/tags/suliko-hello/v0.1.0-rc.1)"
+            test "$entry" = "$APPROVED_SHA"$'\t'refs/tags/suliko-hello/v0.1.0-rc.1
+          done
+      - name: Build exact pinned stock BB and packaged Linux Desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stock-bb rev-parse HEAD)" = "7b26cae79ec978fafd0a5db0e8517e94f12eb8f4"
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build &&
+            pnpm --dir apps/desktop run prepare-runtime &&
+            pnpm --dir apps/desktop run desktop:build:linux)
+          (cd plugins/suliko-hello && pnpm install --frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
+      - name: Install pinned Playwright test-only client
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tests/parity
+          npm install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+          npx playwright install chromium
+          command -v xvfb-run
+      - name: Start disposable loopback BB and install ONLY from RC Git marketplace tag
+        env:
+          APPROVED_SHA: ${{ needs.rc-gate.outputs.approved_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BB_DATA_DIR="$RUNNER_TEMP/d117-rc-bb-data"
+          mkdir -p "$BB_DATA_DIR"
+          node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38886 --host-daemon-port 38889 --no-in-app-updates >"$RUNNER_TEMP/d117-server.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail --max-time 2 --output /dev/null http://127.0.0.1:38886/ 2>/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1 || { echo 'D117 loopback BB not ready' >&2; exit 1; }
+          node stock-bb/packages/bb-app/dist/bb.js marketplace add "path:$GITHUB_WORKSPACE/marketplace/rc"
+          node stock-bb/packages/bb-app/dist/bb.js plugin install suliko-hello@suliko-rc-preview --yes
+          node stock-bb/packages/bb-app/dist/bb.js plugin list --json >"$RUNNER_TEMP/d117-plugins.json"
+          node - "$RUNNER_TEMP/d117-plugins.json" <<'NODE'
+          const fs=require('node:fs'),p=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!p.plugins?.some(x=>x.id.includes('suliko-hello')&&x.enabled===true))
+            throw Error('D117 tagged marketplace Hello not enabled');
+          NODE
+      - name: Require installed RC panel visible in actual Web and packaged Desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          appimage="$(find stock-bb/apps/desktop/release -name '*.AppImage' -type f -print -quit)"
+          test -n "$appimage" && test -s "$appimage"
+          chmod +x "$appimage"
+          export BB_DESKTOP_BINARY="$GITHUB_WORKSPACE/$appimage"
+          export BB_DATA_DIR="$RUNNER_TEMP/d117-rc-bb-data"
+          xvfb-run -a node tests/parity/spike04-rc-panels.mjs
+          echo 'D117 tagged RC marketplace real installed Hello Web + packaged Desktop panels PASS; NO release or public beta.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop disposable server
+        if: always()
+        shell: bash
+        run: |
+          node stock-bb/packages/bb-app/dist/bb-app.js stop --data-dir "$RUNNER_TEMP/d117-rc-bb-data" >/dev/null 2>&1 || true
