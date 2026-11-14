@@ -6,7 +6,7 @@ from urllib.parse import unquote
 
 root = Path("site/docs")
 assert root.is_dir() and not root.is_symlink(), "unsafe public docs directory"
-expected = ["index", "install", "first-steps", "web", "remote", "privacy", "troubleshooting", "pilot"]
+expected = ["index", "install", "first-steps", "web", "remote", "privacy", "troubleshooting", "pilot", "pilot-metrics"]
 for stem in expected:
     for lang in ("en", "ka"):
         name = "index.md" if stem == "index" and lang == "en" else f"{stem}.{lang}.md"
@@ -20,6 +20,13 @@ for stem in expected:
             "gitlab.com/dol-1-group/suliko-ide", "claude directives", "chatgpt-operating-manual",
             "sk-test-", "api_key=", "token=", "private roadmap"
         ]), f"private token/reference: {name}"
+        if stem == "pilot-metrics":
+            banner = "SYNTHETIC EXAMPLE" if lang == "en" else "სინთეტიკური მაგალითი"
+            assert banner.lower() in text.lower(), f"pilot template must clearly mark synthetic data: {name}"
+            assert "SYN-DEMO-01" in text and "SYN-001" in text, f"pilot sample must be fake: {name}"
+            # A public pilot example must never contain a contact address or host home path.
+            assert not re.search(r"\\b[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}\\b", text), f"personal contact in pilot template: {name}"
+            assert not re.search(r"/home/[A-Za-z0-9._-]+/", text), f"private home path in pilot template: {name}"
         if lang == "ka":
             georgian = sum("\u10d0" <= char <= "\u10ff" for char in text)
             assert georgian >= 80, f"Georgian content missing: {name}"

@@ -20,6 +20,7 @@ nav:
       - Privacy: privacy.en.md
       - Troubleshooting: troubleshooting.en.md
       - Pilot signup: pilot.en.md
+      - Pilot metrics template: pilot-metrics.en.md
   - ქართული:
       - დასაწყისი: index.ka.md
       - ინსტალაცია: install.ka.md
@@ -30,3 +31,4 @@ nav:
       - კონფიდენციალურობა: privacy.ka.md
       - დახმარება: troubleshooting.ka.md
       - პილოტი: pilot.ka.md
+      - პილოტის მეტრიკების შაბლონი: pilot-metrics.ka.md
