@@ -1,14 +1,18 @@
-# Suliko E1 preflight: official Windows x64 BB asset only; no execution/install.
+# Suliko E1: official Windows x64 BB 0.49.0 verified preflight + explicit user-only experimental install.
+# No service elevation, no BYO provider keys, no production claim; full E1/RC remains unapproved.
 [CmdletBinding()]
 param(
   [switch]$DryRun,
   [switch]$DownloadVerified,
+  [switch]$Install,
+  [switch]$AllowUnsignedVerified,
   [switch]$Uninstall,
   [string]$VerifyFile
 )
 $ErrorActionPreference = 'Stop'
-$modes = [int]$DryRun.IsPresent + [int]$DownloadVerified.IsPresent + [int]$Uninstall.IsPresent + [int](-not [string]::IsNullOrEmpty($VerifyFile))
+$modes = [int]$DryRun.IsPresent + [int]$DownloadVerified.IsPresent + [int]$Install.IsPresent + [int]$Uninstall.IsPresent + [int](-not [string]::IsNullOrEmpty($VerifyFile))
 if ($modes -gt 1) { throw 'Choose only one mode' }
+if ($AllowUnsignedVerified -and -not $Install) { throw 'Unsigned opt-in is valid only with -Install' }
 if (-not [Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -ne 'AMD64') {
   throw 'Only Windows x64 is supported in this preview'
 }
@@ -19,6 +23,30 @@ $cache = Join-Path $env:LOCALAPPDATA 'SulikoIDE\Cache'
 $dest = Join-Path $cache $asset
 $marker = Join-Path $cache ('.suliko-managed-' + $asset + '.sha256')
 $markerRecord = "SULIKO-IDE-VERIFIED-v1 $asset $sha"
+$installRoot = Join-Path $env:LOCALAPPDATA 'SulikoIDE'
+$installTarget = Join-Path $installRoot 'InstalledBB'
+$installedMarker = Join-Path $installRoot '.suliko-installed-bb-0.49.0-x64.sha256'
+$installedRecord = "SULIKO-IDE-USER-NSIS-v1 $asset $sha"
+function Assert-ManagedInstallPath {
+  foreach ($path in @($env:LOCALAPPDATA, $installRoot, $installTarget)) {
+    $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+    if ($null -ne $item -and (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or -not $item.PSIsContainer)) {
+      throw 'Refusing linked/non-directory Suliko installation path'
+    }
+  }
+  # NSIS /D is passed as one nonquoted argument, last, into a newly empty
+  # user-only target. Reject ambiguous CLI paths instead of risking another path.
+  if ($installTarget -match '[\s"]') { throw 'NSIS target path has unsupported whitespace/quote' }
+}
+function Assert-OwnInstalledMarker {
+  $item = Get-Item -LiteralPath $installedMarker -Force -ErrorAction Stop
+  if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.Length -gt 256) {
+    throw 'Refusing invalid installed-app ownership marker'
+  }
+  $record = [IO.File]::ReadAllText($installedMarker).TrimEnd([char[]]@("`r","`n"))
+  if ($record -cne $installedRecord) { throw 'Invalid installed-app ownership marker' }
+}
+
 function Assert-ManagedCachePath {
   # Never follow a reparse-point/junction parent to remove unrelated data.
   foreach ($path in @((Join-Path $env:LOCALAPPDATA 'SulikoIDE'), $cache)) {
@@ -38,7 +66,20 @@ function Assert-Hash([string]$Path) {
   Write-Output 'Official release SHA-256 verified'
 }
 if ($Uninstall) {
+  Assert-ManagedInstallPath
   Assert-ManagedCachePath
+  if (Test-Path -LiteralPath $installedMarker -PathType Leaf) {
+    Assert-OwnInstalledMarker
+    $uninstaller = Join-Path $installTarget 'Uninstall bb.exe'
+    $installedExe = Join-Path $installTarget 'bb.exe'
+    foreach ($file in @($uninstaller, $installedExe)) {
+      $item = Get-Item -LiteralPath $file -Force -ErrorAction Stop
+      if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Refusing invalid installed-app executable path' }
+    }
+    $process = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -Wait -PassThru
+    if ($process.ExitCode -ne 0 -or (Test-Path -LiteralPath $installedExe)) { throw 'User-only NSIS uninstall did not finish cleanly' }
+    [IO.File]::Delete($installedMarker)
+  } elseif (Test-Path -LiteralPath $installTarget) { Write-Output 'Untracked installed app preserved; no adoption or deletion.' }
   # Matching owner record AND verified bytes are mandatory to delete a cache asset.
   $markerItem = Get-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
   if ($null -ne $markerItem) {
@@ -56,6 +97,36 @@ if ($Uninstall) {
     if (@(Get-ChildItem -LiteralPath $cache -Force).Count -eq 0) { Remove-Item -LiteralPath $cache }
   }
   Write-Output 'Suliko tracked cache cleanup finished; untracked files and BB user data untouched.'
+} elseif ($Install) {
+  if (-not $AllowUnsignedVerified) {
+    throw 'Official BB 0.49.0 Windows binary is Authenticode NotSigned. Explicit -AllowUnsignedVerified required; no publisher-signature assurance.'
+  }
+  Assert-ManagedInstallPath
+  Assert-ManagedCachePath
+  if (-not (Test-Path -LiteralPath $dest) -and -not (Test-Path -LiteralPath $marker)) {
+    & $PSCommandPath -DownloadVerified | Out-Null
+  }
+  $markerItem = Get-Item -LiteralPath $marker -Force -ErrorAction Stop
+  if ($markerItem.PSIsContainer -or ($markerItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Invalid cached asset ownership marker' }
+  if ([IO.File]::ReadAllText($marker).TrimEnd([char[]]@("`r","`n")) -cne $markerRecord) { throw 'Unowned cache asset refused' }
+  Assert-Hash $dest | Out-Null
+  $status = [string](Get-AuthenticodeSignature -LiteralPath $dest).Status
+  if ($status -cne 'NotSigned') { throw 'Unexpected Windows official Authenticode status, refusing to execute' }
+  if (Test-Path -LiteralPath $installTarget -ErrorAction SilentlyContinue -PathType Any) { throw 'Installation target already exists; no overwrite' }
+  if (Test-Path -LiteralPath $installedMarker -ErrorAction SilentlyContinue -PathType Any) { throw 'Installation owner marker already exists; no overwrite' }
+  New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
+  Assert-ManagedInstallPath
+  $process = Start-Process -FilePath $dest -ArgumentList @('/S',("/D=" + $installTarget)) -Wait -PassThru
+  if ($process.ExitCode -ne 0) { throw 'Official BB user-only NSIS install failed' }
+  foreach ($name in @('bb.exe','Uninstall bb.exe')) {
+    $item = Get-Item -LiteralPath (Join-Path $installTarget $name) -Force -ErrorAction Stop
+    if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected installed-app executable type' }
+  }
+  # Exclusive owner marker, only after verified official install. On creation
+  # failure preserve an untracked app rather than deleting foreign files.
+  $stream = [IO.FileStream]::new($installedMarker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  try { $writer = [IO.StreamWriter]::new($stream); try { $writer.WriteLine($installedRecord); $writer.Flush() } finally { $writer.Dispose() } } finally { $stream.Dispose() }
+  Write-Output 'D141 verified NotSigned official BB installed in current-user space; launcher only. No provider keys, marketplace RC, public beta or SEC02 claim.'
 } elseif ($DownloadVerified) {
   Assert-ManagedCachePath
   # Never overwrite an existing same-name user file or stale ownership record.
