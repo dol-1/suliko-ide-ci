@@ -130,9 +130,13 @@ jobs:
               foreach ($id in @('account-pool','bb--mcp','connect','bb--connect-next','memory')) {
                 $found = @($parsed.plugins | Where-Object { $_.id -ceq $id })
                 if ($found.Count -gt 1) { throw 'D126 ambiguous forbidden ID' }
-                if ($found.Count -eq 1 -and $found[0].enabled -eq $true) {
+                # Some stock plugins report enabled=false but a distinct
+                # non-disabled status (e.g. configuration-needed). Explicitly
+                # request a disable for *all* non-converged forbidden records;
+                # never treat enabled=false alone as acceptance.
+                if ($found.Count -eq 1 -and ($found[0].enabled -ne $false -or $found[0].status -cne 'disabled')) {
                   & node $bbCli plugin disable $id *> $null
-                  if ($LASTEXITCODE -ne 0) { throw 'D126 disable failed' }
+                  if ($LASTEXITCODE -ne 0) { throw "D126 explicit disable refused for reviewed forbidden ID $id" }
                 }
               }
               & node $bbCli plugin install ./plugins/suliko-hello --yes *> $null
