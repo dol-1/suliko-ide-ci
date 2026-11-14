@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d125-doctor-native-3os]
+    branches: [feat/d125-doctor-native-3os, feat/d158-private-sarif-codeql]
     paths:
       - '.github/workflows/d125-doctor-native.yml'
       - 'scripts/d059-native-ci-probe.mjs'
