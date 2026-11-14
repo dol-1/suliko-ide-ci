@@ -126,10 +126,10 @@ test("strict J07 own panel checkpoints report only allowlisted source-owned mark
   const f = base();
   const j07 = f.suites[0].specs[6].tests[1];
   j07.results = [{status:"failed", stdout:[
-    {text:"QA01_STAGE_J07_NAV_WAIT\\n"},
-    {text:"QA01_STAGE_J07_NAV_VISIBLE\\n"},
-    {text:"UNTRUSTED "+syntheticKey+" "+syntheticPath+" "+syntheticEmail+"\\n"},
-    {text:"QA01_STAGE_J07_FORGED_SECRET\\n"}
+    {text:"QA01_STAGE_J07_NAV_WAIT\n"},
+    {text:"QA01_STAGE_J07_NAV_VISIBLE\n"},
+    {text:"UNTRUSTED "+syntheticKey+" "+syntheticPath+" "+syntheticEmail+"\n"},
+    {text:"QA01_STAGE_J07_FORGED_SECRET\n"}
   ], error:{message:"Timeout "+syntheticKey}}];
   const r = run(f);
   assert.equal(r.status, 1);
