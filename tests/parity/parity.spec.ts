@@ -122,11 +122,18 @@ test("J03: new thread opens a message composer", async ({ appPage }) => {
   await expect(appPage.getByRole("textbox").first()).toBeVisible();
 });
 
-test("J04: provider/model selection can be opened", async ({ appPage }) => {
+test("J04: provider/model selection can be opened", async ({ appPage }, info) => {
+  // A clean Web context opens on the project shell, not necessarily its composer.
+  // Require the real provider-free thread composer first, as J03 proves, so
+  // J04 clicks the actual composer picker rather than a transient shell control.
+  // No provider credential is entered and the strict real dialog assertion stays.
+  if (info.project.name === "web") await enterRealComposerForWebPanel(appPage);
   const picker = navigation(appPage, /provider|model/i);
-  await expect(picker).toBeVisible();
+  await expect(picker).toBeVisible({ timeout: 15000 });
+  await expect(picker).toBeEnabled({ timeout: 15000 });
   await picker.click();
-  await expect(appPage.getByRole("dialog").or(appPage.getByRole("listbox")).first()).toBeVisible();
+  await expect(appPage.getByRole("dialog").or(appPage.getByRole("listbox")).first())
+    .toBeVisible({ timeout: 15000 });
 });
 
 // Stock BB desktop-v0.49.0 deliberately routes Files and Terminal through
