@@ -1,4 +1,4 @@
-name: D-126 Windows official unsigned NSIS + same-run SEC02 Hello stock CLI (NO release)
+name: D-126 Windows-2022 official NSIS + stock CLI SEC02 Hello partial CI (NO release)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -13,7 +13,7 @@ permissions: read-all
 jobs:
   windows-x64-nonadmin:
     if: github.repository == 'dol-1/suliko-ide-ci'
-    runs-on: windows-2025
+    runs-on: windows-2022
     timeout-minutes: 60
     env:
       CI: 'true'
@@ -35,6 +35,10 @@ jobs:
         with:
           node-version: '22.19.0'
           package-manager-cache: false
+      # windows-2025 switched to VS 2026 in 2026; pinned pnpm/node-gyp
+      # cannot discover that toolchain (GH 43561843039 RED). Official runner
+      # guidance uses windows-2022 for VS 2022 / legacy node-gyp.
+      # This is a partial same-Windows-family CI test, NOT 2025 E1 acceptance.
       - name: Compile immutable stock CLI for disposable E1 SEC02 checks
         shell: pwsh
         run: |
@@ -156,7 +160,7 @@ jobs:
             $watch.Stop()
             $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
             "WINDOWS_INSTALL_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            'D126 installed official Windows NSIS user EXE and separately verified real source CLI SEC02/Hello on same synthetic root. NOT installed GUI Hello, RC marketplace or full product beta.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            'D126 Windows Server 2022 partial same-root official NSIS + real pinned source-CLI SEC02/Hello test; NOT the Windows-2025 D115 target, installed GUI Hello, RC marketplace or full beta.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             if ($elapsed -ge 900) { throw 'Windows install exceeded 15 minutes' }
           } finally {
             if ($null -ne $process) {
