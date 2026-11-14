@@ -127,7 +127,14 @@ test("J04: provider/model selection can be opened", async ({ appPage }, info) =>
   // source-owned checkpoint tokens for cross-OS gated-run diagnosis.
   if (info.project.name === "web") await enterRealComposerForWebPanel(appPage);
   console.log("QA01_STAGE_J04_COMPOSER");
-  const picker = navigation(appPage, /provider|model/i);
+  // Pinned immutable BB desktop-v0.49.0 ModelReasoningPicker.tsx names
+  // its real composer trigger "Provider, model and reasoning" (optionally
+  // a shortcut suffix). The former navigation(...).first() could select a
+  // different global Providers/Models link, opening no genuine dialog.
+  // Match ONLY the real BB accessible picker; never click a fabricated UI.
+  const picker = appPage.getByRole("button", {
+    name: /^Provider, model and reasoning(?: \\(.+\\))?$/i,
+  });
   await expect(picker).toBeVisible({ timeout: 15000 });
   console.log("QA01_STAGE_J04_PICKER_VISIBLE");
   await expect(picker).toBeEnabled({ timeout: 15000 });
