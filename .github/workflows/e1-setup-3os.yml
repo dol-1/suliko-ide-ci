@@ -3,6 +3,7 @@ concurrency:
   group: e1-3os-parent-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [feat/d149-e1-three-os-one-entry-matrix, main]
     paths:

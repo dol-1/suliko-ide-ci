@@ -1,0 +1,68 @@
+name: D-157 E1 genuine 3OS official GUI + 3OS published CLI same-source gate (PARTIAL)
+on:
+  push:
+    branches: [feat/d157-e1-same-run-3os-gui-cli, main]
+    paths:
+      - '.github/workflows/d157-e1-same-run-gate.yml'
+      - '.github/workflows/e1-setup-3os.yml'
+      - '.github/workflows/e1-npm-native-sec02-2os.yml'
+      - '.github/workflows/e1-*-one-command.yml'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-setup.ps1'
+      - 'scripts/suliko-stage-linux.sh'
+      - 'scripts/d153-published-npm-sec02-native.mjs'
+      - 'scripts/d152-workflow-expression-check.*'
+      - 'plugins/suliko-hello/**'
+  workflow_dispatch:
+concurrency:
+  group: d157-e1-same-source-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  source-integrity:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Reject malformed runner and concurrency expressions in entire public workflow tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/d152-workflow-expression-check.test.mjs
+          node scripts/d152-workflow-expression-check.mjs .github/workflows
+  official-installed-gui:
+    needs: source-integrity
+    uses: ./.github/workflows/e1-setup-3os.yml
+    permissions: read-all
+  published-hardened-cli:
+    needs: source-integrity
+    uses: ./.github/workflows/e1-npm-native-sec02-2os.yml
+    permissions: read-all
+  strict-convergence:
+    needs: [source-integrity, official-installed-gui, published-hardened-cli]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: read-all
+    steps:
+      - name: Fail closed unless actual native 3OS GUI and 3OS published CLI are all SUCCESS
+        env:
+          SOURCE: ${{ needs.source-integrity.result }}
+          GUI: ${{ needs.official-installed-gui.result }}
+          CLI: ${{ needs.published-hardened-cli.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE" = success
+          test "$GUI" = success
+          test "$CLI" = success
+          echo 'D157_SAME_SOURCE_GENUINE_NATIVE_3OS_GUI_AND_3OS_PUBLISHED_CLI=PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Two different real runtimes on identical source HEAD passed native standard-free public CI; no job skipped or accepted as queued.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PARTIAL E1 ONLY: no user-facing integrated 3OS one-command SEC02+Hello+marketplace, immutable RC, independent SEC04 or beta GO.' >> "$GITHUB_STEP_SUMMARY"
