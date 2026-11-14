@@ -5,7 +5,7 @@ concurrency:
 on:
   push:
     branches: [feat/d085-release-dry-run, feat/d089-sbom-lock-coverage, feat/d104-main-ephemeral-release-dryrun, feat/d144-release-gated-by-3os-qa, main]
-    paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**', '.github/workflows/d129-windows-installed-desktop-hello.yml', '.github/workflows/d091-linux-installed-profile-hello.yml', '.github/workflows/d091-macos-installed-profile-hello.yml', '.github/workflows/qa01-parity-run.yml']
+    paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**', 'tests/parity/**', 'scripts/qa01-*.mjs', '.github/workflows/d129-windows-installed-desktop-hello.yml', '.github/workflows/d091-linux-installed-profile-hello.yml', '.github/workflows/d091-macos-installed-profile-hello.yml', '.github/workflows/qa01-parity-run.yml']
   workflow_dispatch:
 permissions: read-all
 jobs:
