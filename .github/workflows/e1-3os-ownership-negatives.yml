@@ -1,0 +1,104 @@
+name: D-141 3OS one-command ownership negative fixtures (NO install)
+on:
+  push:
+    branches: [feat/d141-3os-ownership-negative]
+    paths:
+      - '.github/workflows/e1-3os-ownership-negatives.yml'
+  workflow_dispatch:
+concurrency:
+  group: d141-3os-negative-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  bash-linux:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Refuse unowned existing staged AppImage and preserve sentinel
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$EUID" -ne 0 ]]
+          export HOME="$RUNNER_TEMP/d141-neg-linux"
+          stage="$HOME/.local/share/suliko-ide"
+          mkdir -m 700 -p "$stage"
+          fake="$stage/bb-0.49.0-x86_64.AppImage"
+          printf '%s\n' 'FOREIGN-LINUX-SENTINEL' >"$fake"
+          if bash scripts/suliko-setup.sh --uninstall >"$RUNNER_TEMP/d141-negative-output" 2>&1; then
+            echo 'Untracked foreign Linux AppImage wrongly removed/accepted' >&2; exit 1
+          fi
+          test "$(cat "$fake")" = 'FOREIGN-LINUX-SENTINEL'
+          test ! -e "$stage/.suliko-owned-stage-bb-0.49.0-x86_64.AppImage.sha256"
+          echo 'D141_LINUX_FOREIGN_STAGE_PRESERVED=PASS' >>"$GITHUB_STEP_SUMMARY"
+  bash-macos:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Preserve untracked app, reject forged marker and linked Applications parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$EUID" -ne 0 && "$(uname -m)" = arm64 ]]
+          export HOME="$RUNNER_TEMP/d141-neg-macos"
+          app="$HOME/Applications/bb.app"
+          owner="$HOME/Applications/.suliko-owned-bb-0.49.0-arm64.sha256"
+          mkdir -m 700 -p "$app"
+          printf '%s\n' 'FOREIGN-MAC-SENTINEL' > "$app/SENTINEL"
+          bash scripts/suliko-setup.sh --uninstall >"$RUNNER_TEMP/d141-mac-untracked-output" 2>&1
+          test "$(cat "$app/SENTINEL")" = 'FOREIGN-MAC-SENTINEL'
+          printf '%s\n' 'FORGED-OWNER-MARKER' >"$owner"
+          if bash scripts/suliko-setup.sh --uninstall >"$RUNNER_TEMP/d141-mac-forged-output" 2>&1; then
+            echo 'Forged macOS ownership marker unexpectedly accepted' >&2; exit 1
+          fi
+          test "$(cat "$app/SENTINEL")" = 'FOREIGN-MAC-SENTINEL'
+          rm -- "$owner"
+          mv "$HOME/Applications" "$HOME/ForeignApps"
+          ln -s "$HOME/ForeignApps" "$HOME/Applications"
+          if bash scripts/suliko-setup.sh --uninstall >"$RUNNER_TEMP/d141-mac-linked-output" 2>&1; then
+            echo 'Redirected macOS Applications parent wrongly accepted' >&2; exit 1
+          fi
+          test "$(cat "$HOME/ForeignApps/bb.app/SENTINEL")" = 'FOREIGN-MAC-SENTINEL'
+          echo 'D141_MAC_UNOWNED_FORGED_AND_LINKED_PRESERVED=PASS' >>"$GITHUB_STEP_SUMMARY"
+  pwsh-windows:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Reject forged marker, preserve untracked user target, refuse silent unsigned install
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'd141-neg-win-local'
+          $root = Join-Path $env:LOCALAPPDATA 'SulikoIDE'
+          $app = Join-Path $root 'InstalledBB'
+          New-Item -ItemType Directory -Path $app -Force | Out-Null
+          $fake = Join-Path $app 'bb.exe'
+          [IO.File]::WriteAllText($fake,'FOREIGN-WINDOWS-SENTINEL')
+          $marker = Join-Path $root '.suliko-installed-bb-0.49.0-x64.sha256'
+          [IO.File]::WriteAllText($marker,'FORGED-OWNER-MARKER')
+          $rejected = $false
+          try { & ./scripts/suliko-setup.ps1 -Uninstall *> $null } catch { $rejected = $true }
+          if (-not $rejected) { throw 'Forged Windows installation marker wrongly accepted' }
+          if ([IO.File]::ReadAllText($fake) -cne 'FOREIGN-WINDOWS-SENTINEL') { throw 'Foreign Windows fixture modified' }
+          [IO.File]::Delete($marker)
+          & ./scripts/suliko-setup.ps1 -Uninstall *> $null
+          if ([IO.File]::ReadAllText($fake) -cne 'FOREIGN-WINDOWS-SENTINEL') { throw 'Untracked Windows fixture removed' }
+          $rejected = $false
+          try { & ./scripts/suliko-setup.ps1 -Install *> $null } catch { $rejected = $true }
+          if (-not $rejected) { throw 'Unsigned official binary launch accepted without explicit opt-in' }
+          if ([IO.File]::ReadAllText($fake) -cne 'FOREIGN-WINDOWS-SENTINEL') { throw 'Untracked Windows fixture changed by failed install' }
+          'D141_WINDOWS_FORGED_UNTRACKED_AND_UNSIGNED_NO_OPTIN_PRESERVED=PASS' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
