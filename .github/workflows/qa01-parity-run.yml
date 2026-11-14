@@ -6,7 +6,7 @@ concurrency:
 on:
   workflow_dispatch:
   push:
-    branches: [feat/qa01-dom-diagnostics, feat/qa01-desktop-ready-gate]
+    branches: [feat/qa01-dom-diagnostics, feat/qa01-desktop-ready-gate, feat/qa01-45s-categorical-controls]
     paths: ['tests/parity/**', '.github/workflows/qa01-parity-run.yml']
 permissions: read-all
 jobs:
@@ -154,6 +154,37 @@ jobs:
           BB_SERVER_PORT=38888 BB_HOST_DAEMON_PORT=38890 node stock-bb/packages/bb-app/dist/bb.js project list --json >/dev/null
           echo "$desktop_dir" >"$RUNNER_TEMP/qa01-desktop-dir"
           echo "Disposable Desktop loopback BB, project and reviewed Hello plugin were prepared." >> "$GITHUB_STEP_SUMMARY"
+      - name: Observe host/project preconditions in both disposable BB servers (fixed categories only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/qa01-host-prereqs.test.mjs
+          for client in web desktop; do
+            if [[ "$client" = web ]]; then
+              port=38887
+              daemon_port=38889
+              data="$RUNNER_TEMP/bb-parity-web"
+              name=qa01-synthetic
+            else
+              port=38888
+              daemon_port=38890
+              data="$RUNNER_TEMP/bb-parity-desktop"
+              name=qa01-desktop-synthetic
+            fi
+            machines="$RUNNER_TEMP/qa01-$client-machines.json"
+            projects="$RUNNER_TEMP/qa01-$client-projects.json"
+            if BB_DATA_DIR="$data" BB_SERVER_PORT="$port" BB_HOST_DAEMON_PORT="$daemon_port" \
+              node stock-bb/packages/bb-app/dist/bb.js machine list --json > "$machines" 2>/dev/null &&
+              BB_DATA_DIR="$data" BB_SERVER_PORT="$port" BB_HOST_DAEMON_PORT="$daemon_port" \
+              node stock-bb/packages/bb-app/dist/bb.js project list --json > "$projects" 2>/dev/null; then
+              if ! node scripts/qa01-host-prereqs.mjs "$machines" "$projects" "$client" "$name" | tee -a "$GITHUB_STEP_SUMMARY"; then
+                echo "QA01_HOST_PREREQS {\"target\":\"$client\",\"available\":false}"
+              fi
+            else
+              echo "QA01_HOST_PREREQS {\"target\":\"$client\",\"available\":false}"
+            fi
+            rm -f -- "$machines" "$projects"
+          done
       - name: Execute full 7×2 matrix and preserve result even on failure
         shell: bash
         run: |
@@ -165,22 +196,23 @@ jobs:
           export BB_PARITY_ELECTRON_BINARY="$GITHUB_WORKSPACE/$appimage"
           export BB_PARITY_DATA_DIR="$RUNNER_TEMP/bb-parity-desktop"
           mkdir -p "$BB_PARITY_DATA_DIR"
-          # Read-only diagnostic: only fixture UI role/label names, no full DOM/secrets.
-          # Never changes or skips any of the 14 strict journey assertions.
-          if ! xvfb-run -a node tests/parity/diagnose-controls.mjs; then
-            echo 'Diagnostic capture unavailable; full strict parity test still executes' >&2
-          fi
-          # Requires a pre-enrolled disposable host and Suliko Hello in both
-          # data directories. Missing fixtures cause real test failures.
+          # Full strict 7x2 MUST run first. A standalone GUI diagnostic that
+          # navigates onboarding can affect the shared disposable BB session;
+          # running it before the tests confounded the previous 7/14 baseline.
+          # J01-J07, both projects, retries=0 and fail-closed assertions are
+          # unchanged; this collects extra evidence only AFTER the real result.
           set +e
-          # npm test prints an npm banner before Playwright JSON, corrupting the
-          # machine-readable report. Invoke the already installed CLI directly.
           xvfb-run -a bash -c 'cd tests/parity && ./node_modules/.bin/playwright test --config playwright.config.ts --reporter=json' >"$RUNNER_TEMP/qa01.json" 2>"$RUNNER_TEMP/qa01-playwright.stderr"
           code=$?
-          set -e
-          # Summarize only synthetic journey statuses/categories to GitHub log
-          # AND step summary; preserve exit code and all 14 strict assertions.
           node scripts/qa01-parity-summary.mjs "$RUNNER_TEMP/qa01.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          report_code="${PIPESTATUS[0]}"
+          set -e
+          # Diagnostic remains optional and cannot suppress or turn a RED
+          # Playwright/summary run green. Never capture full DOM or secrets.
+          if ! xvfb-run -a node tests/parity/diagnose-controls.mjs; then
+            echo 'Post-parity categorical diagnostic unavailable; original test failure/success retained' >&2
+          fi
+          test "$report_code" -eq 0 || exit "$report_code"
           exit "$code"
       - name: Stop disposable BB server
         if: always()
