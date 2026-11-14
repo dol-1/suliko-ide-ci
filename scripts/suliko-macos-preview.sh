@@ -70,7 +70,9 @@ case "$mode" in
     source_app="$(find "$mount" -maxdepth 2 -type d -name 'bb.app' -print -quit)"
     [[ -n "$source_app" && ! -L "$source_app" ]] ||
       { echo 'D102 official DMG app bundle missing' >&2; exit 1; }
-    ditto --noqtn "$source_app" "$app"
+    # Preserve any quarantine metadata that exists on the verified DMG app.
+    # Never suppress Gatekeeper attributes during a preview copy.
+    env -u DITTONORSRC ditto --qtn "$source_app" "$app"
     [[ -x "$app/Contents/MacOS/bb" && ! -L "$app/Contents/MacOS/bb" ]] ||
       { echo 'D102 copied app has no trusted executable' >&2; exit 1; }
     codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
