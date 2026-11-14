@@ -17,7 +17,7 @@ try {
 const found = new Map();
 const diagnostics = new Map();
 const strictStages = new Map();
-const PHASES = ["LAUNCHER", "OPTION", "CLICKED", "SELECTED"];
+const PHASES = ["PANEL", "PLUS", "SEARCH", "LAUNCHER", "OPTION", "CLICKED", "SELECTED"];
 const VALID_STATUSES = new Set(["passed", "failed", "timedOut", "skipped", "interrupted", "not-run"]);
 
 function category(raw) {

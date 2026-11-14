@@ -101,6 +101,9 @@ test("strict J05/J06 checkpoints show only whitelisted fixed phase booleans", ()
   const f=base();
   const j05=f.suites[0].specs[4].tests[0];
   j05.results=[{status:"failed",stdout:[
+    {text:"QA01_STAGE_J05_PANEL\n"},
+    {text:"QA01_STAGE_J05_PLUS\n"},
+    {text:"QA01_STAGE_J05_SEARCH\n"},
     {text:"QA01_STAGE_J05_LAUNCHER\n"},
     {text:"QA01_STAGE_J05_OPTION\n"},
     {text:"UNTRUSTED "+syntheticKey+" "+syntheticPath+" "+syntheticEmail+"\\n"}
@@ -113,7 +116,7 @@ test("strict J05/J06 checkpoints show only whitelisted fixed phase booleans", ()
   ]}];
   const r=run(f);
   assert.equal(r.status,1); noLeak(r.output);
-  assert.match(r.output,/J05:web launcher=true option=true clicked=false selected=false/);
-  assert.match(r.output,/J06:desktop launcher=true option=true clicked=true selected=false/);
-  assert.match(r.output,/J05:desktop launcher=false option=false clicked=false selected=false/);
+  assert.match(r.output,/J05:web panel=true plus=true search=true launcher=true option=true clicked=false selected=false/);
+  assert.match(r.output,/J06:desktop panel=false plus=false search=false launcher=true option=true clicked=true selected=false/);
+  assert.match(r.output,/J05:desktop panel=false plus=false search=false launcher=false option=false clicked=false selected=false/);
 });

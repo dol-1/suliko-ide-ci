@@ -129,7 +129,7 @@ test("J04: provider/model selection can be opened", async ({ appPage }) => {
 // "Start terminal" as role=option when the project source host is connected.
 // These tests now require ACTUAL file search + open, and ACTUAL terminal start,
 // stronger than the previous nonexistent-sidebar-label assertions.
-async function openStockFileLauncher(page: Page) {
+async function openStockFileLauncher(page: Page, journey: "J05" | "J06") {
   // The actual stock New Tab button was visible/clickable on BOTH Web and
   // packaged Desktop in GH 43533416898 post-journey diagnostic. An already
   // visible combobox alone does not prove the current launcher/tab is active:
@@ -145,15 +145,19 @@ async function openStockFileLauncher(page: Page) {
     }
   }
   await expect(newTab).toBeVisible({ timeout: 10000 });
+  // Fixed source-owned markers only; do not echo DOM, secrets or error text.
+  console.log("QA01_STAGE_" + journey + "_PANEL");
   await newTab.click();
+  console.log("QA01_STAGE_" + journey + "_PLUS");
   const search = page.getByRole("combobox", { name: /Search files/i }).first();
   await expect(search).toBeVisible({ timeout: 10000 });
+  console.log("QA01_STAGE_" + journey + "_SEARCH");
   await expect(search).toBeEnabled();
   return search;
 }
 
 test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
-  const search = await openStockFileLauncher(appPage);
+  const search = await openStockFileLauncher(appPage, "J05");
   // All diagnostic checkpoints are FIXED constants captured only inside
   // Playwright JSON; never print raw DOM, filenames, paths or errors.
   console.log("QA01_STAGE_J05_LAUNCHER");
@@ -173,7 +177,7 @@ test("J05: workspace files/diff navigation exists", async ({ appPage }) => {
 });
 
 test("J06: terminal affordance exists with an enrolled disposable host", async ({ appPage }) => {
-  const search = await openStockFileLauncher(appPage);
+  const search = await openStockFileLauncher(appPage, "J06");
   console.log("QA01_STAGE_J06_LAUNCHER");
   // Pinned stock NewTabFileSearch only exposes action role=option after a matching query.
   // Empty-query actions are separate buttons; exercise the actual accessible search flow.
