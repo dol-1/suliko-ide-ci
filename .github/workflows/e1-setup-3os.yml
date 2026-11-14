@@ -1,0 +1,53 @@
+name: D-149 E1 3OS user one-entry official GUI staged with SEC02 fixture (PARTIAL, NO beta)
+concurrency:
+  group: e1-3os-parent-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches: [feat/d149-e1-three-os-one-entry-matrix, main]
+    paths:
+      - '.github/workflows/e1-setup-3os.yml'
+      - '.github/workflows/e1-windows-one-command.yml'
+      - '.github/workflows/e1-linux-one-command.yml'
+      - '.github/workflows/e1-macos-one-command.yml'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-setup.ps1'
+      - 'scripts/suliko-stage-linux.sh'
+      - 'scripts/verify-hardened.sh'
+      - 'plugins/suliko-hello/**'
+      - 'config/hardened/**'
+      - 'tests/parity/d129-windows-installed-desktop.mjs'
+      - 'tests/parity/d134-linux-installed-appimage.mjs'
+      - 'tests/parity/d135-macos-official-installed-hello.mjs'
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  user-windows:
+    uses: ./.github/workflows/e1-windows-one-command.yml
+    permissions: read-all
+  user-linux:
+    uses: ./.github/workflows/e1-linux-one-command.yml
+    permissions: read-all
+  user-macos:
+    uses: ./.github/workflows/e1-macos-one-command.yml
+    permissions: read-all
+  strict-convergence:
+    needs: [user-windows, user-linux, user-macos]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: read-all
+    steps:
+      - name: Require all actual 3OS user-entry jobs SUCCESS without skip or failure
+        env:
+          WIN: ${{ needs.user-windows.result }}
+          LINUX: ${{ needs.user-linux.result }}
+          MAC: ${{ needs.user-macos.result }}
+        run: |
+          set -euo pipefail
+          test "$WIN" = success
+          test "$LINUX" = success
+          test "$MAC" = success
+          echo 'E1_PARTIAL_3OS_USER_ENTRY_NATIVE=PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo 'All 3 tested actual pinned official UI installers with one user entry per OS, live GUI own Hello, non-admin cleanup and separate pinned-source CLI SEC02, <900s per native runner.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FULL_E1_ONE_COMMAND_PLUGIN_CONFIG=NOT_CLAIMED; immutable RC/marketplace and independent SEC04 remain OPEN. No public release.' >> "$GITHUB_STEP_SUMMARY"

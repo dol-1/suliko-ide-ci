@@ -1,8 +1,9 @@
 name: D-141 macOS one-command official signed DMG user-app Hello GUI + source CLI SEC02 (PARTIAL)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: e1-user-macos-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [feat/d141-macos-one-command-user]
     paths:

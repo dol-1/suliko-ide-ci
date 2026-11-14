@@ -1,8 +1,9 @@
 name: D-141 Windows one-command user install + official installed Hello and SEC02 (PARTIAL)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: e1-user-windows-${{ github.ref }}
   cancel-in-progress: true
 on:
+  workflow_call:
   push:
     branches: [feat/d141-windows-one-command-stage]
     paths:
