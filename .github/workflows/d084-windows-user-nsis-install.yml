@@ -1,4 +1,4 @@
-name: D-084 Windows official NSIS user-level installer smoke (NO release)
+name: D-115 Windows official SHA256-pinned NotSigned NSIS user install smoke (NO release)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -62,10 +62,13 @@ jobs:
             $status = [string]$sig.Status
             if ($status -notin $known) { $status = 'UnknownError' }
             "D084_WINDOWS_AUTHENTICODE_STATUS=$status" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          # Fixed enum only; no publisher certificate, raw sig object or paths in logs.
-          Write-Output "D084_WINDOWS_AUTHENTICODE_STATUS=$status"
-            if ($sig.Status -ne [Management.Automation.SignatureStatus]::Valid) {
-              throw 'Official EXE signature invalid or unavailable; refused launch'
+            # Fixed enum only; no publisher certificate, raw sig object or paths in logs.
+            Write-Output "D084_WINDOWS_AUTHENTICODE_STATUS=$status"
+            # Claude #42 D-090: official asset SHA256 is the trust anchor here.
+            # Upstream Windows artifact is unsigned; any status except exact
+            # NotSigned fails closed (including NotTrusted and HashMismatch).
+            if ($status -cne 'NotSigned') {
+              throw 'Unexpected Windows Authenticode status; refused launch'
             }
             # Pinned stock NSIS has oneClick=true, perMachine=false; /S is silent,
             # /D chooses only our empty disposable user target, never Program Files.
@@ -91,7 +94,7 @@ jobs:
             $watch.Stop()
             $elapsed = [int][Math]::Ceiling($watch.Elapsed.TotalSeconds)
             "WINDOWS_INSTALL_ELAPSED_SECONDS=$elapsed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            'D084 verified official Windows x64 NSIS /S user-app install, signed EXE, 15s bb.exe GUI liveness and uninstaller. No SEC02/marketplace/Hello or beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            'D115 official Windows x64 NSIS /S user-app install: SHA256 pinned, Authenticode NotSigned (upstream unsigned), 15s GUI liveness and uninstaller. SEC02/marketplace/Hello still unverified; NO beta GO.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             if ($elapsed -ge 900) { throw 'Windows install exceeded 15 minutes' }
           } finally {
             if ($null -ne $process) {
