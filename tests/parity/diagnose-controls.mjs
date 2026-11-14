@@ -229,6 +229,52 @@ async function diagnose(page, target) {
     target,plusVisible,panelToggleDelivered,plusClicked,
     actualLauncherVisible,actualLauncherEnabled,strictJourneyCountUnchanged:14,
   }));
+  // Actual stock BB launcher semantics AFTER the 14 strict journeys:
+  // nonempty query -> role=option; selected file/terminal tabs are TabPill
+  // BUTTONS with aria-pressed, never ARIA role=tab. Fixed booleans only.
+  let realFileOption=false, realFileClicked=false, realFileTabActive=false;
+  let realTerminalOption=false, realTerminalEnabled=false, realTerminalClicked=false;
+  let realTerminalTabActive=false;
+  try {
+    const search=page.getByRole("combobox",{name:/Search files/i}).first();
+    if(await search.isVisible().catch(()=>false)) {
+      await search.fill("README");
+      const file=page.getByRole("group",{name:/^Files$/i})
+        .getByRole("option",{name:/README\\.md/i}).first();
+      realFileOption=await file.waitFor({state:"visible",timeout:6000})
+        .then(()=>true).catch(()=>false);
+      if(realFileOption) {
+        realFileClicked=await file.click({timeout:3000}).then(()=>true).catch(()=>false);
+        realFileTabActive=realFileClicked && await page.getByRole("button",{name:/README\\.md/i})
+          .and(page.locator('button[aria-pressed="true"]')).first()
+          .isVisible().catch(()=>false);
+      }
+    }
+    const plus=page.locator("button[data-panel-new-tab]").first();
+    if(await plus.isVisible().catch(()=>false)) {
+      const opened=await plus.click({timeout:3000}).then(()=>true).catch(()=>false);
+      const terminalSearch=page.getByRole("combobox",{name:/Search files/i}).first();
+      if(opened && await terminalSearch.isVisible().catch(()=>false)) {
+        await terminalSearch.fill("terminal");
+        const action=page.getByRole("option",{name:/Start terminal/i}).first();
+        realTerminalOption=await action.waitFor({state:"visible",timeout:6000})
+          .then(()=>true).catch(()=>false);
+        realTerminalEnabled=realTerminalOption && await action.isEnabled().catch(()=>false);
+        if(realTerminalEnabled) {
+          // Only open the disposable terminal UI. NEVER type commands.
+          realTerminalClicked=await action.click({timeout:3000}).then(()=>true).catch(()=>false);
+          realTerminalTabActive=realTerminalClicked && await page.getByRole("button",{name:/terminal/i})
+            .and(page.locator('button[aria-pressed="true"]')).first()
+            .isVisible().catch(()=>false);
+        }
+      }
+    }
+  } catch { /* Never emit raw DOM, filenames, errors, URLs or terminal data. */ }
+  console.log("QA01_DIAG_ACTUAL_LAUNCHER",JSON.stringify({
+    target,realFileOption,realFileClicked,realFileTabActive,
+    realTerminalOption,realTerminalEnabled,realTerminalClicked,realTerminalTabActive,
+    strictJourneyCountUnchanged:14,
+  }));
 }
 
 const webUrl = new URL(process.env.BB_PARITY_WEB_URL ?? "");
