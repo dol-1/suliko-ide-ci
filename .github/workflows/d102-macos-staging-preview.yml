@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/d102-macos-user-staging-preview, feat/d105-e1-staging-main-regression]
+    branches: [main, feat/d102-macos-user-staging-preview, feat/d105-e1-staging-main-regression, fix/d108-macos-preview-quarantine-current-main]
     paths:
       - 'scripts/suliko-macos-preview.sh'
       - 'scripts/suliko-setup.sh'
@@ -29,6 +29,21 @@ jobs:
           umask 077
           test "$(id -u)" -ne 0
           test "$(uname -m)" = arm64
+          # Safety contract: the real user-preview app copy must preserve
+          # quarantine if one exists; no `--noqtn`, DITTONORSRC or Gatekeeper bypass.
+          grep -Fq 'env -u DITTONORSRC ditto --qtn "$source_app" "$app"' scripts/suliko-macos-preview.sh
+          if grep -Eq 'ditto[[:space:]]+--noqtn' scripts/suliko-macos-preview.sh; then
+            echo 'D102 preview must not drop quarantine' >&2; exit 1
+          fi
+          # Exercise the actual macOS ditto/xattr behavior on disposable data.
+          qsrc="$RUNNER_TEMP/d102-qtn-source.app"
+          qdst="$RUNNER_TEMP/d102-qtn-copied.app"
+          mkdir -p "$qsrc"
+          printf 'synthetic fixture only\n' >"$qsrc/file.txt"
+          qvalue='0081;00000000;SulikoCI;synthetic'
+          xattr -w com.apple.quarantine "$qvalue" "$qsrc/file.txt"
+          env -u DITTONORSRC ditto --qtn "$qsrc" "$qdst"
+          test "$(xattr -p com.apple.quarantine "$qdst/file.txt")" = "$qvalue"
           export HOME="$RUNNER_TEMP/d102-owned-home"
           mkdir -m 700 -p "$HOME" "$HOME/Applications" "$HOME/unrelated-app"
           echo 'foreign untouched' >"$HOME/unrelated-app/owner.txt"
