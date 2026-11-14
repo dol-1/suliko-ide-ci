@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d099-linux-one-command-staging-preview]
+    branches: [main, feat/d099-linux-one-command-staging-preview, feat/d105-e1-staging-main-regression]
     paths:
       - 'scripts/suliko-linux-preview.sh'
       - 'scripts/suliko-setup.sh'

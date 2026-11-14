@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d102-macos-user-staging-preview]
+    branches: [main, feat/d102-macos-user-staging-preview, feat/d105-e1-staging-main-regression]
     paths:
       - 'scripts/suliko-macos-preview.sh'
       - 'scripts/suliko-setup.sh'
