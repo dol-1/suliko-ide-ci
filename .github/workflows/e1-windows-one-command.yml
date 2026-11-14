@@ -137,15 +137,43 @@ jobs:
               }
               & node $bbCli plugin install ./plugins/suliko-hello --yes *> $null
               if ($LASTEXITCODE -ne 0) { throw 'D126 own plugin install failed' }
-              $json = & node $bbCli plugin list --json 2>$null
-              if ($LASTEXITCODE -ne 0) { throw 'D126 live plugin state unavailable' }
-              try { $parsed = ConvertFrom-Json -InputObject ($json -join "`n") -ErrorAction Stop } catch { throw 'D126 live status invalid' }
-              foreach ($id in @('account-pool','bb--mcp','connect','bb--connect-next','memory')) {
-                $found = @($parsed.plugins | Where-Object { $_.id -ceq $id })
-                if ($found.Count -gt 1 -or ($found.Count -eq 1 -and ($found[0].enabled -ne $false -or $found[0].status -cne 'disabled'))) { throw 'D126 unsafe stock plugin state' }
+              # D157: disabled state must be observed from the *real* stock
+              # CLI. Bounded consistency retries tolerate asynchronous plugin
+              # persistence without accepting missing/unsafe status or skips.
+              $stateAccepted = $false
+              $lastSafeState = 'unavailable'
+              for ($stateAttempt=0; $stateAttempt -lt 10; $stateAttempt++) {
+                $json = & node $bbCli plugin list --json 2>$null
+                if ($LASTEXITCODE -ne 0) { $lastSafeState = 'cli-unavailable'; Start-Sleep -Seconds 1; continue }
+                try { $parsed = ConvertFrom-Json -InputObject ($json -join "`n") -ErrorAction Stop }
+                catch { $lastSafeState = 'invalid-json'; Start-Sleep -Seconds 1; continue }
+                if ($null -eq $parsed.plugins) { $lastSafeState = 'no-plugins'; Start-Sleep -Seconds 1; continue }
+                $allDisabled = $true
+                foreach ($id in @('account-pool','bb--mcp','connect','bb--connect-next','memory')) {
+                  $found = @($parsed.plugins | Where-Object { $_.id -ceq $id })
+                  if ($found.Count -gt 1) { throw 'D126 ambiguous forbidden ID' }
+                  if ($found.Count -eq 1 -and ($found[0].enabled -ne $false -or $found[0].status -cne 'disabled')) {
+                    $allDisabled = $false
+                    $safeEnabled = if ($found[0].enabled -eq $true) { 'true' } elseif ($found[0].enabled -eq $false) { 'false' } else { 'other' }
+                    $safeStatus = switch -CaseSensitive ([string]$found[0].status) {
+                      'disabled' { 'disabled' }
+                      'enabled' { 'enabled' }
+                      'installed' { 'installed' }
+                      default { 'other' }
+                    }
+                    $lastSafeState = "forbidden-$id-enabled-$safeEnabled-status-$safeStatus"
+                  }
+                }
+                $hello = @($parsed.plugins | Where-Object { $_.id -ceq 'suliko-hello' })
+                if ($hello.Count -gt 1) { throw 'D126 duplicate own Hello ID' }
+                if ($allDisabled -and $hello.Count -eq 1 -and $hello[0].enabled -eq $true) { $stateAccepted = $true; break }
+                if ($hello.Count -ne 1 -or $hello[0].enabled -ne $true) { $lastSafeState = 'hello-not-enabled' }
+                Start-Sleep -Seconds 1
               }
-              $hello = @($parsed.plugins | Where-Object { $_.id -ceq 'suliko-hello' })
-              if ($hello.Count -ne 1 -or $hello[0].enabled -ne $true) { throw 'D126 Hello not active in real CLI' }
+              if (-not $stateAccepted) {
+                Write-Output "D126_STRICT_SEC02_NOT_CONFIRMED category=$lastSafeState"
+                throw 'D126 unsafe stock plugin state'
+              }
               $profile = Get-Content -LiteralPath 'config/hardened/.env.hardened'
               if ('BB_SERVER_BIND_HOST=127.0.0.1' -cnotin $profile -or 'BB_TELEMETRY=false' -cnotin $profile) { throw 'D126 SEC02 contract drift' }
               Write-Output 'D129_REAL_CLI_SEC02_HELLO_ENABLED=PASS; official UI check next'
