@@ -24,14 +24,21 @@ async function enterProviderFreeShell(page: Page) {
     name: /^Project:\s*qa01-(?:desktop-)?synthetic$/i,
   }).first();
   if (!(await alreadySelected.isVisible().catch(() => false))) {
+    // D144 exact GH 43613488404: Desktop J07 was intermittently left on the
+    // projects screen because the previous 4s synthetic-project wait swallowed
+    // its timeout and continued unselected. BB plugin panels are project-scoped.
+    // Make selecting the REAL enrolled synthetic project an unconditional
+    // prerequisite for EVERY journey, never a silently skipped setup step.
     const projectNav = page.getByRole("button", { name: /projects?/i }).first();
-    if (await projectNav.isVisible().catch(() => false)) {
-      await projectNav.click();
-      const synthetic = page.getByText(/qa01-(desktop-)?synthetic/i).first();
-      if (await synthetic.waitFor({ state: "visible", timeout: 4000 }).then(() => true).catch(() => false))
-        await synthetic.click();
-    }
+    await expect(projectNav).toBeVisible({ timeout: 15000 });
+    await projectNav.click();
+    const synthetic = page.getByText(/qa01-(desktop-)?synthetic/i).first();
+    await synthetic.waitFor({ state: "visible", timeout: 15000 });
+    await synthetic.click();
   }
+  // This is not a fake pass/retry: if the project is not truly selected, the
+  // fixture FAILS before J01-J07 instead of blaming only J07 GUI hydration.
+  await expect(alreadySelected).toBeVisible({ timeout: 15000 });
 }
 
 const test = base.extend<{ appPage: Page }>({
