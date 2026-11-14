@@ -6,7 +6,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d051-ops01-two-containers]
+    branches: [feat/d051-ops01-two-containers, fix/d127-ops01-base-image-digest]
     paths:
       - ".github/workflows/ops01-two-containers.yml"
       - "tests/ops01/**"
