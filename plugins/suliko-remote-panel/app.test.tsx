@@ -29,6 +29,8 @@ describe("REM-04 client-only Remote mock panel", () => {
       "http://remote.example.invalid/approvals/demo-approval-1",
       "javascript:alert(1)",
       "https://other.example/approvals/demo-approval-1",
+      "https://fixture-user:synthetic-secret@remote.example.invalid/approvals/demo-approval-1",
+      "https://remote.example.invalid:8443/approvals/demo-approval-1",
       "https://remote.example.invalid/approvals/demo-approval-1?redirect=https://other.example",
     ]) expect(isSafeDemoApprovalPage(url)).toBe(false);
   });

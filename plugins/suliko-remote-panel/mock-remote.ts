@@ -47,6 +47,7 @@ export function isSafeDemoApprovalPage(value: string): boolean {
   try {
     const u = new URL(value);
     return u.protocol === "https:" && u.hostname === "remote.example.invalid" &&
+      !u.username && !u.password && !u.port &&
       /^\/approvals\/[a-zA-Z0-9_-]+$/.test(u.pathname) && !u.search && !u.hash;
   } catch {
     return false;
