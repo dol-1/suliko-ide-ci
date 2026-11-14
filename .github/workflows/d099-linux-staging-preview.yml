@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d099-linux-one-command-staging-preview]
+    branches: [feat/d099-linux-one-command-staging-preview, fix/d110-linux-direct-helper-guards]
     paths:
       - 'scripts/suliko-linux-preview.sh'
       - 'scripts/suliko-setup.sh'

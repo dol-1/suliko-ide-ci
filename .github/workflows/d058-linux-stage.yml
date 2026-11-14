@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d058-linux-user-stage, main]
+    branches: [feat/d058-linux-user-stage, fix/d110-linux-direct-helper-guards, main]
     paths:
       - scripts/suliko-stage-linux.sh
       - scripts/suliko-setup.sh
@@ -29,6 +29,19 @@ jobs:
           mkdir -p "$test_home"
           HOME="$test_home" bash scripts/suliko-setup.sh --download-verified >/dev/null
           HOME="$test_home" bash scripts/suliko-stage-linux.sh --stage
+          # Simulate a root UID at the first guard; must refuse without mutation.
+          fakebin="$RUNNER_TEMP/d110-id-fixture"
+          mkdir -m 700 -p "$fakebin"
+          printf '#!/bin/sh\nif [ "$1" = "-u" ]; then echo 0; else /usr/bin/id "$@"; fi\n' > "$fakebin/id"
+          chmod 700 "$fakebin/id"
+          if HOME="$test_home" PATH="$fakebin:$PATH" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1; then
+            echo 'FAIL: helper allowed root-UID stage mutation'; exit 1
+          fi
+          # A symlinked HOME may never redirect managed stage removal.
+          ln -s "$test_home" "$RUNNER_TEMP/d110-linked-home"
+          if HOME="$RUNNER_TEMP/d110-linked-home" bash scripts/suliko-stage-linux.sh --remove-stage >/dev/null 2>&1; then
+            echo 'FAIL: helper followed symlinked HOME'; exit 1
+          fi
           app="$test_home/.local/share/suliko-ide/bb-0.49.0-x86_64.AppImage"
           alias="$test_home/.local/bin/suliko-bb-desktop"
           test -x "$app"
@@ -38,6 +51,14 @@ jobs:
           HOME="$test_home" bash scripts/suliko-stage-linux.sh --remove-stage
           test ! -e "$app"
           test ! -L "$alias"
+          cache_marker="$test_home/.cache/suliko-ide/.suliko-managed-bb-0.49.0-x86_64.AppImage.sha256"
+          original_cache_record="$(cat -- "$cache_marker")"
+          printf '%s\n' 'FORGED-CACHE-OWNER' > "$cache_marker"
+          if HOME="$test_home" bash scripts/suliko-stage-linux.sh --stage >/dev/null 2>&1; then
+            echo 'FAIL: staged cached official asset with forged ownership'; exit 1
+          fi
+          test ! -e "$app"
+          printf '%s\n' "$original_cache_record" > "$cache_marker"
           # Reject unsafe alias collision without replacing unrelated files.
           mkdir -p "$(dirname "$alias")"
           printf 'foreign-unowned-alias' > "$alias"

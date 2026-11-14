@@ -7,13 +7,17 @@ if [[ $# -ne 1 || ( "$1" != "--stage" && "$1" != "--remove-stage" ) ]]; then
   echo 'Usage: suliko-stage-linux.sh --stage|--remove-stage (PREVIEW ONLY)' >&2
   exit 2
 fi
-if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 || -z "$HOME" || "$HOME" = "/" ]]; then
+if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ||
+      "$(id -u)" -eq 0 || -z "$HOME" || "$HOME" = "/" ||
+      "$HOME" != /* || -L "$HOME" ]]; then
   echo 'Only nonprivileged Linux x86_64 user staging is supported' >&2
   exit 2
 fi
 asset='bb-0.49.0-x86_64.AppImage'
 sha='8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770'
 cache="$HOME/.cache/suliko-ide/$asset"
+cache_marker="$HOME/.cache/suliko-ide/.suliko-managed-$asset.sha256"
+cache_record="SULIKO-IDE-VERIFIED-v1 $asset $sha"
 stage_dir="$HOME/.local/share/suliko-ide"
 stage="$stage_dir/$asset"
 owner="$stage_dir/.suliko-owned-stage-$asset.sha256"
@@ -70,6 +74,11 @@ else
   if [[ ! -f "$cache" ]]; then
     bash "$(cd -- "$(dirname -- "$0")" && pwd)/suliko-setup.sh" --download-verified >/dev/null
   fi
+  # Exact verified bytes are not enough to adopt somebody else's existing
+  # cache file. The preflight's genuine managed marker is also required.
+  [[ -f "$cache_marker" && ! -L "$cache_marker" &&
+     "$(cat -- "$cache_marker")" == "$cache_record" ]] ||
+    { echo 'Refusing cache without genuine Suliko ownership record' >&2; exit 1; }
   check_sha "$cache" || { echo 'Pinned official BB asset checksum mismatch' >&2; exit 1; }
   mkdir -p -- "$stage_dir" "$link_dir"
   safe_dirs
