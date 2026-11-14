@@ -96,11 +96,14 @@ jobs:
           fi
           app="$HOME/Applications/bb.app"
           test ! -e "$app" && test ! -L "$app"
-          ditto --noqtn "$source_app" "$app"
+          # Do not suppress source quarantine metadata or bypass Gatekeeper.
+          ditto "$source_app" "$app"
           executable="$app/Contents/MacOS/bb"
           test -x "$executable" && test ! -L "$executable"
           codesign --verify --deep --strict "$app" >/dev/null 2>&1 ||
             { echo 'Official BB app signature verification failed; do not launch.' >&2; exit 1; }
+          spctl --assess --type execute "$app" >/dev/null 2>&1 ||
+            { echo 'Official BB app rejected by macOS execution policy; refusing launch.' >&2; exit 1; }
           # Explicitly execute the official copied app as an unprivileged user;
           # no root, remote service, provider token, persistent account or system install.
           "$executable" >"$RUNNER_TEMP/d084-mac-window.log" 2>&1 &
