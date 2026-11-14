@@ -51,7 +51,12 @@ assert.equal(createHash("sha256").update(readRegularFixture(p.dest)).digest("hex
 assert.equal(existsSync(p.marker),false);
 unlinkSync(p.dest);
 // A foreign file with the same name must NOT be overwritten/deleted.
-writeFileSync(p.dest,"FOREIGN-DO-NOT-TOUCH",{flag:"wx",mode:0o600});
+// Copy a private, explicitly new runner fixture with no-clobber semantics.
+// Do not write to the path we just checked/deleted (TOCTOU).
+const foreignPayload=join(env.RUNNER_TEMP,"d058-foreign-owned-payload");
+writeFileSync(foreignPayload,"FOREIGN-DO-NOT-TOUCH",{flag:"wx",mode:0o600});
+try{copyFileSync(foreignPayload,p.dest,constants.COPYFILE_EXCL);}
+finally{unlinkSync(foreignPayload);}
 await assert.rejects(preview("--stage"),/Refusing/);
 await assert.rejects(preview("--remove-stage"),/Refusing/);
 assert.equal(readRegularFixture(p.dest,"utf8"),"FOREIGN-DO-NOT-TOUCH");
