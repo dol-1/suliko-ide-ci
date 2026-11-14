@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/d091-linux-installed-profile-hello, feat/d131-linux-installed-hello-main-gate]
+    branches: [main, feat/d091-linux-installed-profile-hello, feat/d131-linux-installed-hello-main-gate, feat/d134-linux-appimage-installed-hello]
     paths:
       - '.github/workflows/d091-linux-installed-profile-hello.yml'
       - 'scripts/suliko-setup.sh'
@@ -12,6 +12,7 @@ on:
       - 'scripts/verify-hardened.sh'
       - 'config/hardened/.env.hardened'
       - 'plugins/suliko-hello/**'
+      - 'tests/parity/d134-linux-installed-appimage.mjs'
   workflow_dispatch:
 permissions: read-all
 jobs:
@@ -48,6 +49,11 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           (cd stock-bb && pnpm install --frozen-lockfile && pnpm run build)
+      - name: Prepare test-only pinned Playwright Electron harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
       - name: Verify/install official AppImage, launch, live SEC02 and Hello, clean owned stage
         shell: bash
         run: |
@@ -127,6 +133,17 @@ jobs:
           if(hello.length!==1||hello[0].enabled!==true)throw Error('Own Hello not enabled');
           NODE
           bash scripts/verify-hardened.sh
+          # D134: test the own Hello panel mounted by the actual *official
+          # installed AppImage*, not only the separate pinned-source CLI.
+          project="$home/d134-linux-synthetic"
+          mkdir -m 700 -p "$project"
+          printf '%s\n' 'Disposable project only' > "$project/README.md"
+          git -C "$project" init -b main >/dev/null
+          git -C "$project" add README.md
+          bb project create --name d134-linux-synthetic --root "$project" >/dev/null
+          export D134_OFFICIAL_APPIMAGE="$app"
+          export D134_BB_WEB_URL='http://127.0.0.1:38906/'
+          xvfb-run -a node tests/parity/d134-linux-installed-appimage.mjs
           ss -ltn >"$RUNNER_TEMP/d091-listeners"
           grep -Eq '127[.]0[.]0[.]1:38906([[:space:]]|$)' "$RUNNER_TEMP/d091-listeners"
           grep -Eq '127[.]0[.]0[.]1:38907([[:space:]]|$)' "$RUNNER_TEMP/d091-listeners"
@@ -137,5 +154,5 @@ jobs:
           elapsed="$(($(date +%s)-begin))"
           echo "SETUP_ELAPSED_SECONDS=$elapsed"
           echo "SETUP_ELAPSED_SECONDS=$elapsed" >> "$GITHUB_STEP_SUMMARY"
-          echo 'D091 Linux candidate: official AppImage user-stage+GUI, same-stock-source CLI live SEC02+Hello and owned cleanup; no marketplace RC, full packaged plugin/3OS/uninstall or beta GO.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'D134 Linux official managed AppImage installed Hello GUI + same-stock-source CLI live SEC02+Hello and owned cleanup; no tagged marketplace RC, full 3OS user setup or beta GO.' >> "$GITHUB_STEP_SUMMARY"
           test "$elapsed" -lt 900
