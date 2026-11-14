@@ -38,4 +38,12 @@ def symlinked(root):
     page.unlink()
     page.symlink_to(outside)
 assert fixture(symlinked) != 0, "Public source symlink accepted"
-print("D062 public docs baseline and 4 negative protocol/path/private-URL/symlink regressions PASS.")
+def pilot_contact(root):
+    page = root / "site/docs/pilot-metrics.en.md"
+    page.write_text(page.read_text(encoding="utf-8") + "\nSYN-001: fake-contact@example.invalid\n", encoding="utf-8")
+assert fixture(pilot_contact) != 0, "Pilot template accepted email-shaped private contact"
+def pilot_unlabelled(root):
+    page = root / "site/docs/pilot-metrics.en.md"
+    page.write_text(page.read_text(encoding="utf-8").replace("SYNTHETIC EXAMPLE", "REAL RESULTS"), encoding="utf-8")
+assert fixture(pilot_unlabelled) != 0, "Pilot sample accepted without synthetic disclaimer"
+print("D147 public docs baseline and 6 negative URL/path/symlink/private-contact/synthetic-label regressions PASS.")
