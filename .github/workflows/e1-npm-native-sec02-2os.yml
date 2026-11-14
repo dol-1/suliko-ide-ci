@@ -1,5 +1,6 @@
 name: D-155 actual published BB native three-OS SEC02 and own Hello (NO E1 release)
 on:
+  workflow_call:
   push:
     branches: [feat/d155-published-native-3os-sec02-hello, main]
     paths:
