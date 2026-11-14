@@ -1,6 +1,6 @@
 // D135: strict official signed macOS arm64 installed bb.app Hello panel.
 // CI-only synthetic user, unmodified BB 0.49.0. No owner host, credentials,
-// Remote, third-party provider, release, admin, or bypass of OS security checks.
+// Remote, third-party provider, release, admin, or changes to existing source code-signature checks.
 import { _electron, expect } from "@playwright/test";
 import { basename, resolve, isAbsolute, sep } from "node:path";
 const env=process.env;
