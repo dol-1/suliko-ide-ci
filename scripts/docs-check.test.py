@@ -40,7 +40,7 @@ def symlinked(root):
 assert fixture(symlinked) != 0, "Public source symlink accepted"
 def pilot_contact(root):
     page = root / "site/docs/pilot-metrics.en.md"
-    page.write_text(page.read_text(encoding="utf-8") + "\\nSYN-001: fake-contact@example.invalid\\n", encoding="utf-8")
+    page.write_text(page.read_text(encoding="utf-8") + "\nSYN-001: fake-contact@example.invalid\n", encoding="utf-8")
 assert fixture(pilot_contact) != 0, "Pilot template accepted email-shaped private contact"
 def pilot_unlabelled(root):
     page = root / "site/docs/pilot-metrics.en.md"

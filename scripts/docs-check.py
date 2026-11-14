@@ -25,7 +25,7 @@ for stem in expected:
             assert banner.lower() in text.lower(), f"pilot template must clearly mark synthetic data: {name}"
             assert "SYN-DEMO-01" in text and "SYN-001" in text, f"pilot sample must be fake: {name}"
             # A public pilot example must never contain a contact address or host home path.
-            assert not re.search(r"\\b[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}\\b", text), f"personal contact in pilot template: {name}"
+            assert not re.search(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b", text), f"personal contact in pilot template: {name}"
             assert not re.search(r"/home/[A-Za-z0-9._-]+/", text), f"private home path in pilot template: {name}"
         if lang == "ka":
             georgian = sum("\u10d0" <= char <= "\u10ff" for char in text)
