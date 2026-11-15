@@ -14,7 +14,7 @@ This GitHub repository is a **public push mirror of canonical GitLab-reviewed ch
 - CI uses **standard free public GitHub Actions runners** on Linux, macOS and Windows. A successful step on one OS is not proof that every OS, installer or feature works.
 - The upstream BB version is pinned to **desktop-v0.49.0** for reviewed compatibility tests; no BB core is changed. An automated source scan does not substitute for an independent security review.
 - A change is eligible for canonical main merge only after its **exact mirrored head SHA** has a completed successful run and a recorded premerge GitLab review note with the run ID, SHA and UTC completion time. No skipped/queued/red tests count as passing.
-- **No published Suliko release or installer is authorized.** End-user 3-OS one-command setup, immutable RC, independent security sign-off and public beta approval are still outstanding.
+- **No published Suliko release or installer is authorized.** Integrated one-command 3-OS setup has passed genuine installed native GUI/SEC-02/user-data protection in synthetic free CI ([exact merged main D-174](https://github.com/dol-1/suliko-ide-ci/actions/runs/43743593613)); immutable RC tag, publisher signing, independent SEC-04 and public beta approval remain outstanding.
 
 - CI მუშაობს მხოლოდ საჯარო უფასო სტანდარტულ Linux/macOS/Windows runner-ებზე. ერთი მწვანე ტესტი ყველა პლატფორმის მზადყოფნას არ ამტკიცებს.
 - BB-ის სატესტო ვერსია ფიქსირებულია: **desktop-v0.49.0**. BB-ის ძირითად კოდს არ ვცვლით.
