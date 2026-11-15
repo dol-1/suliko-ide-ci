@@ -100,7 +100,7 @@ try{
     path.join(workspace,"scripts","suliko-setup.ps1"),
     "-Install","-AllowUnsignedVerified"],"official-windows-user-setup",350000);
   official=path.join(local,"SulikoIDE","InstalledBB","bb.exe");
- }else{
+ }else if(isMac){
   execute("bash",[path.join(workspace,"scripts","suliko-setup.sh"),
     "--install"],"official-macos-user-setup",350000);
   official=path.join(home,"Applications","bb.app","Contents","MacOS","bb");
