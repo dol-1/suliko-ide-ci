@@ -1,0 +1,69 @@
+name: D-197 generate pinned published bb-app dependency lock (no release)
+on:
+  push:
+    branches: [feat/d197-locked-cli-after-d199]
+    paths:
+      - '.github/workflows/d197-lock-generator.yml'
+      - 'scripts/d197-bb-cli-lock/package.json'
+  workflow_dispatch:
+concurrency:
+  group: d197-lock-gen-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  generate-lock:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Generate lock on pinned Node/npm with all lifecycle scripts disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd scripts/d197-bb-cli-lock
+          test "$(node --version)" = v22.19.0
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund --package-lock=true --save-exact
+          node - <<'NODE'
+          const fs=require('node:fs'), crypto=require('node:crypto');
+          const raw=fs.readFileSync('package-lock.json');
+          const lock=JSON.parse(raw);
+          if(lock.lockfileVersion!==3 || lock.packages[''].dependencies['bb-app']!=='0.49.0') throw Error('root pin missing');
+          const entries=Object.entries(lock.packages).filter(([k])=>k);
+          if(entries.length<10) throw Error('unreasonably few transitive packages');
+          let bundled=0;
+          for(const [name,x] of entries){
+            // npm itself ships submodules *inside its parent integrity-pinned tarball*.
+            if(x.inBundle===true && name.startsWith('node_modules/npm/node_modules/')) { bundled++; continue; }
+            if(!x.integrity?.startsWith('sha512-') || !x.resolved?.startsWith('https://registry.npmjs.org/')) throw Error('unpinned published dependency '+name);
+          }
+          console.log('D197_LOCK_NPM_BUNDLED='+bundled);
+          console.log('D197_LOCK_PACKAGES='+entries.length);
+          console.log('D197_LOCK_SHA256='+crypto.createHash('sha256').update(raw).digest('hex'));
+          console.log('D197_LOCK_LENGTH='+raw.length);
+          // Only public npm dependency metadata, never secrets or tarballs in logs.
+          const b64=raw.toString('base64');
+          for(let i=0;i<b64.length;i+=4000)
+            console.log('D197_LOCK_CHUNK_'+String(i/4000).padStart(5,'0')+':'+b64.slice(i,i+4000));
+          console.log('D197_LOCK_CHUNKS='+Math.ceil(b64.length/4000));
+          NODE
+      - name: Check immutable ci and lifecycle script disablement on free runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd scripts/d197-bb-cli-lock
+          npm ci --ignore-scripts --no-audit --no-fund
+          node - <<'NODE'
+          const m=require('./node_modules/bb-app/package.json');
+          if(m.name!=='bb-app'||m.version!=='0.49.0'||typeof m.bin?.bb!=='string'||typeof m.bin?.['bb-app']!=='string')throw Error('published CLI bins missing');
+          console.log('D197_SYNTHETIC_FROZEN_NPM_IGNORE_SCRIPTS=PASS');
+          NODE
+      - name: State test-only boundary
+        shell: bash
+        run: echo 'D197 source-only lock generation, no RC or released setup.' >> "$GITHUB_STEP_SUMMARY"
