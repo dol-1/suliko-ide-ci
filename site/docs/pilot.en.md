@@ -7,3 +7,8 @@ The form asks only for your operating system, Desktop/Web preference and a gener
 **Privacy:** GitHub issues are public. Do not include your real name, age, email, phone, address, employer, private work, account information, access tokens, secrets or personal screenshots. Use only disposable test or public data.
 
 The pilot may invite an optional short questionnaire about setup effort, first task, repeat use, crashes, Remote panel usefulness and willingness to pay. We will report aggregate findings and clearly distinguish observed outcomes from hypothetical preferences. No hidden telemetry or data collection is implied.
+
+
+## What happens after signing up
+
+Maintainers can reply on the public issue with a short status: received, waitlisted, or pilot not open. Use only public or synthetic examples when testing. An **optional hypothetical monthly price band** is research, not a preorder or request to pay. Only consented, privacy-minimized aggregate feedback belongs in any pilot results; no participant-level report is authorized.

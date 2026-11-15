@@ -19,6 +19,7 @@
 | Day-7 repeat use | N/A returners | N/A consenting users eligible for day 7 | N/A | Optional survey answer, not telemetry |
 | Crash-free sessions | N/A verified sessions without crash | N/A voluntarily reported sessions | N/A | Aggregate survey, no logs |
 | Feedback coverage | N/A respondents | N/A consenting pilot users | N/A | Opt-in questionnaire |
+| Optional price-band responses | N/A respondents with a band | N/A consenting people who answered the price question | N/A | Self-report, non-purchase intent, aggregate only |
 | High severity unresolved | N/A open P0/P1 | N/A triaged cases | N/A | Reviewed issue classification |
 
 **Denominator rule:** numerator must be a subset of its exact denominator; denominator 0 or unknown → N/A, never 100%. Include date window, platform cohort and response/selection bias when publishing an aggregate.
