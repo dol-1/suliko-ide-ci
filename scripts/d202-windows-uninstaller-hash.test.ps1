@@ -39,3 +39,5 @@ try {
   $env:LOCALAPPDATA = $original
   # Synthetic files persist only for this disposable GitHub-hosted runner lifetime.
 }
+# Exit code from expected rejected child pwsh is nonzero; only assertions decide CI result.
+exit 0
