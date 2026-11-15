@@ -28,21 +28,12 @@ try{
  const page=await app.firstWindow();
  await page.waitForLoadState("domcontentloaded");
  console.log("D174_GUI_SAFE_STAGE=app-window-ready");
- const projectsNav=page.getByRole("button",{name:/projects?/i}).first();
- await expect(projectsNav).toBeVisible({timeout:60000});
- console.log("D174_GUI_SAFE_STAGE=projects-nav-visible");
- // BB hydration/setup can temporarily disable Projects until its own host
- // becomes available. Wait for real enablement, never force-click disabled UI.
+ // Keep the stock Electron app on the projectless Compose home.
+ // Clicking the separate "Projects" navigation opens a page that lacks the
+ // RootCompose prompt-box project picker. Do not click it on fresh installs.
  const skip=page.getByRole("button",{name:/skip setup/i}).first();
  if(await skip.isVisible().catch(()=>false))await skip.click();
- // With no existing projects BB may intentionally disable the Projects
- // switcher. The verified root compose Create project entry is the fallback.
- if(await projectsNav.isEnabled().catch(()=>false)){
-  await projectsNav.click();
-  console.log("D174_GUI_SAFE_STAGE=projects-page-ready");
- }else{
-  console.log("D174_GUI_SAFE_STAGE=projects-nav-disabled");
- }
+ console.log("D174_GUI_SAFE_STAGE=projectless-compose-home-ready");
  // Create a disposable git folder using only local filesystem + git.
  // Enroll it through the REAL official Electron GUI; never invoke the
  // unsupported native PowerShell stock BB 'project create' command.

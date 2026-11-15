@@ -50,7 +50,7 @@ const shell=(file,args,category,timeout=180000,cwd=workspace)=>{
     // Do not print Playwright failure snapshots: they could include user paths.
     // Only print the latest fixed, allowlisted GUI traversal stage token.
     const raw=String(o.stdout||"");
-    const valid=new Set(["app-window-ready","projects-nav-visible","projects-nav-disabled","projects-nav-enabled","projects-page-ready","entry-found","dialog-open","folder-editor-open",
+    const valid=new Set(["app-window-ready","projectless-compose-home-ready","entry-found","dialog-open","folder-editor-open",
       "path-go-confirmed","gui-project-added","hello-nav-visible","hello-panel-visible"]);
     const last=[...raw.matchAll(/D174_GUI_SAFE_STAGE=([a-z-]+)/g)]
       .map(m=>m[1]).filter(x=>valid.has(x)).at(-1)||"not-reported";
