@@ -1,0 +1,59 @@
+name: D-169 real pinned fast-check fuzz D164 D163 D165 native parsers (NO release)
+on:
+  push:
+    branches: [feat/d169-fastcheck-native-parsers, main]
+    paths:
+      - '.github/workflows/d169-fastcheck-property.yml'
+      - 'scripts/d169-pure-fuzz.mjs'
+      - 'scripts/d163-strict-native-plugin-state.mjs'
+      - 'scripts/d164-native-listener-guard.mjs'
+      - 'scripts/d165-setup-args.mjs'
+  workflow_dispatch:
+concurrency:
+  group: d169-pure-fuzz-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  parser-fuzz:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Install exact pinned MIT property-test engine in isolated ephemeral path
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/d169-fuzz"
+          npm --prefix "$RUNNER_TEMP/d169-fuzz" install --ignore-scripts --no-audit --no-fund --save-exact 'fast-check@4.10.2'
+      - name: Real 300-run bounded deterministic property assertions, three production pure parsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d169-pure-fuzz.mjs
+          node --test scripts/d169-pure-fuzz.mjs
+          echo 'D169 true fast-check random property assertions on D164 live OS listener parser, D163 plugin-state parser, D165 CLI args; not network fuzzing or independent security audit.' >> "$GITHUB_STEP_SUMMARY"
+  strict_fan_in:
+    if: always() && github.repository == 'dol-1/suliko-ide-ci'
+    needs: parser-fuzz
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      MATRIX_RESULT: ${{ needs.parser-fuzz.result }}
+    steps:
+      - name: Require all genuine native matrix jobs non-skipped and green
+        run: |
+          test "$MATRIX_RESULT" = success || { echo 'D169_FAIL_CLOSED: property fuzz was skipped or failed on one or more genuine native OS' >&2; exit 1; }
+          echo 'D169_REAL_FAST_CHECK_3OS_ALL_GREEN' >> "$GITHUB_STEP_SUMMARY"
