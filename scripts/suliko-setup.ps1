@@ -2,14 +2,39 @@
 # No service elevation, no BYO provider keys, no production claim; full E1/RC remains unapproved.
 [CmdletBinding()]
 param(
+  [switch]$Help,
   [switch]$DryRun,
   [switch]$DownloadVerified,
   [switch]$Install,
   [switch]$AllowUnsignedVerified,
   [switch]$Uninstall,
+  [string]$PluginSha,
+  [string]$CandidateFile,
   [string]$VerifyFile
 )
 $ErrorActionPreference = 'Stop'
+if ($Help) {
+  if ($DryRun -or $DownloadVerified -or $Install -or $Uninstall -or $AllowUnsignedVerified -or
+    -not [string]::IsNullOrEmpty($PluginSha) -or -not [string]::IsNullOrEmpty($CandidateFile) -or
+    -not [string]::IsNullOrEmpty($VerifyFile)) { throw 'D178 help must be standalone' }
+  Write-Output 'Suliko E1 Windows setup (experimental CI-only, no released beta).'
+  Write-Output 'Official BB CLI on Windows: ONLY inside Ubuntu WSL2 (Linux paths); native PowerShell BB project-create is not supported.'
+  Write-Output 'Official BB Desktop GUI: native Windows x64; official 0.49.0 installer is NotSigned, SHA-256 is not publisher signature.'
+  Write-Output 'Modes: -DryRun, -DownloadVerified, -Install -AllowUnsignedVerified -PluginSha <SHA256> -CandidateFile <absolute path>, -Uninstall.'
+  Write-Output 'CLI upstream: https://github.com/get-bb/bb/blob/desktop-v0.49.0/packages/bb-app/README.md'
+  Write-Output 'No release, remote deployment, SEC04 signed review or beta approval is implied.'
+  return
+}
+if (-not [string]::IsNullOrEmpty($PluginSha) -or -not [string]::IsNullOrEmpty($CandidateFile)) {
+  if (-not $Install -or $PluginSha -cnotmatch '^[a-f0-9]{64}$' -or -not [IO.Path]::IsPathRooted($CandidateFile)) {
+    throw 'D165 explicit candidate requires -Install, lowercase SHA256 and absolute local file'
+  }
+  $item = Get-Item -LiteralPath $CandidateFile -Force -ErrorAction Stop
+  if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'D165 candidate symlink/nonregular refused' }
+  $got = (Get-FileHash -LiteralPath $CandidateFile -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($got -cne $PluginSha) { throw 'D165 candidate digest mismatch: fail closed' }
+  if ((& node --version) -cne 'v22.19.0') { throw 'D165 requires reviewed Node 22.19.0' }
+}
 $modes = [int]$DryRun.IsPresent + [int]$DownloadVerified.IsPresent + [int]$Install.IsPresent + [int]$Uninstall.IsPresent + [int](-not [string]::IsNullOrEmpty($VerifyFile))
 if ($modes -gt 1) { throw 'Choose only one mode' }
 if ($AllowUnsignedVerified -and -not $Install) { throw 'Unsigned opt-in is valid only with -Install' }
@@ -66,6 +91,12 @@ function Assert-Hash([string]$Path) {
   Write-Output 'Official release SHA-256 verified'
 }
 if ($Uninstall) {
+  $d165root = Join-Path $env:LOCALAPPDATA 'SulikoIDE\UserSetup'
+  if (Test-Path -LiteralPath $d165root -PathType Container) {
+    if ((& node --version) -cne 'v22.19.0') { throw 'Cannot safely uninstall tracked D165 provision without pinned Node' }
+    & node (Join-Path $PSScriptRoot 'd165-user-provision.mjs') --uninstall
+    if ($LASTEXITCODE -ne 0) { throw 'D165 owned provision cleanup failed' }
+  }
   Assert-ManagedInstallPath
   Assert-ManagedCachePath
   if (Test-Path -LiteralPath $installedMarker -PathType Leaf) {
@@ -110,6 +141,7 @@ if ($Uninstall) {
   if ($markerItem.PSIsContainer -or ($markerItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Invalid cached asset ownership marker' }
   if ([IO.File]::ReadAllText($marker).TrimEnd([char[]]@("`r","`n")) -cne $markerRecord) { throw 'Unowned cache asset refused' }
   Assert-Hash $dest | Out-Null
+  Write-Output "D165_STAGE=official-cached-verified"
   $status = [string](Get-AuthenticodeSignature -LiteralPath $dest).Status
   if ($status -cne 'NotSigned') { throw 'Unexpected Windows official Authenticode status, refusing to execute' }
   if (Test-Path -LiteralPath $installTarget -ErrorAction SilentlyContinue -PathType Any) { throw 'Installation target already exists; no overwrite' }
@@ -126,7 +158,15 @@ if ($Uninstall) {
   # failure preserve an untracked app rather than deleting foreign files.
   $stream = [IO.FileStream]::new($installedMarker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
   try { $writer = [IO.StreamWriter]::new($stream); try { $writer.WriteLine($installedRecord); $writer.Flush() } finally { $writer.Dispose() } } finally { $stream.Dispose() }
-  Write-Output 'D141 verified NotSigned official BB installed in current-user space; launcher only. No provider keys, marketplace RC, public beta or SEC02 claim.'
+  if (-not [string]::IsNullOrEmpty($PluginSha)) {
+    Write-Output "D165_STAGE=official-installed"
+    Write-Output "D165_STAGE=provision-start"
+    & node (Join-Path $PSScriptRoot 'd165-user-provision.mjs') --install --plugin-sha $PluginSha --candidate-file $CandidateFile
+    if ($LASTEXITCODE -ne 0) { throw 'D165 end-user published CLI + verified candidate provisioning failed' }
+    Write-Output 'D165 verified official GUI + published CLI SEC02 and Hello from explicit candidate digest; no released RC/SEC04/beta claim.'
+  } else {
+    Write-Output 'D141 verified NotSigned official BB installed in current-user space; launcher only. No provider keys, marketplace RC, public beta or SEC02 claim.'
+  }
 } elseif ($DownloadVerified) {
   Assert-ManagedCachePath
   # Never overwrite an existing same-name user file or stale ownership record.

@@ -7,9 +7,12 @@ version="0.49.0"
 tag="desktop-v0.49.0"
 mode="dry-run"
 verify_path=""
+plugin_sha=""
+candidate_file=""
 usage() {
   printf '%s\n' 'Usage: suliko-setup.sh [--dry-run|--download-verified|--install|--verify-file PATH|--uninstall]'
-  printf '%s\n' 'PREVIEW ONLY: --install stages the official Linux AppImage in user space; SEC02 and plugins are not configured.'
+  printf '%s\n' 'Complete E1 candidate setup: --install --plugin-sha <64hex> --candidate-file /absolute/path/to/suliko-hello-v0.1.0-rc.1.tar.gz (Node 22.19.0 required).'
+  printf '%s\n' 'Without candidate flags, --install is legacy official-GUI-only PREVIEW; no beta/release claim.'
 }
 if [[ $# -gt 0 ]]; then
   case "$1" in
@@ -22,7 +25,24 @@ if [[ $# -gt 0 ]]; then
     *) usage; exit 2 ;;
   esac
 fi
+if [[ "$mode" = install ]]; then
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --plugin-sha) [[ -z "$plugin_sha" && $# -ge 2 ]] || { usage; exit 2; }; plugin_sha="$2"; shift 2 ;;
+      --candidate-file) [[ -z "$candidate_file" && $# -ge 2 ]] || { usage; exit 2; }; candidate_file="$2"; shift 2 ;;
+      *) usage; exit 2 ;;
+    esac
+  done
+fi
 [[ $# -eq 0 ]] || { usage; exit 2; }
+if [[ -n "$plugin_sha" || -n "$candidate_file" ]]; then
+  [[ "$mode" = install && "$plugin_sha" =~ ^[a-f0-9]{64}$ && "$candidate_file" = /* ]] ||
+    { printf '%s\n' 'D165 fail closed: explicit SHA256 and absolute candidate path required' >&2; exit 2; }
+  [[ -f "$candidate_file" && ! -L "$candidate_file" ]] ||
+    { printf '%s\n' 'D165 fail closed: candidate file must be regular' >&2; exit 2; }
+  [[ "$(node --version 2>/dev/null)" = "v22.19.0" ]] ||
+    { printf '%s\n' 'D165 fail closed: reviewed Node 22.19.0 required' >&2; exit 2; }
+fi
 case "$(uname -s)-$(uname -m)" in
   Linux-x86_64) asset="bb-0.49.0-x86_64.AppImage"; sha="8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770" ;;
   Darwin-arm64) asset="bb-0.49.0-arm64.dmg"; sha="5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17" ;;
@@ -140,6 +160,9 @@ case "$mode" in
     # only. Real user SEC02/plugin installation remains a separate next gate.
     if [[ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ]]; then
       mac_install_user
+      if [[ -n "$plugin_sha" ]]; then
+        node "$(cd -- "$(dirname -- "$0")" && pwd)/d165-user-provision.mjs" --install --plugin-sha "$plugin_sha" --candidate-file "$candidate_file"
+      fi
       exit 0
     fi
     [[ "$(uname -s)-$(uname -m)" = "Linux-x86_64" ]] ||
@@ -150,7 +173,12 @@ case "$mode" in
       bash "$0" --download-verified >/dev/null
     fi
     bash "$(cd -- "$(dirname -- "$0")" && pwd)/suliko-stage-linux.sh" --stage
-    printf '%s\n' 'D141 Linux verified official AppImage staged user-only; SEC02/Hello/RC are NOT installed by this command.'
+    if [[ -n "$plugin_sha" ]]; then
+      node "$(cd -- "$(dirname -- "$0")" && pwd)/d165-user-provision.mjs" --install --plugin-sha "$plugin_sha" --candidate-file "$candidate_file"
+      printf '%s\n' 'D165 official Linux GUI + strict published CLI SEC02/Hello same owned BB data installed from explicit digest. Reviewer-only candidate; NOT released beta.'
+    else
+      printf '%s\n' 'D141 Linux verified official AppImage staged user-only; SEC02/Hello/RC are NOT installed by this command.'
+    fi
     ;;
   dry-run)
     printf 'PREVIEW ONLY | official BB %s | asset: %s\n' "$version" "$asset"
@@ -181,6 +209,12 @@ case "$mode" in
     ;;
   uninstall)
     ensure_managed_cache_path
+    d165_root="$HOME/.local/share/suliko-ide/UserSetup"
+    if [[ -d "$d165_root" && ! -L "$d165_root" ]]; then
+      [[ "$(node --version 2>/dev/null)" = "v22.19.0" ]] ||
+        { printf '%s\n' 'D165 cannot safely uninstall owned plugin: reviewed Node unavailable' >&2; exit 2; }
+      node "$(cd -- "$(dirname -- "$0")" && pwd)/d165-user-provision.mjs" --uninstall
+    fi
     if [[ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ]]; then
       mac_uninstall_user
     fi
