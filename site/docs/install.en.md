@@ -35,3 +35,19 @@ New `--install` / `--uninstall` (Linux/macOS) and explicit `-Install -AllowUnsig
 A CI job marked GREEN for **diagnostic inspection** must never be interpreted as an approved installation. The four beta gates, including three-platform setup and a live docs site, are not all met. Do not run unreleased Suliko scripts on production systems.
 
 For provider configuration, use BB's official settings interface rather than posting key values anywhere. [Troubleshooting](troubleshooting.en.md) and [FAQ](faq.en.md) cover safe support requests.
+
+## Copyable CI-only preview commands (not an installer)
+
+These commands are executed verbatim on disposable GitHub Actions Windows/macOS/Linux runners by the D-190 docs-as-test check. They only print preflight details; do **not** install a package, enable services or bypass Windows publisher trust. Run them only in a checked-out synthetic CI repository, **not** on personal or production computers. The native Windows Desktop GUI path is separately covered by the strict D-165 3-OS CI; the BB CLI on Windows remains **Ubuntu WSL2 only**, never native PowerShell.
+
+<!-- D190:POSIX -->
+```bash
+bash scripts/suliko-setup.sh --dry-run
+```
+
+<!-- D190:WINDOWS -->
+```powershell
+pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -DryRun
+```
+
+The CI also reads PowerShell `--help` and refuses any output missing `WSL2`, `GUI` or `NotSigned`. Success is a **synthetic preview**, not a publisher signature, released RC tag or SEC-04 approval.
