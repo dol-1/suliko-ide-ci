@@ -53,6 +53,20 @@ body:
         - Not yet, just interested
     validations:
       required: true
+  - type: dropdown
+    id: price-band
+    attributes:
+      label: Hypothetical monthly price / სავარაუდო თვიური ფასი (არასავალდებულო)
+      description: Research only, not a purchase or offer. / მხოლოდ კვლევაა.
+      options:
+        - Free / უფასო
+        - Up to 15 GEL per month / 15 ლარამდე
+        - 16–30 GEL per month / 16–30 ლარი
+        - 31–60 GEL per month / 31–60 ლარი
+        - Above 60 GEL per month / 60 ლარზე მეტი
+        - Prefer not to answer / არ მსურს პასუხი
+    validations:
+      required: false
   - type: textarea
     id: goals
     attributes:
