@@ -4,8 +4,9 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d063-semgrep-own-code, feat/d155-published-native-3os-sec02-hello, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, main]
+    branches: [feat/d063-semgrep-own-code, feat/d155-published-native-3os-sec02-hello, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, feat/d171-daily-qa01-main, main]
     paths:
+      - '.github/workflows/qa01-parity-run.yml'
       - '.github/workflows/d063-semgrep.yml'
       - 'plugins/**'
       - 'scripts/**'
