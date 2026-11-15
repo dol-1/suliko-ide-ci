@@ -135,6 +135,39 @@ try{
  }
  if(!Array.isArray(plugins)||!inspectStrictNativePluginState(plugins).safe)
   fail("d165-installed-strict-sec02-state-not-persistent");
+
+ // D198: inspect the SAME actually installed own CLI and live OS TCP socket
+ // state, never a fixture, user shell or Remote. Bundle contains allowlist only.
+ const doctor=path.join(workspace,'scripts','suliko-doctor.mjs');
+ const bundle=path.join(root,'d198-owned-doctor-redacted.json');
+ const safeReport=JSON.parse(shell(process.execPath,[doctor,'--live','--bundle',bundle],
+   'd198-live-owned-bb-doctor',40000));
+ if(safeReport.schema!=='suliko-doctor-live-v1'||
+    safeReport.evidence!=='user-owned-cli-plus-native-os-readonly-not-remote'||
+    safeReport.status!=='live-owned-bb-pass'||
+    safeReport.bbVersion!=='0.49.0'||
+    safeReport.controls?.loopbackOnly!==true||
+    safeReport.controls?.hardenedProfile!==true||
+    safeReport.controls?.forbiddenPluginsSafe!==true||
+    safeReport.controls?.providerKeyPresenceSource!=='environment-variable-name-only-not-bb-secret-store'||
+    safeReport.plugins?.['suliko-hello']!=='enabled')fail('d198-live-doctor-unverified');
+ const bundleStat=fs.lstatSync(bundle);
+ if(!bundleStat.isFile()||bundleStat.isSymbolicLink())fail('d198-bundle-nonregular');
+ if(!win && (bundleStat.mode & 0o777)!==0o600)fail('d198-bundle-unsafe-permissions');
+ if(fs.readFileSync(bundle,'utf8')!==JSON.stringify(safeReport,null,2)+'\n')
+   fail('d198-bundle-report-mismatch');
+ const checkRejected=extra=>{
+   const r=spawnSync(process.execPath,[doctor,'--live','--bundle',bundle],{
+     cwd:workspace,env:{...env,...extra},encoding:'utf8',windowsHide:true,
+     stdio:['ignore','pipe','pipe'],timeout:30000,maxBuffer:200000});
+   if(r.status===0)fail('d198-refusal-regression');
+ };
+ // Fail-closed both when environment is no longer hardened and when the
+ // already-written support bundle might be overwritten. Never log raw output.
+ checkRejected({BB_TELEMETRY:'true'});
+ checkRejected({});
+ console.log('D198_ACTUAL_OWNED_LIVE_DOCTOR_3OS_AND_REDACTED_WX_0600=PASS');
+
  // D174 policy (Claude #42/#83): pinned BB 0.49.0 native Windows CLI
  // project creation is not supported upstream; test the REAL installed GUI.
  // Linux/macOS retain their actual registered project and GUI smoke.
