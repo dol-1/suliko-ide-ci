@@ -8,6 +8,10 @@ on:
     paths:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
+      - '.github/workflows/d063-semgrep.yml'
+      - '.github/workflows/d063-gitleaks.yml'
+      - '.github/workflows/d158-codeql-own-source.yml'
+      - '.github/workflows/d152-workflow-expression-guard.yml'
       - 'scripts/docs-check.py'
       - 'scripts/docs-check.test.py'
       - 'scripts/docs-license-check.py'

@@ -6,6 +6,7 @@ on:
       - '.github/workflows/qa01-parity-run.yml'
       - '.github/workflows/d173-sdk-0144.yml'
       - '.github/workflows/d158-codeql-own-source.yml'
+      - '.github/workflows/d062-docs.yml'
       - 'plugins/**'
       - 'scripts/**'
   workflow_dispatch:
