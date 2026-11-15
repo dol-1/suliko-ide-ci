@@ -1,13 +1,15 @@
 name: D-162 one genuine native 3OS installed GUI plus published CLI same synthetic data fan-in (CI ONLY)
 on:
   push:
-    branches: [feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, main]
+    branches: [feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, main]
     paths:
       - '.github/workflows/d162-native-3os-same-run.yml'
       - 'scripts/d159-installed-gui-published-native.mjs'
       - 'scripts/d159-installed-gui-published-native.test.mjs'
       - 'scripts/d163-strict-native-plugin-state.mjs'
       - 'scripts/d163-strict-native-plugin-state.test.mjs'
+      - 'scripts/d164-native-listener-guard.mjs'
+      - 'scripts/d164-native-listener-guard.test.mjs'
       - 'scripts/suliko-setup.sh'
       - 'scripts/suliko-setup.ps1'
       - 'scripts/suliko-stage-linux.sh'
@@ -47,6 +49,7 @@ jobs:
           set -euo pipefail
           node --check scripts/d159-installed-gui-published-native.mjs
           node --check scripts/d163-strict-native-plugin-state.mjs
+          node --check scripts/d164-native-listener-guard.mjs
       - name: Install pinned CI-only Playwright harness
         shell: bash
         run: |
@@ -56,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test scripts/d159-installed-gui-published-native.test.mjs scripts/d163-strict-native-plugin-state.test.mjs
+          node --test scripts/d159-installed-gui-published-native.test.mjs scripts/d163-strict-native-plugin-state.test.mjs scripts/d164-native-listener-guard.test.mjs
       - name: Real per-user installed official GUI and genuine published BB CLI strict same disposable data
         shell: bash
         run: |
