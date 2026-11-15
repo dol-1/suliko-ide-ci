@@ -1,0 +1,57 @@
+name: D-161 native Linux official installed AppImage plus published CLI same synthetic data (CI ONLY)
+on:
+  push:
+    branches: [feat/d161-native-linux-same-runtime, main]
+    paths:
+      - '.github/workflows/d161-linux-installed-gui-published.yml'
+      - 'scripts/d159-installed-gui-published-native.mjs'
+      - 'scripts/d159-installed-gui-published-native.test.mjs'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-stage-linux.sh'
+      - 'plugins/suliko-hello/**'
+      - 'tests/parity/d134-linux-installed-appimage.mjs'
+  workflow_dispatch:
+concurrency:
+  group: d161-linux-native-published-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  linux-same-synthetic-runtime:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Require genuine nonroot Linux runner and preinstalled Xvfb
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          test "$(id -u)" -ne 0
+          command -v xvfb-run >/dev/null
+      - name: Install pinned Playwright harness solely for CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+      - name: Refuse non-CI and wrong-repository execution before any downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/d159-installed-gui-published-native.test.mjs
+      - name: Official SHA-pinned AppImage and actual published stock CLI same disposable BB data
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/d159-installed-gui-published-native.mjs
+          echo 'Linux native same-data CI proof only: not user one-command, marketplace RC, SEC04 review or beta.' >> "$GITHUB_STEP_SUMMARY"

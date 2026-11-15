@@ -1,19 +1,19 @@
-// D159: native Windows/macOS *public CI only* official installed GUI + real
+// D159/D161: native Windows/macOS/Linux *public CI only* official installed GUI + real
 // published bb-app CLI in the SAME synthetic BB_DATA_DIR. Not user setup/release.
 import fs from "node:fs";
 import path from "node:path";
 import {spawn,spawnSync} from "node:child_process";
 const e=process.env, root=e.RUNNER_TEMP, workspace=e.GITHUB_WORKSPACE;
-const platform=process.platform, isWin=platform==="win32", isMac=platform==="darwin";
+const platform=process.platform, isWin=platform==="win32", isMac=platform==="darwin", isLinux=platform==="linux";
 const fail=(category)=>{throw Object.assign(new Error("D159"),{category})};
 if(e.CI!=="true"||e.GITHUB_ACTIONS!=="true"||
    e.GITHUB_REPOSITORY!=="dol-1/suliko-ide-ci"||
-   !((isWin&&e.RUNNER_OS==="Windows")||(isMac&&e.RUNNER_OS==="macOS"))||
+   !((isWin&&e.RUNNER_OS==="Windows")||(isMac&&e.RUNNER_OS==="macOS")||(isLinux&&e.RUNNER_OS==="Linux"&&process.arch==="x64"))||
    !root||!path.isAbsolute(root)||!workspace||!path.isAbsolute(workspace)||
    process.versions.node!=="22.19.0"||
-   (isMac && typeof process.getuid==="function"&&process.getuid()===0))
+   ((isMac||isLinux) && typeof process.getuid==="function"&&process.getuid()===0))
   fail("not-approved-disposable-native-runner");
-const began=Date.now(),port=isWin?38895:38914,daemonPort=isWin?38896:38915;
+const began=Date.now(),port=isWin?38895:isMac?38914:38906,daemonPort=isWin?38896:isMac?38915:38907;
 const home=path.join(root,"d159-native-owned-home");
 const prefix=path.join(root,"d159-published-cli");
 const data=path.join(home,"bb-disposable");
@@ -21,7 +21,8 @@ const local=path.join(home,"LocalAppData"), roaming=path.join(home,"RoamingAppDa
 const fixture=path.join(workspace,"plugins","suliko-hello");
 const env={...e,HOME:home,USERPROFILE:home,LOCALAPPDATA:local,APPDATA:roaming,
   BB_DATA_DIR:data,BB_TELEMETRY:"false",BB_SERVER_BIND_HOST:"127.0.0.1",
-  BB_SERVER_PORT:String(port),BB_HOST_DAEMON_PORT:String(daemonPort)};
+  BB_SERVER_PORT:String(port),BB_HOST_DAEMON_PORT:String(daemonPort),
+  ...(isLinux?{APPIMAGE_EXTRACT_AND_RUN:"1"}:{})};
 let app="",bb="",official="",server=null,installed=false;
 function execute(executable,args,category,timeout=180000,cwd=workspace){
  const out=spawnSync(executable,args,{env,cwd,encoding:"utf8",timeout,
@@ -67,6 +68,11 @@ async function cleanup(){
    else execute("bash",[path.join(workspace,"scripts","suliko-setup.sh"),
      "--uninstall"],"owned-mac-uninstall",90000);
    if(fs.existsSync(official))fail("owned-app-remains-after-uninstall");
+   if(isLinux){
+    const launcher=path.join(home,".local","bin","suliko-bb-desktop");
+    if(fs.existsSync(launcher)||fs.existsSync(path.join(home,".cache","suliko-ide","bb-0.49.0-x86_64.AppImage")))
+     fail("owned-linux-stage-remains-after-uninstall");
+   }
   }catch(error){throw error;}
  }
  // Both directories were created exclusively under RUNNER_TEMP by this script.
@@ -98,11 +104,24 @@ try{
   execute("bash",[path.join(workspace,"scripts","suliko-setup.sh"),
     "--install"],"official-macos-user-setup",350000);
   official=path.join(home,"Applications","bb.app","Contents","MacOS","bb");
+ }else{
+  if(!fs.existsSync("/usr/bin/xvfb-run"))fail("linux-native-xvfb-missing");
+  execute("bash",[path.join(workspace,"scripts","suliko-setup.sh"),
+    "--install"],"official-linux-user-setup",350000);
+  official=path.join(home,".local","share","suliko-ide","bb-0.49.0-x86_64.AppImage");
  }
  installed=true;
  // Assert the expected official launcher after setup, do not follow symlink.
  const appStat=fs.lstatSync(official);
  if(!appStat.isFile()||appStat.isSymbolicLink())fail("invalid-official-launcher");
+ if(isLinux){
+  const launcher=path.join(home,".local","bin","suliko-bb-desktop");
+  if(!fs.lstatSync(launcher).isSymbolicLink()||fs.readlinkSync(launcher)!==official)
+   fail("invalid-owned-linux-launcher");
+  const digest=execute("sha256sum",[official],"official-linux-checksum",30000).trim().split(/\s+/)[0];
+  if(digest!=="8349ab773715624fec5082739c817d2a15809504699d34b47d3d9dfbe60fc770")
+   fail("official-linux-sha256-mismatch");
+ }
  // Stock *published npm*, version-pinned: registry metadata is NOT publisher identity.
  const metadata=JSON.parse(npm(["view","bb-app@0.49.0","--json"],90000));
  if(metadata.name!=="bb-app"||metadata.version!=="0.49.0"||
@@ -179,7 +198,7 @@ try{
   fail("strict-live-sec02-hello-not-confirmed");
  }
  // Real synthetic project enrolled via published CLI, both native GUI tests rely on it.
- const name=isWin?"d129-win-synthetic":"d135-macos-synthetic";
+ const name=isWin?"d129-win-synthetic":isMac?"d135-macos-synthetic":"d134-linux-synthetic";
  const project=path.join(home,name);
  fs.mkdirSync(project,{mode:0o700});
  fs.writeFileSync(path.join(project,"README.md"),"D159 synthetic disposable project only\n",{flag:"wx",mode:0o600});
@@ -192,15 +211,23 @@ try{
  }else{
   env.D135_OFFICIAL_EXE=official;
   env.D135_BB_WEB_URL="http://127.0.0.1:38914/";
+ }else{
+  env.D134_OFFICIAL_APPIMAGE=official;
+  env.D134_BB_WEB_URL="http://127.0.0.1:38906/";
  }
- const guiTest=isWin?"d129-windows-installed-desktop.mjs":"d135-macos-official-installed-hello.mjs";
- const result=execute(process.execPath,[path.join(workspace,"tests","parity",guiTest)],
-   "genuine-installed-electron-hello",180000);
+ const guiTest=isWin?"d129-windows-installed-desktop.mjs":isMac?
+  "d135-macos-official-installed-hello.mjs":"d134-linux-installed-appimage.mjs";
+ const result=isLinux?
+  execute("xvfb-run",["-a",process.execPath,path.join(workspace,"tests","parity",guiTest)],
+    "genuine-installed-electron-hello",180000):
+  execute(process.execPath,[path.join(workspace,"tests","parity",guiTest)],
+    "genuine-installed-electron-hello",180000);
  if(!result.includes("PASS"))fail("actual-gui-not-verified");
  const elapsed=Math.ceil((Date.now()-began)/1000);
  if(elapsed>=900)fail("exceeded-15-minutes");
  console.log("D159_INSTALLED_NATIVE_GUI_PUBLISHED_CLI_SEC02_HELLO=PASS");
- console.log("D159_NATIVE_OS="+(isWin?"windows-2025":"macos-15"));
+ console.log("D159_NATIVE_OS="+(isWin?"windows-2025":isMac?"macos-15":"ubuntu-24.04"));
+ if(isLinux)console.log("D161_LINUX_OFFICIAL_INSTALLED_GUI_PUBLISHED_CLI_STRICT=PASS");
  console.log("D159_ACTIVE_SAME_SYNTHETIC_BB_DATA_DIR=PASS");
  console.log("D159_SETUP_ELAPSED_SECONDS="+elapsed);
  if(e.GITHUB_STEP_SUMMARY)
