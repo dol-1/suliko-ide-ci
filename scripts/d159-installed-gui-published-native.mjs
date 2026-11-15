@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {spawn,spawnSync} from "node:child_process";
+import {FORBIDDEN_IDS, inspectStrictNativePluginState} from "./d163-strict-native-plugin-state.mjs";
 const e=process.env, root=e.RUNNER_TEMP, workspace=e.GITHUB_WORKSPACE;
 const platform=process.platform, isWin=platform==="win32", isMac=platform==="darwin", isLinux=platform==="linux";
 const fail=(category)=>{throw Object.assign(new Error("D159"),{category})};
@@ -155,7 +156,7 @@ try{
   await wait(1500);
  }
  if(!plugins)fail("published-server-readiness");
- const forbidden=["bb--mcp","account-pool","connect","bb--connect-next","memory"];
+ const forbidden=FORBIDDEN_IDS;
  for(const id of forbidden){
   const rows=plugins.filter(x=>x.id===id);
   if(rows.length>1)fail("duplicate-stock-plugin");
@@ -170,31 +171,18 @@ try{
  let strict=false,lastCategory="not-yet-observed";
  for(let i=0;i<16;i++){
   plugins=getPlugins();
-  let safe=true;
-  for(const id of forbidden){
-   const rows=plugins.filter(x=>x.id===id);
-   if(rows.length>1)fail("duplicate-stock-plugin");
-   if(rows.length===1&&(rows[0].enabled!==false||rows[0].status!=="disabled")){
-    safe=false;
-    const enabled=rows[0].enabled===true?"true":rows[0].enabled===false?"false":"other";
-    const rawStatus=rows[0].status;
-    const status=rawStatus==="disabled"?"disabled":rawStatus==="running"?"running":
-     rawStatus==="needs-configuration"?"needs-configuration":rawStatus==="error"?"error":"other";
-    lastCategory="forbidden-"+id+"-enabled-"+enabled+"-status-"+status;
-    // Do not silently accept a stale or re-enabled plugin; actually request
-    // a disable again at bounded intervals, then re-read live runtime state.
-    if(i>=2&&i%3===2)invokeBB(["plugin","disable",id]);
-   }
+  // D163: the same pure fail-closed parser is tested with explicit negative
+  // fixtures before any official native installation. This NEVER accepts an
+  // enabled=false stock plugin unless its real live status is also disabled.
+  const state=inspectStrictNativePluginState(plugins);
+  if(state.lastCategory!=="not-yet-observed")lastCategory=state.lastCategory;
+  for(const offender of state.forbiddenOffenders){
+   // Fixed reviewed ID only; never pass discovered names or raw JSON into CLI.
+   if(i>=2&&i%3===2)invokeBB(["plugin","disable",offender.id]);
   }
-  const own=plugins.filter(x=>x.id==="suliko-hello"||x.id==="bb-plugin-suliko-hello");
-  if(own.length>1)fail("duplicate-own-plugin");
-  const helloActive=own.length===1&&own[0].enabled===true;
-  if(!helloActive){
-   lastCategory=own.length===0?"own-hello-missing":"own-hello-not-enabled";
-   if(own.length===1&&i>=2&&i%3===2)
-    invokeBB(["plugin","enable","suliko-hello"]);
-  }
-  if(safe&&helloActive){strict=true;break}
+  if(!state.helloActive && state.helloPresent && i>=2&&i%3===2)
+   invokeBB(["plugin","enable","suliko-hello"]);
+  if(state.safe){strict=true;break}
   await wait(1000);
  }
  if(!strict){
