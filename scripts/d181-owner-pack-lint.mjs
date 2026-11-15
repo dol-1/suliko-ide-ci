@@ -19,12 +19,25 @@ const expected=[
  "site/docs/pilot-metrics.en.md",
  ".github/ISSUE_TEMPLATE/pilot-signup.yml"
 ];
-for(const path of expected){
- const st=fs.lstatSync(path);
- assert(st.isFile()&&!st.isSymbolicLink(),"D181 unsafe owner-pack link "+path);
- assert(fs.readFileSync(path,"utf8").length>4,"D181 missing owner file "+path);
+// Open with O_NOFOLLOW, then inspect and read the SAME already opened file
+// descriptor. Never check path metadata then reopen that pathname (TOCTOU).
+function readSafely(name){
+ const fd=fs.openSync(name,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+ try{
+  const st=fs.fstatSync(fd);
+  assert(st.isFile(),"D181 unsafe owner-pack input "+name);
+  const value=fs.readFileSync(fd,"utf8");
+  assert(value.length>4,"D181 empty owner-pack input "+name);
+  return value;
+ }finally{
+  fs.closeSync(fd);
+ }
 }
-const read=(name)=>fs.readFileSync(name,"utf8");
+const checked=new Map(expected.map(name=>[name,readSafely(name)]));
+const read=(name)=>{
+ assert(checked.has(name),"D181 unreviewed owner-pack read "+name);
+ return checked.get(name);
+};
 const index=read(expected[0]),pages=read(expected[1]),rc=read(expected[2]),share=read(expected[3]);
 const required=[
  [index,["ENABLE-PAGES.md","RC-TAG-EXPECTED-SHA.md","SHARE-LINK.md","NOT authorized"]],
