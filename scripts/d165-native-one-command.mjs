@@ -151,11 +151,15 @@ try{
     safeReport.controls?.forbiddenPluginsSafe!==true||
     safeReport.controls?.providerKeyPresenceSource!=='environment-variable-name-only-not-bb-secret-store'||
     safeReport.plugins?.['suliko-hello']!=='enabled')fail('d198-live-doctor-unverified');
- const bundleStat=fs.lstatSync(bundle);
- if(!bundleStat.isFile()||bundleStat.isSymbolicLink())fail('d198-bundle-nonregular');
- if(!win && (bundleStat.mode & 0o777)!==0o600)fail('d198-bundle-unsafe-permissions');
- if(fs.readFileSync(bundle,'utf8')!==JSON.stringify(safeReport,null,2)+'\n')
-   fail('d198-bundle-report-mismatch');
+ // D198 CodeQL js/file-system-race: no pathname check-then-open window.
+ const bundleFd=fs.openSync(bundle,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW||0));
+ try{
+   const bundleStat=fs.fstatSync(bundleFd);
+   if(!bundleStat.isFile())fail('d198-bundle-nonregular');
+   if(!win && (bundleStat.mode & 0o777)!==0o600)fail('d198-bundle-unsafe-permissions');
+   if(fs.readFileSync(bundleFd,'utf8')!==JSON.stringify(safeReport,null,2)+'\n')
+     fail('d198-bundle-report-mismatch');
+ }finally{fs.closeSync(bundleFd)}
  const checkRejected=extra=>{
    const r=spawnSync(process.execPath,[doctor,'--live','--bundle',bundle],{
      cwd:workspace,env:{...env,...extra},encoding:'utf8',windowsHide:true,
