@@ -1,0 +1,32 @@
+name: D-181 owner phase 3-action reference lint (NO launch)
+on:
+  push:
+    branches: [feat/d181-owner-phase-preflight, main]
+    paths:
+      - 'docs/owner-pack/**'
+      - 'scripts/d181-owner-pack-lint.mjs'
+      - '.github/workflows/d181-owner-pack-lint.yml'
+      - '.github/workflows/d062-docs.yml'
+      - '.github/workflows/spike04-marketplace-rc.yml'
+      - 'marketplace/rc/**'
+      - '.github/ISSUE_TEMPLATE/pilot-signup.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  owner-reference-lint:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: All three owner references are real existing files and gated
+        run: |
+          node --check scripts/d181-owner-pack-lint.mjs
+          node scripts/d181-owner-pack-lint.mjs
