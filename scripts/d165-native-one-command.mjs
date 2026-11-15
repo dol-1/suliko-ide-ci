@@ -50,7 +50,7 @@ const shell=(file,args,category,timeout=180000,cwd=workspace)=>{
     // Do not print Playwright failure snapshots: they could include user paths.
     // Only print the latest fixed, allowlisted GUI traversal stage token.
     const raw=String(o.stdout||"");
-    const valid=new Set(["app-window-ready","projectless-compose-home-ready","entry-found","dialog-open","folder-editor-open",
+    const valid=new Set(["app-window-ready","ui-shell-hydrated","projectless-compose-home-ready","projects-page-ready","entry-found","dialog-open","folder-editor-open",
       "path-go-confirmed","gui-project-added","hello-nav-visible","hello-panel-visible"]);
     const last=[...raw.matchAll(/D174_GUI_SAFE_STAGE=([a-z-]+)/g)]
       .map(m=>m[1]).filter(x=>valid.has(x)).at(-1)||"not-reported";
@@ -187,6 +187,18 @@ try{
   mac?"d135-macos-official-installed-hello.mjs":"d134-linux-installed-appimage.mjs");
  const result=linux?shell("xvfb-run",["-a",process.execPath,gui],"d165-actual-electron-hello",180000):
  shell(process.execPath,[gui],"d165-actual-electron-hello",180000);
+ if(win){
+  const required=["D174_WINDOWS_SYNTHETIC_GUI_PROJECT_ENROLLMENT=PASS",
+   "D174_WINDOWS_REAL_OFFICIAL_GUI_HELLO_PANEL=PASS",
+   "D174_WINDOWS_REAL_GUI_HELLO_LIVENESS_15S=PASS"];
+  for(const token of required)if(!result.includes(token))
+   fail("d174-real-gui-proof-marker-absent");
+  const progress=[...result.matchAll(/D174_GUI_SAFE_STAGE=([a-z-]+)/g)]
+   .map(m=>m[1]).filter(x=>new Set(["ui-shell-hydrated","projectless-compose-home-ready",
+    "projects-page-ready","entry-found","dialog-open","folder-editor-open",
+    "path-go-confirmed","gui-project-added","hello-nav-visible","hello-panel-visible"]).has(x));
+  console.log("D174_REAL_WINDOWS_GUI_FINAL_STAGE="+(progress.at(-1)||"not-reported"));
+ }
  if(!result.includes("PASS"))fail("d165-no-genuine-installed-gui-pass");
  console.log("D165_USER_SINGLE_SETUP_REAL_GUI_HELLO_3OS_NATIVE=PASS");
  console.log("D165_USER_BB_DATA_PRESERVED_BEFORE_UNINSTALL=PASS");

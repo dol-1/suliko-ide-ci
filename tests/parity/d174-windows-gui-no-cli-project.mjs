@@ -31,6 +31,11 @@ try{
  // Keep the stock Electron app on the projectless Compose home.
  // Clicking the separate "Projects" navigation opens a page that lacks the
  // RootCompose prompt-box project picker. Do not click it on fresh installs.
+ // Wait for the actual BB navigation shell before checking optional setup
+ // and project controls. DOMContentLoaded alone is not React hydration.
+ const projectsNav=page.getByRole("button",{name:/projects?/i}).first();
+ await expect(projectsNav).toBeVisible({timeout:60000});
+ console.log("D174_GUI_SAFE_STAGE=ui-shell-hydrated");
  const skip=page.getByRole("button",{name:/skip setup/i}).first();
  if(await skip.isVisible().catch(()=>false))await skip.click();
  console.log("D174_GUI_SAFE_STAGE=projectless-compose-home-ready");
@@ -47,17 +52,33 @@ try{
  // or the ProjectSelector popover (button aria-label="Project: ..." plus
  // CommandItem value="new-project"). Both are native, real GUI surfaces.
  const direct=page.getByRole("button",{name:/New project/i}).first();
- if(await direct.isVisible().catch(()=>false)){
+ const trigger=page.getByRole("button",{name:/^Project:/i}).first();
+ let route=null;
+ // Asynchronous genuine GUI hydration varies. Test both upstream-supported
+ // create entrypoints; if none appear on Compose, use Projects nav only
+ // when actually enabled (never force/disable/bypass the real UI).
+ for(let i=0;i<65;i++){
+  if(await direct.isVisible().catch(()=>false) && await direct.isEnabled().catch(()=>false)){
+   route="direct";break;
+  }
+  if(await trigger.isVisible().catch(()=>false) && await trigger.isEnabled().catch(()=>false)){
+   route="selector";break;
+  }
+  if(i===25 && await projectsNav.isEnabled().catch(()=>false)){
+   await projectsNav.click();
+   console.log("D174_GUI_SAFE_STAGE=projects-page-ready");
+  }
+  await page.waitForTimeout(1000);
+ }
+ if(route==="direct"){
   await direct.click();
- }else{
-  const trigger=page.getByRole("button",{name:/^Project:/i}).first();
-  await expect(trigger).toBeVisible({timeout:50000});
-  await expect(trigger).toBeEnabled({timeout:30000});
+ }else if(route==="selector"){
   await trigger.click();
   const action=page.getByRole("option",{name:"New project"}).first();
   await expect(action).toBeVisible({timeout:20000});
+  await expect(action).toBeEnabled({timeout:20000});
   await action.click();
- }
+ }else fail();
  console.log("D174_GUI_SAFE_STAGE=entry-found");
  const dialog=page.getByRole("dialog",{name:/Add project/i});
  await expect(dialog).toBeVisible({timeout:20000});
