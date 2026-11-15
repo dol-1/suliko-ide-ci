@@ -1,0 +1,80 @@
+name: D-162 one genuine native 3OS installed GUI plus published CLI same synthetic data fan-in (CI ONLY)
+on:
+  push:
+    branches: [feat/d162-native-3os-same-run, main]
+    paths:
+      - '.github/workflows/d162-native-3os-same-run.yml'
+      - 'scripts/d159-installed-gui-published-native.mjs'
+      - 'scripts/d159-installed-gui-published-native.test.mjs'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-setup.ps1'
+      - 'scripts/suliko-stage-linux.sh'
+      - 'plugins/suliko-hello/**'
+      - 'tests/parity/d129-windows-installed-desktop.mjs'
+      - 'tests/parity/d135-macos-official-installed-hello.mjs'
+      - 'tests/parity/d134-linux-installed-appimage.mjs'
+  workflow_dispatch:
+concurrency:
+  group: d162-native-3os-published-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  native_same_data:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Syntax integrity before fixture/download
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d159-installed-gui-published-native.mjs
+      - name: Install pinned CI-only Playwright harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+      - name: Fail-closed not-CI and wrong-repository negatives on native OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/d159-installed-gui-published-native.test.mjs
+      - name: Real per-user installed official GUI and genuine published BB CLI strict same disposable data
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/d159-installed-gui-published-native.mjs
+          echo 'D162 native one-run 3OS CI-only; no end-user unified marketplace/RC/SEC04 or beta GO.' >> "$GITHUB_STEP_SUMMARY"
+  strict_three_os_fan_in:
+    if: always() && github.repository == 'dol-1/suliko-ide-ci'
+    needs: native_same_data
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      ACTUAL_MATRIX_RESULT: ${{ needs.native_same_data.result }}
+    steps:
+      - name: Require all three genuine native GUI/CLI jobs completed success, no bypass
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$ACTUAL_MATRIX_RESULT" != 'success' ]]; then
+            echo 'D162_FAIL_CLOSED: genuine native three-OS matrix did not finish fully successful' >&2
+            exit 1
+          fi
+          echo 'D162_THREE_GENUINE_NATIVE_OS_SINGLE_RUN=PASS'
+          echo 'D162 successful native matrix only, CI synthetic data per OS; not released E1 or beta.' >> "$GITHUB_STEP_SUMMARY"
