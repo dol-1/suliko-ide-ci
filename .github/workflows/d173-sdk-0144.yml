@@ -7,6 +7,10 @@ on:
     branches: [feat/d173-source-sdk-0144, main]
     paths:
       - .github/workflows/d173-sdk-0144.yml
+      - .github/workflows/d158-codeql-own-source.yml
+      - .github/workflows/d063-semgrep.yml
+      - .github/workflows/d063-gitleaks.yml
+      - .github/workflows/d152-workflow-expression-guard.yml
       - plugins/suliko-hello/**
       - plugins/suliko-remote-panel/**
   workflow_dispatch:
