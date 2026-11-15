@@ -13,7 +13,7 @@ interface Snapshot {
   devices: readonly TestDevice[];
   approvals: readonly TestApproval[];
   job: TestJob;
-  approvalStatus: string;
+  approvalStatuses: ReadonlyMap<string, "pending" | "approved" | "denied" | "expired">;
 }
 
 export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOnlyMockPort } = {}) {
@@ -31,15 +31,40 @@ export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOn
     // Only four read-only, no-network mock calls. Never retry or replay a write.
     async function refresh() {
       try {
-        const [devices, approvals, status, job] = await Promise.all([
+        const [devices, approvals, job] = await Promise.all([
           readPort.list_devices(),
           readPort.list_pending_approvals(),
-          readPort.get_approval_status("demo-approval-1"),
           readPort.job_status("demo-job-1"),
         ]);
+        // Each displayed approval must have its OWN matching status read.
+        // Do not attach a single demo ID's status to unrelated requests.
+        if (!Array.isArray(approvals) || approvals.length > 16) {
+          throw new Error("Untrusted demo approval count");
+        }
+        const ids = new Set<string>();
+        for (const approval of approvals) {
+          if (typeof approval?.id !== "string" ||
+              !/^[a-zA-Z0-9_-]{1,64}$/.test(approval.id) ||
+              ids.has(approval.id)) {
+            throw new Error("Duplicate or invalid demo approval ID");
+          }
+          ids.add(approval.id);
+        }
+        const statuses = await Promise.all(
+          approvals.map(a => readPort.get_approval_status(a.id)),
+        );
+        const approvalStatuses = new Map<string, "pending" | "approved" | "denied" | "expired">();
+        for (let i = 0; i < approvals.length; i++) {
+          const status = statuses[i];
+          if (!status || status.id !== approvals[i]?.id ||
+              !["pending", "approved", "denied", "expired"].includes(status.status)) {
+            throw new Error("Mismatched demo approval status");
+          }
+          approvalStatuses.set(status.id, status.status);
+        }
         if (!active) return;
         failures = 0;
-        setSnapshot({ devices, approvals, approvalStatus: status.status, job });
+        setSnapshot({ devices, approvals, approvalStatuses, job });
         setError(false);
       } catch {
         if (!active) return;
@@ -80,7 +105,7 @@ export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOn
             <ul>
               {snapshot.approvals.map((a) => (
                 <li key={a.id}>
-                  {a.label} — {remoteStatusLabel(t,snapshot.approvalStatus)}
+                  {a.label} — {remoteStatusLabel(t,snapshot.approvalStatuses.get(a.id) ?? "unknown")}
                   {isSafeDemoApprovalPage(a.approvalPageUrl) ? (
                     <a href={a.approvalPageUrl} target="_blank" rel="noopener noreferrer">
                       {t.openApproval}

@@ -61,6 +61,54 @@ describe("D088 Remote MOCK state matrix (no network, no token, no authority)", (
     expect(screen.getByText("მოლოდინში თანხმობა არ არის.")).toBeTruthy();
     noWriteControls();
   });
+  it("binds each approval to its matching read-only status, never another row", async () => {
+    const seen: string[] = [];
+    const fixture = (id: string, label: string) => ({
+      id, label, deviceId: "fixture-1", status: "pending" as const,
+      approvalPageUrl: "https://remote.example.invalid/approvals/" + id,
+    });
+    render(<RemotePanel readPort={port({
+      list_pending_approvals: async () => [
+        fixture("fixture-a", "Fixture Alpha"), fixture("fixture-b", "Fixture Beta"),
+      ],
+      get_approval_status: async (id) => {
+        seen.push(id);
+        return { id, status: id === "fixture-a" ? "approved" as const : "denied" as const };
+      },
+    })} />);
+    expect((await screen.findByText(/Fixture Alpha/)).textContent).toContain("approved");
+    expect(screen.getByText(/Fixture Beta/).textContent).toContain("denied");
+    expect(seen.sort()).toEqual(["fixture-a", "fixture-b"]);
+    noWriteControls();
+  });
+  it("fails closed on mismatched or duplicate approval IDs without showing links", async () => {
+    const fixture = {
+      id: "fixture-a", label: "Fixture Alpha", deviceId: "fixture-1",
+      status: "pending" as const,
+      approvalPageUrl: "https://remote.example.invalid/approvals/fixture-a",
+    };
+    const { unmount } = render(<RemotePanel readPort={port({
+      list_pending_approvals: async () => [fixture],
+      get_approval_status: async () => ({ id: "fixture-b", status: "approved" as const }),
+    })} />);
+    expect((await screen.findByRole("alert")).textContent).toBe("Unable to load demo data.");
+    expect(screen.queryByText(/Fixture Alpha/)).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+    unmount();
+    let statusesRead = 0;
+    render(<RemotePanel readPort={port({
+      list_pending_approvals: async () => [fixture, fixture],
+      get_approval_status: async (id) => {
+        statusesRead++;
+        return { id, status: "pending" as const };
+      },
+    })} />);
+    await screen.findByRole("alert");
+    expect(statusesRead).toBe(0);
+    expect(screen.queryByRole("link")).toBeNull();
+    noWriteControls();
+  });
+
   it("refuses unsafe approval URLs even when injected from a fake read port", async () => {
     render(<RemotePanel readPort={port({
       list_pending_approvals:async()=>[{id:"demo-approval-1",deviceId:"fixture-1",label:"Fixture request",status:"pending" as const,approvalPageUrl:"https://evil.invalid/approvals/demo-approval-1"}],
