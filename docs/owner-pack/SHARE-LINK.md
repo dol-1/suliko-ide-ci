@@ -1,9 +1,15 @@
-# SHARE-LINK — owner-only prelaunch text (not sent)
+# Owner action 3/3 — SHARE-LINK (KA / EN, NOT SENT)
 
-**Condition:** Share ONLY after owner phase separately approves beta, Pages, and SEC-04. No messages have been sent. The link is a PUBLIC voluntary interest form; it does not enroll anyone into a running pilot.
+**Prerequisites:** independent SEC-04 signoff, approved public beta/owner-phase GO, and Pages/RC readiness accepted. This is opt-in **interest only**, not invitation to install unapproved software; GitHub issues remain public even after closure.
 
-> Suliko IDE-ის ორკვირიანი საცდელი პროგრამის მიმართ ინტერესი შეგიძლიათ დააფიქსიროთ საჯარო GitHub ფორმით. აპლიკაცია ჯერ pre-release ეტაპზეა, ადგილი და წვდომა გარანტირებული არ არის. ფორმაში არ მიუთითოთ პირადი მონაცემები, სამუშაო ფაილები ან საიდუმლო გასაღებები.
+**ერთი ტექსტი / KA — owner copy after GO:**
+> Suliko IDE-ის ნებაყოფლობითი ორკვირიანი პილოტით დაინტერესების შემთხვევაში გამოიყენეთ მხოლოდ ეს საჯარო GitHub ფორმა. მონაწილეობა, წვდომა და დაწყების თარიღი გარანტირებული არ არის. ფორმა საჯაროა — გთხოვთ არ ჩაწეროთ სახელი, ასაკი, საკონტაქტო ინფორმაცია, სამუშაოს საიდუმლოებები ან API გასაღებები.
 
-**ერთი ბმული / One link:** https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml
+**One copy / EN — owner after GO:**
+> Interested in a voluntary two-week Suliko IDE pilot? Use this public GitHub interest form. Access, start date and selection are not guaranteed. GitHub issues are public: do not post names, ages, contact details, employer or private project information, credentials or API keys.
 
-**Owner action:** manually approve wording and send once; no automation or publication in this task. Privacy guard: GitHub issues are public even after closure.
+**ONE LINK / ერთი ბმული:** https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml
+
+**Manual action:** approve and share exactly one copy + one link once; no automated sending, no recruitment or collection in this development task. Users can decline or close their issue, but old public text may remain visible.
+
+**Exact files:** `.github/ISSUE_TEMPLATE/pilot-signup.yml`, `site/docs/pilot.ka.md`, `site/docs/pilot.en.md`, `site/docs/pilot-metrics.en.md`. Source: [public form](https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml).
