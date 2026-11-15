@@ -33,10 +33,8 @@ jobs:
           const qa = fs.readFileSync('.github/workflows/qa01-parity-run.yml', 'utf8');
           const release = fs.readFileSync('.github/workflows/d085-release-dry-run.yml', 'utf8');
           const group = qa.match(/^concurrency:\r?\n  group: ([^\r\n]+)/m)?.[1];
-          const caller = '
- + '{{ github.workflow }}';
-          const ref = '
- + '{{ github.ref }}';
+          const caller = String.fromCharCode(36) + '{{ github.workflow }}';
+          const ref = String.fromCharCode(36) + '{{ github.ref }}';
           if (!group || !group.includes(caller) || !group.includes(ref)) {
             throw Error('QA concurrency must differentiate called vs standalone workflow');
           }
