@@ -51,6 +51,10 @@ function getPlugins(){
  return json.plugins;
 }
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function pathOccupiedNoFollow(target){
+ try{fs.lstatSync(target);return true}
+ catch(error){if(error?.code==="ENOENT")return false;throw error}
+}
 async function cleanup(){
  if(app){
   try{execute(process.execPath,[app,"stop","--data-dir",data],
@@ -66,11 +70,11 @@ async function cleanup(){
    if(isWin)execute("pwsh",["-NoProfile","-NonInteractive","-File",
      path.join(workspace,"scripts","suliko-setup.ps1"),"-Uninstall"],"owned-win-uninstall",90000);
    else execute("bash",[path.join(workspace,"scripts","suliko-setup.sh"),
-     "--uninstall"],"owned-mac-uninstall",90000);
+     "--uninstall"],"owned-nonwindows-uninstall",90000);
    if(fs.existsSync(official))fail("owned-app-remains-after-uninstall");
    if(isLinux){
     const launcher=path.join(home,".local","bin","suliko-bb-desktop");
-    if(fs.existsSync(launcher)||fs.existsSync(path.join(home,".cache","suliko-ide","bb-0.49.0-x86_64.AppImage")))
+    if(pathOccupiedNoFollow(launcher)||pathOccupiedNoFollow(path.join(home,".cache","suliko-ide","bb-0.49.0-x86_64.AppImage")))
      fail("owned-linux-stage-remains-after-uninstall");
    }
   }catch(error){throw error;}
