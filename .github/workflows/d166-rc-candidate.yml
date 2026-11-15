@@ -1,7 +1,7 @@
 name: D-166 two independent Hello RC candidate builds, SPDX and attestation (NO release)
 on:
   push:
-    branches: [feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
+    branches: [feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
     paths:
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d166-package-candidate.mjs'
