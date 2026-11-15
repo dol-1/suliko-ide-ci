@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {spawn,spawnSync} from "node:child_process";
 import {FORBIDDEN_IDS, inspectStrictNativePluginState} from "./d163-strict-native-plugin-state.mjs";
+import {verifyNativeLoopback} from "./d164-native-listener-guard.mjs";
 const e=process.env, root=e.RUNNER_TEMP, workspace=e.GITHUB_WORKSPACE;
 const platform=process.platform, isWin=platform==="win32", isMac=platform==="darwin", isLinux=platform==="linux";
 const fail=(category)=>{throw Object.assign(new Error("D159"),{category})};
@@ -189,6 +190,35 @@ try{
   console.error("D160_STRICT_LIVE_STATE_REJECTED category="+lastCategory);
   fail("strict-live-sec02-hello-not-confirmed");
  }
+ // D164: inspect only LOCAL native socket metadata of the exact disposable
+ // published BB host; do not trust requested bind flags as listener proof.
+ // No remote interface probing, no raw listener/IP/process logs, no BB edits.
+ function listenerSnapshot(){
+  if(isLinux)return execute("ss",["-ltnH"],"native-listener-query",20000);
+  if(isMac)return execute("lsof",["-nP","-iTCP","-sTCP:LISTEN"],
+    "native-listener-query",20000);
+  const probe="$ports=@("+port+","+daemonPort+");"+
+    "$rows=@(Get-NetTCPConnection -State Listen -ErrorAction Stop | "+
+    "Where-Object { $ports -contains [int]$_.LocalPort } | "+
+    "Select-Object LocalAddress,LocalPort);"+
+    "ConvertTo-Json -InputObject $rows -Compress";
+  return execute("pwsh",["-NoProfile","-NonInteractive","-Command",probe],
+    "native-listener-query",20000);
+ }
+ let actualLoopback=false,lastListenerCategory="listener-not-observed";
+ for(let attempt=0;attempt<12;attempt++){
+  const snapshot=listenerSnapshot();
+  try{
+   verifyNativeLoopback(isWin?"Windows":isMac?"macOS":"Linux",
+     snapshot,[port,daemonPort]);
+   actualLoopback=true;break;
+  }catch(error){
+   lastListenerCategory=error?.category||"listener-contract";
+   if(lastListenerCategory==="listener-exposed-nonloopback")fail(lastListenerCategory);
+  }
+  await wait(1000);
+ }
+ if(!actualLoopback)fail(lastListenerCategory);
  // Real synthetic project enrolled via published CLI, both native GUI tests rely on it.
  const name=isWin?"d129-win-synthetic":isMac?"d135-macos-synthetic":"d134-linux-synthetic";
  const project=path.join(home,name);
