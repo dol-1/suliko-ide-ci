@@ -1,0 +1,28 @@
+name: D-202 Windows synthetic NSIS uninstall marker digest guard (NO release)
+on:
+  push:
+    branches: [feat/d202-windows-uninstaller-hash, main]
+    paths:
+      - 'scripts/suliko-setup.ps1'
+      - 'scripts/d202-windows-uninstaller-hash.test.ps1'
+      - '.github/workflows/d202-windows-uninstaller-hash.yml'
+  workflow_dispatch:
+concurrency:
+  group: d202-windows-owner-hash-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  mutation-guards:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify synthetically owned uninstaller marker and changed executable refusal
+        shell: pwsh
+        run: ./scripts/d202-windows-uninstaller-hash.test.ps1
+      - name: Record no-live/no-beta limit
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value 'D202 synthetic tamper/legacy uninstaller refusal only; full real Windows NSIS install/uninstall gated separately by D165 native 3OS workflow.'
