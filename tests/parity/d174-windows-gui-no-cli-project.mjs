@@ -88,11 +88,19 @@ try{
  await edit.click();
  console.log("D174_GUI_SAFE_STAGE=folder-editor-open");
  await dialog.getByRole("textbox",{name:"Project path"}).fill(project);
+ console.log("D174_GUI_SAFE_STAGE=path-editor-filled");
  await dialog.getByRole("button",{name:"Go to path"}).click();
- await expect(dialog.getByText("d174-windows-gui-synthetic")).toBeVisible({timeout:30000});
- console.log("D174_GUI_SAFE_STAGE=path-go-confirmed");
+ console.log("D174_GUI_SAFE_STAGE=path-navigation-submitted");
+ // The real host directory listing resolves asynchronously and displays the
+ // folder basename BOTH in a breadcrumb and a derived project name. A broad
+ // getByText() without .first() can throw a Playwright strict-match error.
+ // Require the authentic "Add project" submit to be enabled (connected host
+ // and actual resolved path), plus the expected exact synthetic basename.
  const add=dialog.getByRole("button",{name:"Add project"});
- await expect(add).toBeEnabled({timeout:15000});
+ await expect(add).toBeEnabled({timeout:45000});
+ console.log("D174_GUI_SAFE_STAGE=project-selection-valid");
+ await expect(dialog.getByText("d174-windows-gui-synthetic",{exact:true}).first()).toBeVisible({timeout:15000});
+ console.log("D174_GUI_SAFE_STAGE=path-go-confirmed");
  await add.click();
  await expect(dialog).toBeHidden({timeout:30000});
  console.log("D174_GUI_SAFE_STAGE=gui-project-added");
