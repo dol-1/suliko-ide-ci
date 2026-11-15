@@ -1,0 +1,25 @@
+name: D-196 five KA EN pilot draft reply safety guard (NO outreach)
+on:
+  push:
+    branches: [feat/d196-pilot-support-main-replay, main]
+    paths: ['docs/pilot/**', 'scripts/d196-pilot-reply-lint.mjs', '.github/workflows/d196-pilot-replies.yml']
+  workflow_dispatch:
+concurrency:
+  group: d196-pilot-replies-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  reply-draft-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - run: node scripts/d196-pilot-reply-lint.mjs
+      - shell: bash
+        run: echo 'D196 five privacy-first KA EN support drafts verified synthetically, no invitations, no beta or SEC04 GO' >> "$GITHUB_STEP_SUMMARY"
