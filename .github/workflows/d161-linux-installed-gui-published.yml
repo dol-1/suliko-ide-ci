@@ -44,6 +44,11 @@ jobs:
         run: |
           set -euo pipefail
           npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+      - name: Check Linux native source parses before security negatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d159-installed-gui-published-native.mjs
       - name: Refuse non-CI and wrong-repository execution before any downloads
         shell: bash
         run: |

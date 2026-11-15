@@ -208,7 +208,7 @@ try{
  if(isWin){
   env.D129_OFFICIAL_EXE=official;
   env.D129_BB_WEB_URL="http://127.0.0.1:38895/";
- }else{
+ }else if(isMac){
   env.D135_OFFICIAL_EXE=official;
   env.D135_BB_WEB_URL="http://127.0.0.1:38914/";
  }else{
