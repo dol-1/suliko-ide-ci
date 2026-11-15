@@ -69,7 +69,13 @@ describe("D103 actual loopback GET reader rendered in own mounted Remote React p
     expect(observed.every(r=>r.method==="GET" && !r.hadAuth &&
       allowed.includes(r.path))).toBe(true);
     expect(new Set(observed.map(r=>r.path)).size).toBe(observed.length);
-    if(requireAll) expect(observed.map(x=>x.path).sort()).toEqual(allowed);
+    if(requireAll) {
+      // No pending approval means no status lookup, not an arbitrary fixture ID.
+      const expected=mode==="empty"
+        ? allowed.filter(p=>p!=="/mock/approvals/demo-approval-1/status")
+        : allowed;
+      expect(observed.map(x=>x.path).sort()).toEqual(expected);
+    }
     expect(screen.queryByRole("button",{name:/approve|execute|run command/i})).toBeNull();
   }
   it("renders real HTTP offline and unknown outcomes with external-only approval link",async()=>{
