@@ -12,4 +12,4 @@
 
 **Manual action:** approve and share exactly one copy + one link once; no automated sending, no recruitment or collection in this development task. Users can decline or close their issue, but old public text may remain visible.
 
-**Exact files:** `.github/ISSUE_TEMPLATE/pilot-signup.yml`, `site/docs/pilot.ka.md`, `site/docs/pilot.en.md`, `site/docs/pilot-metrics.en.md`. Source: [public form](https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml).
+**Exact files:** `.github/ISSUE_TEMPLATE/pilot-signup.yml`, `site/docs/pilot.ka.md`, `site/docs/pilot.en.md`, `site/docs/pilot-metrics.en.md`. Source: [public issue-form template](https://github.com/dol-1/suliko-ide-ci/blob/main/.github/ISSUE_TEMPLATE/pilot-signup.yml).
