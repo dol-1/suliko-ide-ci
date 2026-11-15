@@ -48,4 +48,16 @@ for(const name of ["server.js","app.js","app.css","app.meta.json"]){
 const candidate=JSON.parse(fs.readFileSync(path.join(out,"package.json"),"utf8"));
 candidate.version="0.1.0-rc.1";
 fs.writeFileSync(path.join(out,"package.json"),JSON.stringify(candidate,null,2)+"\n",{mode:0o644});
+// Normalize tar member directory permissions after the intentionally different
+// runner-b umask. Do not normalize archive bytes, plugin contents or digest.
+function normalizeDirectoryModes(dir){
+ const st=fs.lstatSync(dir);
+ if(!st.isDirectory()||st.isSymbolicLink())throw Error("D176 refused non-directory");
+ for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
+  if(ent.isSymbolicLink())throw Error("D176 refused symlink");
+  if(ent.isDirectory())normalizeDirectoryModes(path.join(dir,ent.name));
+ }
+ fs.chmodSync(dir,0o755);
+}
+normalizeDirectoryModes(out);
 console.log("D166 deterministic RC candidate prepared from exact checkout, four compiled files.");

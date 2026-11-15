@@ -1,7 +1,7 @@
 name: D-166 two independent Hello RC candidate builds, SPDX and attestation (NO release)
 on:
   push:
-    branches: [feat/d166-repro-rc-candidate, main]
+    branches: [feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
     paths:
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d166-package-candidate.mjs'
@@ -26,6 +26,8 @@ jobs:
         build: [a, b]
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    env:
+      D176_BUILD_VARIANT: ${{ matrix.build }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -38,12 +40,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$D176_BUILD_VARIANT" == b ]]; then
+            export TZ=Pacific/Kiritimati
+            export LC_ALL=C.UTF-8
+            umask 027
+          fi
           node --check scripts/d166-package-candidate.mjs
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           (
             cd plugins/suliko-hello
-            pnpm install --frozen-lockfile
+            pnpm install --frozen-lockfile --ignore-scripts
             pnpm run typecheck
             pnpm test
             pnpm run build
@@ -52,6 +59,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$D176_BUILD_VARIANT" == b ]]; then
+            export TZ=Pacific/Kiritimati
+            export LC_ALL=C.UTF-8
+            umask 027
+          fi
           stage="$RUNNER_TEMP/d166-stage"
           out="$RUNNER_TEMP/d166-output"
           mkdir -m 700 -p "$stage" "$out"
