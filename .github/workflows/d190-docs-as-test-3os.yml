@@ -1,0 +1,56 @@
+name: D-190 KA EN literal install docs command native 3OS (NO beta)
+on:
+  push:
+    branches: [feat/d190-docs-as-test-3os, main]
+    paths:
+      - '.github/workflows/d190-docs-as-test-3os.yml'
+      - 'site/docs/install.en.md'
+      - 'site/docs/install.ka.md'
+      - 'scripts/d190-doc-command-guard.mjs'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-setup.ps1'
+  workflow_dispatch:
+concurrency:
+  group: d190-docs-as-test-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  literal-docs-preflight:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Fail if user-facing KA EN documented commands drift (negative cases)
+        run: node scripts/d190-doc-command-guard.mjs --self-test
+      - name: Actually execute exact documented preview on this native OS
+        run: node scripts/d190-doc-command-guard.mjs
+      - name: Preserve truthful boundary; only synthetic CI no setup/RC/SEC04
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'D190 docs-as-test: both language commands literal, current OS official preflight; only synthetic preview, not real BB installation. Full installed 3OS GUI is separately gated by D165.' >> "$GITHUB_STEP_SUMMARY"
+  strict-three-os:
+    if: always()
+    needs: literal-docs-preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      MATRIX_RESULT: ${{ needs.literal-docs-preflight.result }}
+    steps:
+      - name: Require full Windows macOS Linux result
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$MATRIX_RESULT" = success
+          echo 'D190: literal KA EN docs command executed on all 3 native public runners; no release or beta approval' >> "$GITHUB_STEP_SUMMARY"
