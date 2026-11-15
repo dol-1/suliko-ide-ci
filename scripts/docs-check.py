@@ -6,10 +6,12 @@ from urllib.parse import unquote
 
 root = Path("site/docs")
 assert root.is_dir() and not root.is_symlink(), "unsafe public docs directory"
-expected = ["index", "install", "first-steps", "web", "remote", "privacy", "troubleshooting", "pilot", "pilot-metrics"]
+expected = ["index", "install", "first-steps", "faq", "web", "remote", "privacy", "troubleshooting", "pilot", "pilot-metrics"]
+config = Path("site/mkdocs.yml").read_text(encoding="utf-8")
 for stem in expected:
     for lang in ("en", "ka"):
         name = "index.md" if stem == "index" and lang == "en" else f"{stem}.{lang}.md"
+        assert name in config, f"KA/EN nav parity missing: {name}"
         page = root / name
         assert not page.is_symlink(), f"linked public docs source refused: {name}"
         assert page.exists() and page.is_file() and page.stat().st_size > 200, f"missing or too short: {name}"

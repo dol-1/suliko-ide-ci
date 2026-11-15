@@ -1,13 +1,17 @@
-name: D-062 public docs build and privacy guard (NO deploy yet)
+name: D-168 E5 KA EN docs parity and guarded Pages preflight
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, feat/d147-pilot-metrics-ka-en, feat/d141-docs-3os-singleentry-scope, main]
+    branches: [feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, feat/d147-pilot-metrics-ka-en, feat/d141-docs-3os-singleentry-scope, feat/d168-pages-preflight-main, main]
     paths:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
+      - '.github/workflows/d063-semgrep.yml'
+      - '.github/workflows/d063-gitleaks.yml'
+      - '.github/workflows/d158-codeql-own-source.yml'
+      - '.github/workflows/d152-workflow-expression-guard.yml'
       - 'scripts/docs-check.py'
       - 'scripts/docs-check.test.py'
       - 'scripts/docs-license-check.py'
@@ -47,8 +51,9 @@ jobs:
           test -s "$RUNNER_TEMP/suliko-docs-built/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot.en/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot.ka/index.html"
-          echo "Static docs build and dependency license gate passed." >> "$GITHUB_STEP_SUMMARY"
-      - name: Check official Pages API; skip deployment if unconfigured
+          echo "D168 strict public-only KA/EN docs build, internal links, license and source parity PASS." >> "$GITHUB_STEP_SUMMARY"
+      - name: Check official Pages API only on explicit PAGES_ENABLED switch
+        if: vars.PAGES_ENABLED == 'true'
         id: pages_probe
         shell: bash
         env:
@@ -72,13 +77,13 @@ jobs:
             echo 'D086: Pages not workflow-configured; docs built successfully, upload/deployment skipped.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload public-only site for deployment on main
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.pages_probe.outputs.enabled == 'true'
+        if: vars.PAGES_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.pages_probe.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: ${{ runner.temp }}/suliko-docs-built
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.site.outputs.deploy_enabled == 'true'
+    if: vars.PAGES_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.site.outputs.deploy_enabled == 'true'
     needs: site
     runs-on: ubuntu-24.04
     permissions:
