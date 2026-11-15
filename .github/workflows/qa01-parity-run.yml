@@ -1,7 +1,7 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
 concurrency:
-  group: d144-qa-strict-${{ github.ref }}
+  group: qa01-strict-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
   schedule:
     - cron: '13 7 * * *' # 1 daily standard free public GitHub Actions main strict 14/14
   push:
-    branches: [main, feat/d140-qa01-strict-main, feat/d171-daily-qa01-main-v2]
+    branches: [main, feat/d140-qa01-strict-main, feat/d171-daily-qa01-main-v2, feat/d188-qa-concurrency-isolation]
     paths: ['tests/parity/**', 'scripts/qa01-*.mjs', 'plugins/suliko-hello/**', '.github/workflows/qa01-parity-run.yml', '.github/workflows/d158-codeql-own-source.yml', '.github/workflows/d063-semgrep.yml', '.github/workflows/d063-gitleaks.yml', '.github/workflows/d152-workflow-expression-guard.yml']
 permissions: read-all
 jobs:

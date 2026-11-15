@@ -1,7 +1,7 @@
 name: D-152 refuse escaped GitHub runner and concurrency expressions before mirror
 on:
   push:
-    branches: [feat/d187-e3-main-push-gate, feat/d186-e3-approval-status-integrity, feat/d169-fastcheck-native-parsers, feat/d165-end-user-one-command, fix/d184-owner-lint-nofollow, feat/d176-repro-builder-env-hardening, feat/d166-repro-rc-candidate, feat/d168-pages-preflight-main, main, feat/d171-daily-qa01-main-v2, feat/d173-source-sdk-0144, fix/d152-workflow-expression-guard, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners]
+    branches: [feat/d188-qa-concurrency-isolation, feat/d187-e3-main-push-gate, feat/d186-e3-approval-status-integrity, feat/d169-fastcheck-native-parsers, feat/d165-end-user-one-command, fix/d184-owner-lint-nofollow, feat/d176-repro-builder-env-hardening, feat/d166-repro-rc-candidate, feat/d168-pages-preflight-main, main, feat/d171-daily-qa01-main-v2, feat/d173-source-sdk-0144, fix/d152-workflow-expression-guard, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners]
     paths: ['scripts/d165-native-one-command.mjs', 'marketplace/rc/EXPECTED_SHA.candidate', '.github/workflows/**', 'scripts/d152-workflow-expression-check.mjs', 'scripts/d152-workflow-expression-check.test.mjs', 'scripts/d159-installed-gui-published-native.mjs']
   workflow_dispatch:
 concurrency:
@@ -25,3 +25,32 @@ jobs:
         run: node --test scripts/d152-workflow-expression-check.test.mjs
       - name: Lint all public CI workflow group and runs-on expressions
         run: node scripts/d152-workflow-expression-check.mjs .github/workflows
+      - name: Verify callable QA cannot cancel standalone QA via shared group
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const qa = fs.readFileSync('.github/workflows/qa01-parity-run.yml', 'utf8');
+          const release = fs.readFileSync('.github/workflows/d085-release-dry-run.yml', 'utf8');
+          const group = qa.match(/^concurrency:\r?\n  group: ([^\r\n]+)/m)?.[1];
+          const caller = String.fromCharCode(36) + '{{ github.workflow }}';
+          const ref = String.fromCharCode(36) + '{{ github.ref }}';
+          if (!group || !group.includes(caller) || !group.includes(ref)) {
+            throw Error('QA concurrency must differentiate called vs standalone workflow');
+          }
+          if (!/\n  cancel-in-progress: true\r?\n/.test(qa)) {
+            throw Error('QA stale-workflow cancellation disabled');
+          }
+          const releaseGroup = release.match(/^concurrency:\r?\n  group: ([^\r\n]+)/m)?.[1];
+          if (!releaseGroup || releaseGroup === group) {
+            throw Error('Reusable QA and release parent share cancellation group');
+          }
+          if (!release.includes('uses: ./.github/workflows/qa01-parity-run.yml')) {
+            throw Error('D144 no longer gates dry-run on strict 7x2 callable QA');
+          }
+          if (!qa.includes("schedule:\n    - cron: '13 7 * * *'")) {
+            throw Error('Daily strict QA schedule unexpectedly modified');
+          }
+          console.log('D188 caller-identity QA isolation: source contract PASS');
+          NODE
+
