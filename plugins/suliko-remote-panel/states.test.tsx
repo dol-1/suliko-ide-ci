@@ -109,6 +109,25 @@ describe("D088 Remote MOCK state matrix (no network, no token, no authority)", (
     noWriteControls();
   });
 
+  it("rejects an oversized synthetic pending list before requesting any statuses", async () => {
+    let statusCalls = 0;
+    render(<RemotePanel readPort={port({
+      list_pending_approvals: async () => Array.from({ length: 17 }, (_, index) => ({
+        id: "fixture-" + index, deviceId: "fixture-1", label: "Fixture " + index,
+        status: "pending" as const,
+        approvalPageUrl: "https://remote.example.invalid/approvals/fixture-" + index,
+      })),
+      get_approval_status: async (id) => {
+        statusCalls++;
+        return { id, status: "pending" as const };
+      },
+    })} />);
+    expect((await screen.findByRole("alert")).textContent).toBe("Unable to load demo data.");
+    expect(statusCalls).toBe(0);
+    expect(screen.queryByRole("link")).toBeNull();
+    noWriteControls();
+  });
+
   it("refuses unsafe approval URLs even when injected from a fake read port", async () => {
     render(<RemotePanel readPort={port({
       list_pending_approvals:async()=>[{id:"demo-approval-1",deviceId:"fixture-1",label:"Fixture request",status:"pending" as const,approvalPageUrl:"https://evil.invalid/approvals/demo-approval-1"}],
