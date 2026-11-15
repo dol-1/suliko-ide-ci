@@ -4,8 +4,9 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d188-qa-concurrency-isolation, feat/d187-e3-main-push-gate, feat/d186-e3-approval-status-integrity, feat/d169-fastcheck-native-parsers, feat/d165-end-user-one-command, fix/d184-owner-lint-nofollow, feat/d176-repro-builder-env-hardening, feat/d166-repro-rc-candidate, feat/d063-semgrep-own-code, feat/d155-published-native-3os-sec02-hello, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, feat/d173-source-sdk-0144, feat/d171-daily-qa01-main-v2, feat/d168-pages-preflight-main, main]
+    branches: [feat/d189-e3-mock-final, feat/d188-qa-concurrency-isolation, feat/d187-e3-main-push-gate, feat/d186-e3-approval-status-integrity, feat/d169-fastcheck-native-parsers, feat/d165-end-user-one-command, fix/d184-owner-lint-nofollow, feat/d176-repro-builder-env-hardening, feat/d166-repro-rc-candidate, feat/d063-semgrep-own-code, feat/d155-published-native-3os-sec02-hello, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, feat/d173-source-sdk-0144, feat/d171-daily-qa01-main-v2, feat/d168-pages-preflight-main, main]
     paths:
+      - '.github/workflows/d128-e3-same-run-mock.yml'
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'
       - 'marketplace/rc/EXPECTED_SHA.candidate'
