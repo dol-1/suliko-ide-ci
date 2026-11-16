@@ -1,8 +1,9 @@
 name: D-165 actual one-command user GUI plus published CLI RC in single native 3OS CI run (NO release)
 on:
   push:
-    branches: [feat/d221-node24-after-d223, fix/d215-rc-pin-d117-icon-main-green, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
+    branches: [feat/d202-uninstall-sha-after-d210, feat/d221-node24-after-d223, fix/d215-rc-pin-d117-icon-main-green, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
     paths:
+      - 'scripts/d202-windows-uninstaller-hash.test.ps1'
       - 'scripts/d221-node24-pin.test.mjs'
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'
