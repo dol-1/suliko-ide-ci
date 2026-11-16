@@ -7,6 +7,7 @@ on:
       - fix/d078-qa01-summary-redaction
       - feat/d076-lock-integrity
       - fix/d080-e4-version-display
+      - fix/d226-premerge-inventory-after-d224
     paths:
       - '.github/workflows/d081-ports.yml'
       - 'scripts/**'
@@ -69,6 +70,9 @@ jobs:
               pnpm install --frozen-lockfile --ignore-scripts
               pnpm run typecheck
               pnpm run test
+              ;;
+            fix/d226-premerge-inventory-after-d224)
+              node --test scripts/d217-affected-workflows.test.mjs
               ;;
             *) echo 'Unsupported branch' >&2; exit 2 ;;
           esac

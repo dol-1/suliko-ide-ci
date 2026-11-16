@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [fix/d083-workflow-concurrency]
+    branches: [fix/d226-premerge-inventory-after-d224, fix/d083-workflow-concurrency]
     paths: ['.github/workflows/**']
   workflow_dispatch:
 permissions: read-all
