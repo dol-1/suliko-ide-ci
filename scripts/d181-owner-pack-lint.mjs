@@ -41,17 +41,19 @@ const read=(name)=>{
 const index=read(expected[0]),pages=read(expected[1]),rc=read(expected[2]),share=read(expected[3]);
 const required=[
  [index,["ENABLE-PAGES.md","RC-TAG-EXPECTED-SHA.md","SHARE-LINK.md","NOT authorized"]],
- [pages,["PAGES_ENABLED","d062-docs.yml","GitHub Actions","next reviewed"]],
+ [pages,["PAGES_ENABLED","d062-docs.yml","GitHub Actions","settings/pages"]],
  [rc,["suliko-hello/v0.1.0-rc.1","EXPECTED_SHA","spike04-marketplace-rc.yml","SEC-04"]],
  [share,["pilot-signup.yml","one link","NOT SENT","SEC-04"]]
 ];
 for(const [text,terms] of required)
  for(const term of terms)assert(text.toLowerCase().includes(term.toLowerCase()),"D181 missing gated instruction: "+term);
 for(const [name,reg] of [
- [".github/workflows/d062-docs.yml",/vars\.PAGES_ENABLED\s*==\s*'true'/],
+ [".github/workflows/d062-docs.yml",/gh api "repos\/\$GITHUB_REPOSITORY\/pages"/],
  [".github/workflows/spike04-marketplace-rc.yml",/marketplace\/rc\/EXPECTED_SHA/],
  ["marketplace/rc/EXPECTED_SHA.candidate",/^sha256=[0-9a-f]{64}$/m]
 ])assert(reg.test(read(name)),"D181 referenced execution gate missing "+name);
+assert(!read(".github/workflows/d062-docs.yml").includes("vars.PAGES_ENABLED"),"D181 obsolete owner variable not permitted");
+assert(read(".github/workflows/d062-docs.yml").includes("needs.site.outputs.deploy_enabled == 'true'"),"D181 main-only API-confirmed deploy contract absent");
 assert(/^(UNSET|[0-9a-f]{40})\s*$/.test(read("marketplace/rc/EXPECTED_SHA")),"D181 ambiguous final tag SHA");
 assert((index.match(/\| [123] \|/g)||[]).length===3,"D181 owner phase must have exactly three steps");
 const lines=share.split(/\r?\n/).filter(x=>x.includes("https://github.com/dol-1/suliko-ide-ci/issues/new?"));
