@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';import fs from 'node:fs';
 const pinned='desktop-v0.49.0',expectedLicense='MIT';
-const iso='^\d{4}-\d{2}-\d{2}T';
+
 function analyze(input,now){
  assert(input&&input.latest&&input.repo,'D210_UPSTREAM_INPUT_INVALID');
  const tag=input.latest.tag_name,published=input.latest.published_at,license=input.repo.license?.spdx_id;
  assert(/^desktop-v\d+\.\d+\.\d+$/.test(tag),'D210_UNEXPECTED_RELEASE_TAG');
- assert(typeof published==='string'&&new RegExp(iso).test(published),'D210_RELEASE_DATE_INVALID');
+ assert(typeof published==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(published),'D210_RELEASE_DATE_INVALID');
  assert(license&&typeof license==='string'&&/^[A-Za-z0-9.()+-]{2,40}$/.test(license),'D210_LICENSE_UNKNOWN');
  const publishedAt=Date.parse(published);assert(Number.isFinite(publishedAt),'D210_DATE_UNPARSEABLE');
  const ageDays=Math.floor((now-publishedAt)/86400000);assert(ageDays>=-1,'D210_FUTURE_PUBLISHED_DATE');
