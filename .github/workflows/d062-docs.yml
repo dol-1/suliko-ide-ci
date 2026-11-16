@@ -16,6 +16,7 @@ on:
       - 'scripts/docs-check.test.py'
       - 'scripts/d203-pages-gate.test.py'
       - 'scripts/d204-live-pages-links.mjs'
+      - 'scripts/d220-deploy-pages-pin.test.mjs'
       - 'marketplace/rc/**'
       - 'docs/owner-pack/ENABLE-PAGES.md'
       - 'scripts/docs-license-check.py'
@@ -42,6 +43,8 @@ jobs:
         run: python3 scripts/d203-pages-gate.test.py
       - name: D204 fixed public live URL specification and rejection fixtures
         run: node scripts/d204-live-pages-links.mjs --self-test
+      - name: D220 immutable deploy-pages v5.0.1 Node24 pin and Pages gate contract
+        run: node scripts/d220-deploy-pages-pin.test.mjs
       - name: Install pinned MIT documentation generator in disposable venv
         run: |
           set -euo pipefail
