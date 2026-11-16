@@ -4,6 +4,7 @@ on:
     branches: [feat/d197-locked-cli-after-d199]
     paths:
       - '.github/workflows/d197-lock-generator.yml'
+      - '.gitattributes'
       - 'scripts/d197-bb-cli-lock/package.json'
   workflow_dispatch:
 concurrency:
