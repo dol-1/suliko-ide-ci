@@ -23,6 +23,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: D215 malformed RC commit pin and 64hex archive negatives
+        run: node --test scripts/d215-rc-pin.test.mjs
       - name: Verify mirrored RC tag against separately approved canonical SHA, otherwise explicit SKIP
         id: verify
         shell: bash
