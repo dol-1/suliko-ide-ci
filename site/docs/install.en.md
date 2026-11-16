@@ -51,3 +51,23 @@ pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -DryRun
 ```
 
 The CI also reads PowerShell `--help` and refuses any output missing `WSL2`, `GUI` or `NotSigned`. Success is a **synthetic preview**, not a publisher signature, released RC tag or SEC-04 approval.
+
+## D218 — RC tag native 3OS install commands, restricted to reviewed disposable CI
+
+**Source checkpoint, not public beta/install advice:** immutable `suliko-hello/v0.1.0-rc.1` resolves to reviewed source commit `1c7470934ab694ce69ac92e70de300d6f6c50743`. The following literal commands are **CI fixture commands only**. `D218_CANDIDATE_PATH` is an isolated GitHub-runner-local file produced by independent same-tag candidate builders and verified against SHA-256 `8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a`; it is **not** a file users are asked to download. The test uses a temporary owned home on Ubuntu 24.04/macOS 15/Windows 2025, validates the genuine installed GUI/Hello, then uninstalls while preserving user data. Do not run on personal/production devices; Windows official publisher status remains **NotSigned** and BB CLI on Windows requires **WSL2**, while the Desktop GUI is native Windows. Remote remains mock-only.
+
+Linux/macOS (Ubuntu 24.04, macOS 15; execute from pinned tag checkout only):
+
+```bash
+bash scripts/suliko-setup.sh --install --plugin-sha 8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a --candidate-file "$D218_CANDIDATE_PATH"
+bash scripts/suliko-setup.sh --uninstall
+```
+
+Windows 2025 (execute only in isolated non-admin public runner against verified **NotSigned** official BB; never bypass SmartScreen on personal devices):
+
+```powershell
+pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -Install -AllowUnsignedVerified -PluginSha 8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a -CandidateFile $env:D218_CANDIDATE_PATH
+pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -Uninstall
+```
+
+The D218 regression compares these exact KA/EN commands with the immutable tag's own `scripts/d165-native-one-command.mjs` argv, then actually runs the tag's installer and safe uninstall on all three native runners; the result is NOT a published signed installer, access to Remote, or pilot invitation.

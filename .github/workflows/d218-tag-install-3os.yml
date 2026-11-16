@@ -1,0 +1,332 @@
+name: D-218 pinned rc.1 tag literal KA EN install and uninstall native 3OS (NO release)
+on:
+  push:
+    branches: [feat/d218-tag-install-docs-native-3os, main]
+    paths:
+      - '.github/workflows/d218-tag-install-3os.yml'
+      - 'scripts/d218-tag-install-docs.mjs'
+      - 'site/docs/install.en.md'
+      - 'site/docs/install.ka.md'
+      - '.github/workflows/d166-rc-candidate.yml'
+      - 'scripts/d165-setup-args.mjs'
+      - 'scripts/d165-setup-args.test.mjs'
+      - 'scripts/d165-user-provision.mjs'
+      - 'scripts/d165-native-one-command.mjs'
+      - 'tests/parity/d174-windows-gui-no-cli-project.mjs'
+      - 'config/hardened/.env.hardened'
+      - 'scripts/suliko-setup.sh'
+      - 'scripts/suliko-setup.ps1'
+      - 'scripts/suliko-stage-linux.sh'
+      - 'plugins/suliko-hello/**'
+      - 'marketplace/rc/EXPECTED_SHA.candidate'
+      - 'marketplace/rc/EXPECTED_SHA'
+  workflow_dispatch:
+concurrency:
+  group: d218-tag-native-install-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  docs-parity:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: 1c7470934ab694ce69ac92e70de300d6f6c50743
+          path: tagged-source
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Exact tag must match official mirrored immutable Git reference
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git -C tagged-source rev-parse HEAD)" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/suliko-hello/v0.1.0-rc.1" --jq '.object.sha')" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+      - name: KA EN exact literal tag setup and uninstall argv plus malicious mutation negatives
+        run: |
+          node scripts/d218-tag-install-docs.mjs --self-test
+          node scripts/d218-tag-install-docs.mjs
+  independent_builds:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [a, b]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: 1c7470934ab694ce69ac92e70de300d6f6c50743
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Frozen own-plugin build with source tests (independent runner)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d166-package-candidate.mjs
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          (
+            cd plugins/suliko-hello
+            pnpm install --frozen-lockfile
+            pnpm run typecheck
+            pnpm test
+            pnpm run build
+          )
+      - name: Normalize tracked source and compiled Hello tarball with SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/d166-stage"
+          out="$RUNNER_TEMP/d166-output"
+          mkdir -m 700 -p "$stage" "$out"
+          node scripts/d166-package-candidate.mjs "$GITHUB_WORKSPACE" "$stage"
+          archive="$out/suliko-hello-v0.1.0-rc.1.tar.gz"
+          (
+            cd "$stage"
+            tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+              --format=posix --pax-option=delete=atime,delete=ctime -cf "$out/candidate.tar" suliko-hello
+          )
+          gzip -n "$out/candidate.tar"
+          mv "$out/candidate.tar.gz" "$archive"
+          test -s "$archive"
+          sha256sum "$archive" | awk '{print $1}' > "$out/candidate.sha256"
+          test "$(wc -c < "$out/candidate.sha256")" = 65
+          echo 'D166 own-only candidate locally packaged on independent disposable GitHub runner; not a tag/release.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload ephemeral independent candidate for strict comparison
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d166-candidate-${{ matrix.build }}
+          path: |
+            ${{ runner.temp }}/d166-output/suliko-hello-v0.1.0-rc.1.tar.gz
+            ${{ runner.temp }}/d166-output/candidate.sha256
+          if-no-files-found: error
+          retention-days: 1
+  verify:
+    needs: independent_builds
+    if: always() && github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    outputs:
+      sha: ${{ steps.compare.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: 1c7470934ab694ce69ac92e70de300d6f6c50743
+      - name: Require BOTH independent builder jobs succeeded
+        env:
+          BUILD_RESULT: ${{ needs.independent_builds.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BUILD_RESULT" = success || { echo 'D166_FAIL_CLOSED: independent builder matrix did not fully pass' >&2; exit 1; }
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          pattern: d166-candidate-*
+          path: ${{ runner.temp }}/d166-downloaded
+          merge-multiple: false
+      - name: Fail-closed byte identity, semantic manifest and exact two builders
+        id: compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          a="$RUNNER_TEMP/d166-downloaded/d166-candidate-a"
+          b="$RUNNER_TEMP/d166-downloaded/d166-candidate-b"
+          test "$(find "$RUNNER_TEMP/d166-downloaded" -mindepth 1 -maxdepth 1 -type d | wc -l)" = 2
+          archive="suliko-hello-v0.1.0-rc.1.tar.gz"
+          for d in "$a" "$b"; do
+            test -f "$d/$archive" && test ! -L "$d/$archive"
+            test -f "$d/candidate.sha256" && test ! -L "$d/candidate.sha256"
+            expected="$(cat "$d/candidate.sha256")"
+            [[ "$expected" =~ ^[a-f0-9]{64}$ ]]
+            test "$(sha256sum "$d/$archive" | cut -d' ' -f1)" = "$expected"
+          done
+          cmp -- "$a/$archive" "$b/$archive"
+          cmp -- "$a/candidate.sha256" "$b/candidate.sha256"
+          mkdir -m 700 "$RUNNER_TEMP/d166-verified"
+          cp -- "$a/$archive" "$RUNNER_TEMP/d166-verified/$archive"
+          cp -- "$a/candidate.sha256" "$RUNNER_TEMP/d166-verified/candidate.sha256"
+          tar -xzf "$RUNNER_TEMP/d166-verified/$archive" -C "$RUNNER_TEMP/d166-verified"
+          node - "$RUNNER_TEMP/d166-verified/suliko-hello/package.json" <<'NODE'
+          const fs=require('node:fs');
+          const pkg=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(pkg.name!=='bb-plugin-suliko-hello'||pkg.version!=='0.1.0-rc.1'||
+            pkg.devDependencies?.['@get-bb/plugin-sdk']!=='0.6.132')
+            throw Error('D166_FAIL_CLOSED: candidate metadata mismatch');
+          NODE
+          # A reviewer-tracked candidate SHA is NEVER the approved RC/tag.
+          test -f marketplace/rc/EXPECTED_SHA.candidate && test ! -L marketplace/rc/EXPECTED_SHA.candidate
+          reviewed="$(sed -n 's/^sha256=//p' marketplace/rc/EXPECTED_SHA.candidate)"
+          [[ "$reviewed" =~ ^[a-f0-9]{64}$ ]]
+          test "$reviewed" = "$(cat "$a/candidate.sha256")" || {
+            echo 'D166_FAIL_CLOSED: committed reviewer candidate SHA does not match two clean builders' >&2
+            exit 1
+          }
+          echo "sha=$(cat "$a/candidate.sha256")" >> "$GITHUB_OUTPUT"
+          echo "D166 two independent clean build tarballs byte-identical SHA256 $(cat "$a/candidate.sha256")" >> "$GITHUB_STEP_SUMMARY"
+      - name: Generate exact candidate SPDX 2.3 inventory with verified Syft
+        env:
+          SYFT_CHECK_FOR_APP_UPDATE: 'false'
+          SYFT_LOG_LEVEL: 'error'
+        shell: bash
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/d166-syft"
+          mkdir -m 700 -p "$folder"
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$folder/syft.tar.gz" \
+            'https://github.com/anchore/syft/releases/download/v1.57.1/syft_1.57.1_linux_amd64.tar.gz'
+          printf '%s  %s\n' 'bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c' "$folder/syft.tar.gz" | sha256sum -c - >/dev/null
+          tar -xzf "$folder/syft.tar.gz" -C "$folder" syft
+          chmod 700 "$folder/syft"
+          "$folder/syft" dir:"$RUNNER_TEMP/d166-verified/suliko-hello" -o spdx-json="$RUNNER_TEMP/d166-verified/candidate.spdx.json" >/dev/null
+          node - "$RUNNER_TEMP/d166-verified/candidate.spdx.json" <<'NODE'
+          const fs=require('node:fs');
+          const d=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(d.spdxVersion!=='SPDX-2.3'||!Array.isArray(d.packages)||!d.packages.length||
+            !Array.isArray(d.relationships))throw Error('D166_FAIL_CLOSED: missing candidate SPDX packages');
+          console.log('D166 SPDX candidate packages:',d.packages.length);
+          NODE
+      - name: Attest VERIFIED candidate bytes to GitHub public source run
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: ${{ runner.temp }}/d166-verified/suliko-hello-v0.1.0-rc.1.tar.gz
+          push-to-registry: false
+          show-summary: false
+      - name: Verify GitHub OIDC provenance bound to candidate, no publish or tags
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "$RUNNER_TEMP/d166-verified/suliko-hello-v0.1.0-rc.1.tar.gz" \
+            --repo "$GITHUB_REPOSITORY" \
+            --source-digest "$GITHUB_SHA" \
+            --source-ref "$GITHUB_REF" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/d218-tag-install-3os.yml" \
+            --format=json > "$RUNNER_TEMP/d166-attestation.json"
+          node - "$RUNNER_TEMP/d166-attestation.json" <<'NODE'
+          const fs=require('node:fs'),d=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(!Array.isArray(d)||!d.length)throw Error('D166_FAIL_CLOSED: no verified attestation');
+          NODE
+          echo 'D166 candidate is NOT approved/tagged or publicly shipped; source-only CI attestation.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload verified SHA-pinned reviewer candidate and SPDX (ephemeral)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d166-verified-candidate
+          path: |
+            ${{ runner.temp }}/d166-verified/suliko-hello-v0.1.0-rc.1.tar.gz
+            ${{ runner.temp }}/d166-verified/candidate.sha256
+            ${{ runner.temp }}/d166-verified/candidate.spdx.json
+          if-no-files-found: error
+          retention-days: 1
+  native:
+    needs: [verify, docs-parity]
+    if: github.repository == 'dol-1/suliko-ide-ci' && needs.verify.result == 'success' && needs.docs-parity.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      BB_TELEMETRY: 'false'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      VERIFIED_CANDIDATE_SHA: ${{ needs.verify.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: 1c7470934ab694ce69ac92e70de300d6f6c50743
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          name: d166-verified-candidate
+          path: ${{ runner.temp }}/d166-verified-candidate
+      - name: Fail-closed pinned digest, actual D166 same run provenance and pure setup CLI negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/d165-setup-args.mjs
+          node --check scripts/d165-user-provision.mjs
+          node --check scripts/d165-native-one-command.mjs
+          node --test scripts/d165-setup-args.test.mjs
+          node --test scripts/d163-strict-native-plugin-state.test.mjs scripts/d164-native-listener-guard.test.mjs
+          test "$VERIFIED_CANDIDATE_SHA" != ""
+          test "$VERIFIED_CANDIDATE_SHA" = '8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a'
+          test "$(git rev-parse HEAD)" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          node - <<'NODE'
+          const fs=require('fs'),crypto=require('crypto'),path=require('path');
+          const txt=fs.readFileSync('marketplace/rc/EXPECTED_SHA.candidate','utf8');
+          const sha=/^sha256=([a-f0-9]{64})$/m.exec(txt)?.[1];
+          if(sha!==process.env.VERIFIED_CANDIDATE_SHA)throw Error('D165 same run candidate output mismatch');
+          const root=process.env.RUNNER_TEMP,file=path.join(root,'d166-verified-candidate','suliko-hello-v0.1.0-rc.1.tar.gz');
+          const stat=fs.lstatSync(file);
+          if(!stat.isFile()||stat.isSymbolicLink()||sha!==crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'))
+            throw Error('D165 actual candidate bytes mismatch');
+          NODE
+      - name: Install pinned headless Playwright native Electron harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix tests/parity install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0'
+      - name: D178 Windows --help upstream WSL2-only CLI versus native GUI
+        if: matrix.os == 'windows-2025'
+        shell: pwsh
+        run: |
+          $text = & pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 --help
+          $msg = $text -join " "
+          if ($LASTEXITCODE -ne 0 -or $msg -notmatch 'WSL2' -or $msg -notmatch 'GUI' -or $msg -notmatch 'NotSigned') {
+            throw 'D178_FAIL_CLOSED PowerShell --help missing Windows CLI/GUI caveat'
+          }
+          Write-Output 'D178_WINDOWS_WSL2_NATIVE_GUI_HELP=PASS'
+      - name: One REAL user-facing command official GUI and compiled SHA candidate published npm strict state; real native Hello; uninstall data preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          node scripts/d165-native-one-command.mjs
+          echo 'D165 genuine same-run candidate, actual one user entry (native), strict five forbidden stock plugins disabled and own Hello enabled, GUI mounted, D170 data preserved. CI-only, NOT independently approved immutable release RC/SEC04 or beta.' >> "$GITHUB_STEP_SUMMARY"
+  strict_three_os_fan_in:
+    if: always() && github.repository == 'dol-1/suliko-ide-ci'
+    needs: [docs-parity,independent_builds,verify,native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      CANDIDATE_RESULT: ${{ needs.verify.result }}
+      BUILDS_RESULT: ${{ needs.independent_builds.result }}
+      NATIVE_RESULT: ${{ needs.native.result }}
+      DOCS_RESULT: ${{ needs.docs-parity.result }}
+    steps:
+      - name: Require 2 build plus verify D166 and all 3 D165 native OS jobs completed SUCCESS
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$CANDIDATE_RESULT" != success || "$BUILDS_RESULT" != success || "$NATIVE_RESULT" != success || "$DOCS_RESULT" != success ]]; then
+            echo 'D165_FAIL_CLOSED: exact candidate or genuine three-OS native user setup matrix missing, failed or skipped' >&2
+            exit 1
+          fi
+          echo 'D165_ALL_THREE_REAL_NATIVE_OS_ONE_COMMAND_SAME_CANDIDATE=PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo 'User-facing CI synthetic 3OS gate only; SHA candidate not tag/review, SEC04 unsigned, beta NO-GO.' >> "$GITHUB_STEP_SUMMARY"
