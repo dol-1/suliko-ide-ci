@@ -13,6 +13,7 @@ nav:
   - Home: index.md
   - English:
       - Installation: install.en.md
+      - RC1 source candidate notes: release.en.md
       - First steps: first-steps.en.md
       - FAQ: faq.en.md
       - Private Web: web.en.md
@@ -24,6 +25,7 @@ nav:
   - ქართული:
       - დასაწყისი: index.ka.md
       - ინსტალაცია: install.ka.md
+      - RC1-ის წყაროს ჩანაწერები: release.ka.md
       - პირველი ნაბიჯები: first-steps.ka.md
       - კითხვები: faq.ka.md
       - პირადი Web: web.ka.md
