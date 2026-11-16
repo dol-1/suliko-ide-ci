@@ -15,7 +15,7 @@ function violations(file,source,exists){
    errors.push('NO_PER_REF_CANCEL');
  if(!/^permissions:\s*(read-all|\r?\n\s{2}[a-z-]+:\s*(read|none|write))/m.test(source))
    errors.push('PERMISSIONS_NOT_EXPLICIT');
- for(const m of source.matchAll(/^\s*uses:\s*([^\s#]+)/gm)){
+ for(const m of source.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)){
    const action=m[1];
    if(remote.test(action))continue;
    if(local.test(action) && exists(action.slice(2)))continue;
