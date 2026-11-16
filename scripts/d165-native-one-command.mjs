@@ -6,6 +6,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import {spawn,spawnSync} from "node:child_process";
 import {inspectStrictNativePluginState} from "./d163-strict-native-plugin-state.mjs";
+import {createTiming} from "./d230-first15-metrics.mjs";
 const e=process.env,root=e.RUNNER_TEMP,workspace=e.GITHUB_WORKSPACE,win=process.platform==="win32",
  mac=process.platform==="darwin",linux=process.platform==="linux";
 const fail=category=>{throw Object.assign(new Error(category),{category})};
@@ -23,7 +24,9 @@ const data=userData,official=win?path.join(local,"SulikoIDE","InstalledBB","bb.e
  path.join(home,".local","share","suliko-ide","bb-0.49.0-x86_64.AppImage");
 const archive=path.join(root,"d166-verified-candidate","suliko-hello-v0.1.0-rc.1.tar.gz");
 const pinFile=path.join(workspace,"marketplace","rc","EXPECTED_SHA.candidate");
-const started=Date.now(),port=win?38895:mac?38914:38906,daemonPort=win?38896:mac?38915:38907;
+const started=Date.now(),d230Clock=process.hrtime.bigint(),d230Points={},
+ markD230=stage=>{if(e.D230_REHEARSAL==='1')d230Points[stage]=Number((process.hrtime.bigint()-d230Clock)/1000000n)};
+const port=win?38895:mac?38914:38906,daemonPort=win?38896:mac?38915:38907;
 const env={...e,HOME:home,USERPROFILE:home,LOCALAPPDATA:local,APPDATA:roaming,
  BB_DATA_DIR:data,BB_TELEMETRY:"false",BB_SERVER_BIND_HOST:"127.0.0.1",
  BB_SERVER_PORT:String(port),BB_HOST_DAEMON_PORT:String(daemonPort),
@@ -117,7 +120,8 @@ try{
  const setupSeconds=Math.ceil((Date.now()-started)/1000);
  if(setupSeconds>=900)fail("d165-single-user-command-exceeded-900s");
  sourceHash=digest;
- console.log("D165_SETUP_ELAPSED_SECONDS="+setupSeconds);
+ markD230("setup");
+  console.log("D165_SETUP_ELAPSED_SECONDS="+setupSeconds);
  // Live actual user provisioned state reused, no source-direct test-only plugin installation.
  const pkg=path.join(setupRoot,"cli","node_modules","bb-app");
  const manifest=JSON.parse(fs.readFileSync(path.join(pkg,"package.json"),"utf8"));
@@ -140,43 +144,6 @@ try{
  }
  if(!Array.isArray(plugins)||!inspectStrictNativePluginState(plugins).safe)
   fail("d165-installed-strict-sec02-state-not-persistent");
- // D198: inspect the SAME actually installed own CLI and live OS TCP socket
- // state, never a fixture, user shell or Remote. Bundle contains allowlist only.
- const doctor=path.join(workspace,'scripts','suliko-doctor.mjs');
- const bundle=path.join(root,'d198-owned-doctor-redacted.json');
- const safeReport=JSON.parse(shell(process.execPath,[doctor,'--live','--bundle',bundle],
-   'd198-live-owned-bb-doctor',40000));
- if(safeReport.schema!=='suliko-doctor-live-v1'||
-    safeReport.evidence!=='user-owned-cli-plus-native-os-readonly-not-remote'||
-    safeReport.status!=='live-owned-bb-pass'||
-    safeReport.bbVersion!=='0.49.0'||
-    safeReport.controls?.loopbackOnly!==true||
-    safeReport.controls?.hardenedProfile!==true||
-    safeReport.controls?.forbiddenPluginsSafe!==true||
-    safeReport.controls?.providerKeyPresenceSource!=='environment-variable-name-only-not-bb-secret-store'||
-    safeReport.plugins?.['suliko-hello']!=='enabled')fail('d198-live-doctor-unverified');
- // D198 CodeQL js/file-system-race: no pathname check-then-open window.
- const bundleFd=fs.openSync(bundle,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW||0));
- try{
-   const bundleStat=fs.fstatSync(bundleFd);
-   if(!bundleStat.isFile())fail('d198-bundle-nonregular');
-   if(!win && (bundleStat.mode & 0o777)!==0o600)fail('d198-bundle-unsafe-permissions');
-   if(fs.readFileSync(bundleFd,'utf8')!==JSON.stringify(safeReport,null,2)+'\n')
-     fail('d198-bundle-report-mismatch');
- }finally{fs.closeSync(bundleFd)}
- const checkRejected=extra=>{
-   const r=spawnSync(process.execPath,[doctor,'--live','--bundle',bundle],{
-     cwd:workspace,env:{...env,...extra},encoding:'utf8',windowsHide:true,
-     stdio:['ignore','pipe','pipe'],timeout:30000,maxBuffer:200000});
-   if(r.status===0)fail('d198-refusal-regression');
- };
- // Fail-closed both when environment is no longer hardened and when the
- // already-written support bundle might be overwritten. Never log raw output.
- checkRejected({BB_TELEMETRY:'true'});
- checkRejected({});
- console.log('D198_ACTUAL_OWNED_LIVE_DOCTOR_3OS_AND_REDACTED_WX_0600=PASS');
-
-
  // D174 policy (Claude #42/#83): pinned BB 0.49.0 native Windows CLI
  // project creation is not supported upstream; test the REAL installed GUI.
  // Linux/macOS retain their actual registered project and GUI smoke.
@@ -243,7 +210,52 @@ try{
  }
  if(!result.includes("PASS"))fail("d165-no-genuine-installed-gui-pass");
  console.log("D165_USER_SINGLE_SETUP_REAL_GUI_HELLO_3OS_NATIVE=PASS");
- console.log("D165_USER_BB_DATA_PRESERVED_BEFORE_UNINSTALL=PASS");
+ markD230("hello");
+  console.log("D165_USER_BB_DATA_PRESERVED_BEFORE_UNINSTALL=PASS");
+ // D198: inspect the SAME actually installed own CLI and live OS TCP socket
+ // state, never a fixture, user shell or Remote. Bundle contains allowlist only.
+ const doctor=path.join(workspace,'scripts','suliko-doctor.mjs');
+ const bundle=path.join(root,'d198-owned-doctor-redacted.json');
+ const d230Canary='D230_NOT_A_CREDENTIAL_SYNTHETIC_CANARY';
+  if(e.D230_REHEARSAL==='1')env.D230_SYNTHETIC_CANARY=d230Canary;
+  const safeReport=JSON.parse(shell(process.execPath,[doctor,'--live','--bundle',bundle],
+   'd198-live-owned-bb-doctor',40000));
+  if(e.D230_REHEARSAL==='1')delete env.D230_SYNTHETIC_CANARY;
+ if(safeReport.schema!=='suliko-doctor-live-v1'||
+    safeReport.evidence!=='user-owned-cli-plus-native-os-readonly-not-remote'||
+    safeReport.status!=='live-owned-bb-pass'||
+    safeReport.bbVersion!=='0.49.0'||
+    safeReport.controls?.loopbackOnly!==true||
+    safeReport.controls?.hardenedProfile!==true||
+    safeReport.controls?.forbiddenPluginsSafe!==true||
+    safeReport.controls?.providerKeyPresenceSource!=='environment-variable-name-only-not-bb-secret-store'||
+    safeReport.plugins?.['suliko-hello']!=='enabled')fail('d198-live-doctor-unverified');
+  markD230('doctor');
+ // D198 CodeQL js/file-system-race: no pathname check-then-open window.
+ const bundleFd=fs.openSync(bundle,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW||0));
+ try{
+   const bundleStat=fs.fstatSync(bundleFd);
+   if(!bundleStat.isFile())fail('d198-bundle-nonregular');
+   if(!win && (bundleStat.mode & 0o777)!==0o600)fail('d198-bundle-unsafe-permissions');
+   const sanitized=fs.readFileSync(bundleFd,'utf8');
+    if(sanitized!==JSON.stringify(safeReport,null,2)+'\n')fail('d198-bundle-report-mismatch');
+    if(e.D230_REHEARSAL==='1'&&sanitized.includes(d230Canary))fail('d230-canary-leaked');
+ }finally{fs.closeSync(bundleFd)}
+ const checkRejected=extra=>{
+   const r=spawnSync(process.execPath,[doctor,'--live','--bundle',bundle],{
+     cwd:workspace,env:{...env,...extra},encoding:'utf8',windowsHide:true,
+     stdio:['ignore','pipe','pipe'],timeout:30000,maxBuffer:200000});
+   if(r.status===0)fail('d198-refusal-regression');
+ };
+ // Fail-closed both when environment is no longer hardened and when the
+ // already-written support bundle might be overwritten. Never log raw output.
+ checkRejected({BB_TELEMETRY:'true'});
+ checkRejected({});
+ markD230('bundle');
+  console.log('D198_ACTUAL_OWNED_LIVE_DOCTOR_3OS_AND_REDACTED_WX_0600=PASS');
+
+
+
  // Stop the synthetic disposable hosted BB before user-facing uninstall.
  try{shell(process.execPath,[app,"stop","--data-dir",data],"stop-owned-published-bb",20000)}catch{}
  if(server&&server.exitCode===null){try{server.kill()}catch{}await sleep(1600);}
@@ -265,6 +277,13 @@ try{
   fail("d165-foreign-data-changed-after-negative");
  console.log("D170_FOREIGN_BB_AND_PREEXISTING_DATA_SHA256_UNCHANGED=PASS");
  console.log("D170_MISSING_OWNER_MARKER_REFUSES_DELETE=PASS");
+  markD230("uninstall");
+  if(e.D230_REHEARSAL==='1'){
+    const os=win?'windows':mac?'macos':'linux';
+    const report=createTiming(os,e.GITHUB_SHA,sourceHash,d230Points);
+    fs.writeFileSync(path.join(root,'d230-first15-'+os+'.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
+    console.log('D230_SYNTHETIC_TAG_HELLO_DOCTOR_BUNDLE_OWNED_UNINSTALL=PASS os='+os);
+  }
  if(e.GITHUB_STEP_SUMMARY)fs.appendFileSync(e.GITHUB_STEP_SUMMARY,
   "D165 candidate SHA256 "+sourceHash+" from SAME D166 public runner run; real one-command owned GUI + published CLI strict SEC02/Hello + installed native GUI + user-owned uninstall, elapsed "+setupSeconds+"s; synthetic CI only. D170 existing foreign and user BB data hash-preserved; no RC tag, signed SEC04 or beta.\n");
 }catch(err){
