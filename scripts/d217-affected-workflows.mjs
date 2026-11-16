@@ -108,7 +108,7 @@ function main(){
  }
  const audit=analyze(changed,workflows,branch);
  const report={schema:'suliko-d217-affected-workflows-v1',base,head:process.env.GITHUB_SHA,
-   branch,changed,affected:audit.affected,manual:audit.manual,
+   branch,changed,affected:audit.affected,manual:audit.manual,blockedByUnrunnable:audit.needsManual,
    mustCheckExactHead:audit.affected.map(x=>x.workflow).concat(audit.manual.map(x=>x.workflow))};
  const out=path.join(workspace,'d217-affected-workflows.json');
  fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
@@ -129,5 +129,9 @@ function main(){
  console.log('D217_NOT_FEATURE_RUNNABLE_NAMES='+audit.needsManual.map(x=>x.workflow).join(','));
  console.log('D217_FEATURE_REQUIRED_NAMES='+audit.featureRunnable.map(x=>x.workflow).join(','));
  console.log('D217_DIFF_FILES='+changed.length);
+ if(audit.needsManual.length){
+  console.error('D217_BLOCKED_AFFECTED_NOT_RUNNABLE='+audit.needsManual.map(x=>x.workflow).join(','));
+  process.exitCode=1; // Evidence still uploaded with if: always; no fake success.
+ }
 }
 if(process.argv[1] && process.argv[1].endsWith('d217-affected-workflows.mjs'))main();
