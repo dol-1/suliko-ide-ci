@@ -1,7 +1,7 @@
 name: D-190 KA EN literal install docs command native 3OS (NO beta)
 on:
   push:
-    branches: [feat/d218-tag-install-docs-native-3os, feat/d190-docs-as-test-3os, main]
+    branches: [feat/d218-tag-install-docs-after-d217, feat/d190-docs-as-test-3os, main]
     paths:
       - '.github/workflows/d190-docs-as-test-3os.yml'
       - 'site/docs/install.en.md'
