@@ -1,0 +1,38 @@
+name: D-219 live public Pages plus GitHub issue-form readiness (NO invitations)
+on:
+  push:
+    branches: [feat/d219-share-readiness-after-d218, main]
+    paths:
+      - '.github/workflows/d219-share-link-readiness.yml'
+      - 'scripts/d219-public-share-link-check.mjs'
+      - 'docs/owner-pack/SHARE-LINK.md'
+      - '.github/ISSUE_TEMPLATE/pilot-signup.yml'
+      - 'site/docs/pilot.en.md'
+      - 'site/docs/pilot.ka.md'
+  workflow_dispatch:
+concurrency:
+  group: d219-readiness-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  public-no-send-proof:
+    if: github.repository == 'dol-1/suliko-ide-ci' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Only PUBLIC GET and privacy-first template source tests, no submit/outreach
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/d219-public-share-link-check.mjs --self-test
+          node scripts/d219-public-share-link-check.mjs
+      - name: Record author-only readiness, not owner approval or participant record
+        shell: bash
+        run: echo 'D219 public site and issue form GET with required generic fields verified; prepared but NOT SENT. NO beta/release or user data.' >> "$GITHUB_STEP_SUMMARY"
