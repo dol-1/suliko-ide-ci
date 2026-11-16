@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d208-pilot-kit-after-d220, feat/d220-pages-v501-after-d225, feat/d218-tag-install-docs-after-d217, fix/d215-rc-pin-d117-icon-main-green, feat/d204-live-pages-check, fix/d203-pages-api-response-ownerlint, feat/d203-pages-api-only-gate, feat/d198-doctor-after-d197, feat/d190-docs-as-test-3os, feat/d185-e1-integrated-ci-docs, feat/d179-pilot-self-service, feat/d178-windows-gui-wsl2-caveat, feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, feat/d147-pilot-metrics-ka-en, feat/d141-docs-3os-singleentry-scope, feat/d168-pages-preflight-main, main]
+    branches: [feat/d206-rc1-notes-after-d208, feat/d208-pilot-kit-after-d220, feat/d220-pages-v501-after-d225, feat/d218-tag-install-docs-after-d217, fix/d215-rc-pin-d117-icon-main-green, feat/d204-live-pages-check, fix/d203-pages-api-response-ownerlint, feat/d203-pages-api-only-gate, feat/d198-doctor-after-d197, feat/d190-docs-as-test-3os, feat/d185-e1-integrated-ci-docs, feat/d179-pilot-self-service, feat/d178-windows-gui-wsl2-caveat, feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, feat/d147-pilot-metrics-ka-en, feat/d141-docs-3os-singleentry-scope, feat/d168-pages-preflight-main, main]
     paths:
       - 'site/**'
       - '.github/workflows/d062-docs.yml'
@@ -18,6 +18,8 @@ on:
       - 'scripts/d204-live-pages-links.mjs'
       - 'scripts/d218-tag-install-docs.mjs'
       - 'scripts/d208-pilot-kit-parity.test.py'
+      - 'scripts/d206-release-parity.test.py'
+      - 'docs/release/v0.1.0-rc.1.md'
       - 'docs/pilot/D208-OWNER-FREE-15MIN-KIT.md'
       - 'scripts/d220-deploy-pages-pin.test.mjs'
       - '.github/workflows/d218-tag-install-3os.yml'
@@ -51,6 +53,10 @@ jobs:
         run: node scripts/d220-deploy-pages-pin.test.mjs
       - name: D208 KA EN 15-minute pilot kit and privacy lint
         run: python3 scripts/d208-pilot-kit-parity.test.py
+      - name: D206 immutable-tag RC1 KA EN source SHA and release safety parity
+        run: |
+          python3 scripts/d206-release-parity.test.py
+          echo 'D206_RC1_TAG_40HEX_ARCHIVE_64HEX_D202_UNMERGED_KA_EN=PASS_SOURCE_ONLY_NOT_RELEASE' >> "$GITHUB_STEP_SUMMARY"
       - name: Install pinned MIT documentation generator in disposable venv
         run: |
           set -euo pipefail
@@ -72,6 +78,8 @@ jobs:
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot-start.ka/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot-feedback.en/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot-feedback.ka/index.html"
+          test -s "$RUNNER_TEMP/suliko-docs-built/release.en/index.html"
+          test -s "$RUNNER_TEMP/suliko-docs-built/release.ka/index.html"
           echo "D168 strict public-only KA/EN docs build, internal links, license and source parity PASS." >> "$GITHUB_STEP_SUMMARY"
       - name: Verify official GitHub Pages API workflow mode (D203; main push only)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
