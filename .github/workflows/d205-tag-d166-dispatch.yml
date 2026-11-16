@@ -1,0 +1,54 @@
+name: D-205 exact immutable RC tag D166 dispatch (NO release)
+on:
+  push:
+    branches: [feat/d205-tag-d166-proof-dispatch, main]
+    paths:
+      - '.github/workflows/d205-tag-d166-dispatch.yml'
+      - 'scripts/d205-tag-contract.test.mjs'
+  workflow_dispatch:
+concurrency:
+  group: d205-tag-proof-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  verify-tag-ref:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Static no-tag-mutation narrow-dispatch proof
+        run: node scripts/d205-tag-contract.test.mjs
+      - name: Read official GitHub immutable RC tag reference, fail closed if changed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/suliko-hello/v0.1.0-rc.1" --jq '.object.sha')"
+          test "$tag_sha" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          echo 'D205 immutable tag ref verified by GitHub API, source only. No release.' >> "$GITHUB_STEP_SUMMARY"
+  dispatch-exact-tag-d166:
+    if: github.repository == 'dol-1/suliko-ide-ci' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.verify-tag-ref.result == 'success'
+    needs: verify-tag-ref
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Revalidate tag ref and dispatch ONLY existing D166 at pinned tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/suliko-hello/v0.1.0-rc.1" --jq '.object.sha')"
+          test "$actual" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          gh api --silent --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/d166-rc-candidate.yml/dispatches" \
+            -f ref='suliko-hello/v0.1.0-rc.1'
+          echo 'D205 requested existing D166 workflow_dispatch on exact reviewed RC tag. This dispatch alone is NOT a successful candidate proof, release, tag creation or approval.' >> "$GITHUB_STEP_SUMMARY"
