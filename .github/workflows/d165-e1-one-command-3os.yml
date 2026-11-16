@@ -27,6 +27,8 @@ on:
       - 'plugins/suliko-hello/**'
       - 'marketplace/rc/EXPECTED_SHA.candidate'
       - 'marketplace/rc/EXPECTED_SHA'
+      - 'scripts/d202-windows-uninstaller-hash.test.ps1'
+      - '.github/workflows/d202-windows-uninstaller-hash.yml'
       - 'scripts/d230-first15-metrics.mjs'
       - 'docs/pilot/D230-FIRST-15-MIN-KA-EN.md'
   workflow_dispatch:
