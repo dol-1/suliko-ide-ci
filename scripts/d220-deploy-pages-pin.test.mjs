@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const f='.github/workflows/d062-docs.yml',s=fs.readFileSync(f,'utf8');
+assert.equal([...s.matchAll(/uses: actions\/deploy-pages@([0-9a-f]{40})/g)].length,1,'D220 exactly 1 immutable deploy-pages');
+assert(s.includes('uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346'),'D220 authorized v5.0.1 SHA absent');
+assert(!s.includes('d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e'),'D220 old pin remains');
+assert(s.includes("github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.site.outputs.deploy_enabled == 'true'"),'D220 Pages main push API security gate removed');
+assert(s.includes("if: needs.deploy.result == 'success'"),'D220 live 8 URL check missing');
+assert(s.includes('permissions:\n      pages: write\n      id-token: write'),'D220 scope Pages-only write');
+console.log('D220 Dependabot GitHub PR13 SHA pin v5.0.1 preserving main-only API Pages gate and live check PASS');
