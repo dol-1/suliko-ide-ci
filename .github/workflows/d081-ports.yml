@@ -72,6 +72,9 @@ jobs:
               pnpm run typecheck
               pnpm run test
               ;;
+            fix/d226-premerge-after-d227|main)
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
             *) echo 'Unsupported branch' >&2; exit 2 ;;
           esac
           echo "D081 regression passed for source head ${GITHUB_SHA:0:8}" >> "$GITHUB_STEP_SUMMARY"
