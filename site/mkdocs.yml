@@ -21,6 +21,8 @@ nav:
       - Troubleshooting: troubleshooting.en.md
       - Pilot signup: pilot.en.md
       - Pilot metrics template: pilot-metrics.en.md
+      - Future pilot first 15 minutes: pilot-start.en.md
+      - Voluntary feedback template: pilot-feedback.en.md
   - ქართული:
       - დასაწყისი: index.ka.md
       - ინსტალაცია: install.ka.md
@@ -32,3 +34,5 @@ nav:
       - დახმარება: troubleshooting.ka.md
       - პილოტი: pilot.ka.md
       - პილოტის მეტრიკების შაბლონი: pilot-metrics.ka.md
+      - მომავალი პილოტის პირველი 15 წუთი: pilot-start.ka.md
+      - ნებაყოფლობითი უკუკავშირის შაბლონი: pilot-feedback.ka.md
