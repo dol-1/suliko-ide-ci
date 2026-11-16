@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d063-scorecard-public, fix/d063-scorecard-output-path, fix/d063-scorecard-policy-trigger, fix/d097-scorecard-workflow-change-trigger, main]
+    branches: [fix/d226-premerge-gates-after-d229, feat/d063-scorecard-public, fix/d063-scorecard-output-path, fix/d063-scorecard-policy-trigger, fix/d097-scorecard-workflow-change-trigger, main]
     paths: ['.github/workflows/**', 'SECURITY.md', 'CONTRIBUTING.md']
   schedule:
     - cron: '29 5 * * 4'
