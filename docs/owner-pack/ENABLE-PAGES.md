@@ -1,12 +1,13 @@
-# Owner action 1/3 — Pages enablement (KA / EN, NOT YET EXECUTED)
+# Owner action 1/3 — Enable GitHub Pages (one step, KA / EN)
 
-**Prerequisites / წინაპირობა:** Claude/owner-phase explicit GO and separately signed SEC-04 security review. Current public docs CI success alone is NOT that GO.
+**Status:** Owner confirmed that Source = GitHub Actions was selected on 2026-11-15 (source: [owner phase #86](https://gitlab.com/dol-1-group/suliko-ide/-/issues/86#note_4240058417)). This document is a readiness checklist, **not proof that a live site is deployed**.
 
-**KA — owner-ის ნაბიჯი (≤10 წუთი):**
-1. გახსენით [GitHub public repo](https://github.com/dol-1/suliko-ide-ci) → Settings → Pages → Build and deployment; Source მიუთითეთ **GitHub Actions**. არ აირჩიოთ გაუმართლებელი branch-publication.
-2. Settings → Secrets and variables → Actions → Variables → შექმენით/განაახლეთ არასაიდუმლო repository variable **`PAGES_ENABLED`** მნიშვნელობით **`true`** (არ ჩაწეროთ token/საიდუმლო).
-3. ეს მხოლოდ მომდევნო **reviewed push on `main`** დროს აძლევს `.github/workflows/d062-docs.yml`-ს უფლებას გადაამოწმოს Pages API და ააგოს საიტი; green `workflow_dispatch` *არ* ნიშნავს deploy-ს, რადგან deploy-ს explicit main push სჭირდება. შეამოწმეთ Actions-ის deploy და ოფიციალური Pages URL. თუ Pages workflow ვერ დადასტურდა — იგი უსაფრთხოდ SKIP-ს აკეთებს.
+**KA — ერთადერთი ნაბიჯი:** გახსენით [GitHub → Settings → Pages](https://github.com/dol-1/suliko-ide-ci/settings/pages) და „Build and deployment“ → „Source“ აირჩიეთ **GitHub Actions**. უკვე არჩეულია? დამატებით არაფერს აკეთებთ. **`PAGES_ENABLED` ცვლადი აღარ გჭირდებათ.** არ შეიყვანოთ token ან საიდუმლო მონაცემები.
 
-**EN:** After explicit phase/SEC-04 signoff: configure GitHub Settings → Pages → Source **GitHub Actions**; add Actions repository variable `PAGES_ENABLED=true`; on the next reviewed **main push**, `.github/workflows/d062-docs.yml` will build, check API and deploy only if workflow-mode Pages is valid. Review its run before claiming that the user guide is live. No credentials needed in the variable.
+შემდეგ reviewed `main` push-ზე `.github/workflows/d062-docs.yml` თავად ამოწმებს GitHub-ის Pages API-ს (`build_type == workflow`) და მხოლოდ მისი დადებითი პასუხით ატვირთავს საჯარო KA/EN დოკუმენტაციას. თუ Pages ჯერ გამორთულია, მხოლოდ deploy გამოტოვდება; build/t tests დამოუკიდებლად გაგრძელდება. `workflow_dispatch` ან feature-branch CI-ის მწვანე შედეგი **არ ნიშნავს გამოქვეყნებას**.
 
-**Exact files:** `.github/workflows/d062-docs.yml`, `site/mkdocs.yml`, `site/docs/index.ka.md`, `site/docs/index.md`. **Source:** [public reviewed workflow](https://github.com/dol-1/suliko-ide-ci/blob/main/.github/workflows/d062-docs.yml).
+**EN — single action:** Visit [GitHub → Settings → Pages](https://github.com/dol-1/suliko-ide-ci/settings/pages). Under Build and deployment, select **GitHub Actions** as Source; if already selected, nothing further is required. There is **no `PAGES_ENABLED` variable** to create or configure. Do not enter a token.
+
+A reviewed `main` push probes the official Pages API for `build_type: workflow` and only then uploads the public docs and deploys. Disabled/invalid Pages is a safe **SKIP**, never a false success claim. Confirm the actual `deploy` job completed/success and the live KA/EN public URLs before sharing a pilot link. Remote documentation describes a synthetic **demo**, not production Remote authorization.
+
+**Source:** [Claude D203 #87](https://gitlab.com/dol-1-group/suliko-ide/-/issues/87), [owner #86](https://gitlab.com/dol-1-group/suliko-ide/-/issues/86), [guarded docs CI](https://github.com/dol-1/suliko-ide-ci/blob/main/.github/workflows/d062-docs.yml).
