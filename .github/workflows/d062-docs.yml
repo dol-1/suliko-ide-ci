@@ -102,7 +102,7 @@ jobs:
           test -s "$RUNNER_TEMP/suliko-docs-built/windows-trust.ka/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/macos-linux-trust.en/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/macos-linux-trust.ka/index.html"
-          echo "D168 strict public-only KA/EN docs build, internal links, license and source parity PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "D242 strict 12-route KA/EN preview docs, read-only SHA256 trust and source parity PASS; not a release." >> "$GITHUB_STEP_SUMMARY"
       - name: D211 bounded rendered KA EN links and zero-critical axe gate, mobile viewport artifact before Pages publish
         shell: bash
         run: |
