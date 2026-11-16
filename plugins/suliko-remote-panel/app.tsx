@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
 import { remoteMessages, remoteStatusLabel } from "./i18n.js";
 import { pollingDelay } from "./polling.js";
+import {validateMockSnapshot} from "./mock-schema.js";
 import {
   demoRemote,
   isSafeDemoApprovalPage,
@@ -36,27 +37,17 @@ export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOn
           readPort.list_pending_approvals(),
           readPort.job_status("demo-job-1"),
         ]);
-        // Each displayed approval must have its OWN matching status read.
-        // Do not attach a single demo ID's status to unrelated requests.
-        if (!Array.isArray(approvals) || approvals.length > 16) {
-          throw new Error("Untrusted demo approval count");
-        }
-        const ids = new Set<string>();
-        for (const approval of approvals) {
-          if (typeof approval?.id !== "string" ||
-              !/^[a-zA-Z0-9_-]{1,64}$/.test(approval.id) ||
-              ids.has(approval.id)) {
-            throw new Error("Duplicate or invalid demo approval ID");
-          }
-          ids.add(approval.id);
-        }
+        // Validate ALL external-shaped mock values before any status polling or rendering.
+        // Partial/oversized/malicious fixture responses become the generic error state.
+        const checked=validateMockSnapshot(devices,approvals,job);
+        // Each displayed approval must have its own matching read-only status.
         const statuses = await Promise.all(
-          approvals.map(a => readPort.get_approval_status(a.id)),
+          checked.approvals.map(a => readPort.get_approval_status(a.id)),
         );
         const approvalStatuses = new Map<string, "pending" | "approved" | "denied" | "expired">();
-        for (let i = 0; i < approvals.length; i++) {
+        for (let i = 0; i < checked.approvals.length; i++) {
           const status = statuses[i];
-          if (!status || status.id !== approvals[i]?.id ||
+          if (!status || status.id !== checked.approvals[i]?.id ||
               !["pending", "approved", "denied", "expired"].includes(status.status)) {
             throw new Error("Mismatched demo approval status");
           }
@@ -64,7 +55,7 @@ export function RemotePanel({ readPort = demoRemote }: { readPort?: RemoteReadOn
         }
         if (!active) return;
         failures = 0;
-        setSnapshot({ devices, approvals, approvalStatuses, job });
+        setSnapshot({ devices:checked.devices, approvals:checked.approvals, approvalStatuses, job:checked.job });
         setError(false);
       } catch {
         if (!active) return;
