@@ -7,6 +7,7 @@ on:
       - fix/d078-qa01-summary-redaction
       - feat/d076-lock-integrity
       - fix/d080-e4-version-display
+      - fix/d226-premerge-after-d227
     paths:
       - '.github/workflows/d081-ports.yml'
       - 'scripts/**'

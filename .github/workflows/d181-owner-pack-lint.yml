@@ -11,6 +11,9 @@ on:
       - 'marketplace/rc/**'
       - '.github/ISSUE_TEMPLATE/pilot-signup.yml'
   workflow_dispatch:
+concurrency:
+  group: d181-owner-pack-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
