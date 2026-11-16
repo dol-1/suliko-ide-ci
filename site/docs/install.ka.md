@@ -51,3 +51,23 @@ pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -DryRun
 ```
 
 CI დამატებით ამოწმებს PowerShell `--help`-ში `WSL2`, `GUI` და `NotSigned` ტექსტს. მწვანე შედეგი მხოლოდ **სინთეტიკური preview**-ს ამოწმებს, არა ხელმოწერას, RC ტეგს ან SEC-04-ის დამტკიცებას.
+
+## D218 — rc.1 ტეგის დაყენების ზუსტი ბრძანებები მხოლოდ იზოლირებული CI-სთვის
+
+**ეს არ არის საჯარო ბეტა ან მომხმარებლისთვის ინსტალაციის რეკომენდაცია.** უცვლელი `suliko-hello/v0.1.0-rc.1` მიუთითებს წყაროს commit-ზე `1c7470934ab694ce69ac92e70de300d6f6c50743`. ქვემოთ მოცემული ბრძანებები განკუთვნილია **მხოლოდ დროებითი საჯარო GitHub CI runner-ისთვის**. `D218_CANDIDATE_PATH` იქმნება იმავე ტეგიდან დამოუკიდებელი build-ებით და მოწმდება ზუსტი SHA-256 `8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a`-ით; არ არის მომხმარებლისგან მოთხოვნილი ფაილი. Ubuntu 24.04/macOS 15/Windows 2025-ზე ტესტი ადასტურებს რეალურად დაყენებულ GUI/Hello-ს და შემდგომ უსაფრთხო წაშლას, პირადი მონაცემების შენარჩუნებით. **პირად ან საწარმოო კომპიუტერზე არ გაუშვათ.** Windows-ის ოფიციალური ინსტალერი კვლავ **NotSigned**-ია, CLI Windows-ზე მხოლოდ **WSL2**-ით არის მხარდაჭერილი, GUI კი მუშაობს უშუალოდ Windows-ზე. Remote მხოლოდ **დემოა**.
+
+Linux/macOS — მხოლოდ ტეგის დადასტურებულ CI checkout-ში:
+
+```bash
+bash scripts/suliko-setup.sh --install --plugin-sha 8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a --candidate-file "$D218_CANDIDATE_PATH"
+bash scripts/suliko-setup.sh --uninstall
+```
+
+Windows 2025 — მხოლოდ იზოლირებულ არადმინისტრატორულ CI-ში, ხელმოუწერელი Windows ინსტალერის ზუსტი SHA-256-ის კონტროლით (SmartScreen-ის გვერდის ავლის გარეშე):
+
+```powershell
+pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -Install -AllowUnsignedVerified -PluginSha 8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a -CandidateFile $env:D218_CANDIDATE_PATH
+pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -Uninstall
+```
+
+D218 ტესტი ამოწმებს KA/EN ტექსტის ზუსტ ბრძანებებს ტეგის საკუთარ `d165-native-one-command.mjs` არგუმენტებთან, შემდეგ რეალურად უშვებს ტეგის ინსტალაციასა და წაშლას სამივე ოპერაციულ სისტემაზე. ეს **არ** წარმოადგენს გამოქვეყნებულ ინსტალატორს, რეალურ Remote-სერვისს ან პილოტის მოწვევას.
