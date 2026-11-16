@@ -56,6 +56,17 @@ assert(!read(".github/workflows/d062-docs.yml").includes("vars.PAGES_ENABLED"),"
 assert(read(".github/workflows/d062-docs.yml").includes("needs.site.outputs.deploy_enabled == 'true'"),"D181 main-only API-confirmed deploy contract absent");
 assert(/^(UNSET|[0-9a-f]{40})\s*$/.test(read("marketplace/rc/EXPECTED_SHA")),"D181 ambiguous final tag SHA");
 assert((index.match(/\| [123] \|/g)||[]).length===3,"D181 owner phase must have exactly three steps");
-const lines=share.split(/\r?\n/).filter(x=>x.includes("https://github.com/dol-1/suliko-ide-ci/issues/new?"));
-assert(lines.length===1,"D181 share pack must contain one signup URL");
+const canonicalSignup='https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml';
+function checkOnlyCanonicalSignup(copy){
+ const urls=[...copy.matchAll(/https:\/\/github\.com\/[^\s)\]>"']+\/issues\/new\?[^\s)\]>"']+/g)].map(m=>m[0]);
+ assert(urls.length>0,'D181 canonical signup missing');
+ assert(urls.every(url=>url===canonicalSignup)&&new Set(urls).size===1,'D181 alternative signup destination forbidden');
+ return urls.length;
+}
+const repeated=checkOnlyCanonicalSignup(share);
+assert(repeated>=1,'D181 canonical signup absent');
+assert.throws(()=>checkOnlyCanonicalSignup('no URL'),/D181 canonical signup missing/);
+assert.throws(()=>checkOnlyCanonicalSignup(share+'\nhttps://github.com/other/repo/issues/new?template=surprise.yml'),/D181 alternative signup destination forbidden/);
+assert.throws(()=>checkOnlyCanonicalSignup(share+'\n'+canonicalSignup+'&unexpected=1'),/D181 alternative signup destination forbidden/);
+console.log('D181_SINGLE_ALLOWED_SIGNUP_DESTINATION_REPEATED_TRANSLATED_COPY_NEGATIVES=PASS');
 console.log("D181_OWNER_PACK_3_ACTIONS_ALL_REAL_PATHS=PASS (NO publish/tag/send)");

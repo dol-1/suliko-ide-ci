@@ -8,6 +8,8 @@ https://dol-1.github.io/suliko-ide-ci/
 
 Actual official GitHub Pages deploy and all eight KA/EN links, including explicit Remote **synthetic/mock** disclaimer, completed-success on the same D215 green canonical main f98 [D062 43797806210](https://github.com/dol-1/suliko-ide-ci/actions/runs/43797806210). Helpful public pages: [Pilot information EN](https://dol-1.github.io/suliko-ide-ci/pilot.en/) and [პილოტის ინფორმაცია KA](https://dol-1.github.io/suliko-ide-ci/pilot.ka/).
 
+**One link / one canonical signup destination (KA/EN):** the GitHub PUBLIC template URL below. The same URL is repeated inside translated owner copy for convenience, never a second form or service. **SEC-04** independent signoff and owner phase approval still gate any real sharing; **NOT SENT**.
+
 ## One public opt-in form URL
 
 https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml
