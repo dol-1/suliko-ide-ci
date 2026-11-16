@@ -41,7 +41,27 @@ function selfTest(){
  const sha='a'.repeat(40),m={setup:100,hello:200,doctor:260,bundle:280,uninstall:400};
  const rows=['linux','macos','windows'].map((os,i)=>createTiming(os,sha,DIGEST,Object.fromEntries(stages.map(k=>[k,m[k]+i*100]))));
  check(aggregate(rows,sha).stats.total.p90Ms===600,'P90');
- const invalid=[[rows[0],rows[1],rows[1]],[rows[0],rows[1]],[{...rows[0],sourceHead:'b'.repeat(40)},rows[1],rows[2]],[{...rows[0],participants:1},rows[1],rows[2]],[{...rows[0],secretBundle:'not-exported'},rows[1],rows[2]],[{...rows[0],ordered:{...rows[0].ordered,unknown:500}},rows[1],rows[2]],[{...rows[0],ordered:{...rows[0].ordered,doctor:150}},rows[1],rows[2]]];
+ const invalid=[
+  [rows[0],rows[1],rows[1]],
+  [rows[0],rows[1]],
+  [{...rows[0],sourceHead:'b'.repeat(40)},rows[1],rows[2]],
+  [{...rows[0],participants:1},rows[1],rows[2]],
+  [{...rows[0],secretBundle:'not-exported'},rows[1],rows[2]],
+  [{...rows[0],ordered:{...rows[0].ordered,unknown:500}},rows[1],rows[2]],
+  [{...rows[0],ordered:{...rows[0].ordered,doctor:150}},rows[1],rows[2]],
+  [{...rows[0],candidateSha:'0'.repeat(64)},rows[1],rows[2]],
+  [{...rows[0],tagCommit:'b'.repeat(40)},rows[1],rows[2]],
+  [{...rows[0],bundleLeakFree:false},rows[1],rows[2]],
+  [{...rows[0],realRemote:true},rows[1],rows[2]],
+  [{...rows[0],synthetic:false},rows[1],rows[2]],
+  [{...rows[0],totalMs:999999},rows[1],rows[2]],
+  [{...rows[0],intervals:{...rows[0].intervals,bundle:999}},rows[1],rows[2]],
+  [{...rows[0],within15min:false},rows[1],rows[2]],
+  [{...rows[0],os:'unknown'},rows[1],rows[2]],
+  [{...rows[0],ordered:{...rows[0].ordered,bundle:'not-number'}},rows[1],rows[2]],
+  [{...rows[0],ordered:{...rows[0].ordered,uninstall:1800001}},rows[1],rows[2]],
+  [{...rows[0],ordered:{...rows[0].ordered,hello:50}},rows[1],rows[2]]
+ ];
  for(const b of invalid){let denied=false;try{aggregate(b,sha)}catch{denied=true}check(denied,'NEGATIVE_BYPASS')}
  console.log('D230_SHA_TAG_THREE_OS_ORDERED_PERCENTILES_NEGATIVES=PASS');
 }
