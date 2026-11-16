@@ -47,9 +47,17 @@ function main(){
  const names=fs.readdirSync(dir).filter(x=>x.endsWith('.json')).sort();check(names.length===3,'FILES');
  const rows=names.map(n=>{
   check(/^d230-first15-(linux|macos|windows)\.json$/.test(n),'NAME');
-  const file=path.join(dir,n),s=fs.lstatSync(file);
-  check(s.isFile()&&!s.isSymbolicLink()&&s.size>200&&s.size<3000,'BOUNDED');
-  const raw=fs.readFileSync(file,'utf8');check(!/(?:sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9_-]{16,}|Bearer\s+\S+)/i.test(raw),'SECRET');
+  const file=path.join(dir,n);
+  // Open first with O_NOFOLLOW/O_NONBLOCK: never check path then reopen it.
+  const flags=fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW||0)|(fs.constants.O_NONBLOCK||0);
+  const fd=fs.openSync(file,flags);
+  let raw;
+  try{
+   const stat=fs.fstatSync(fd);
+   check(stat.isFile()&&stat.size>200&&stat.size<3000,'BOUNDED');
+   raw=fs.readFileSync(fd,{encoding:'utf8'});
+  }finally{fs.closeSync(fd)}
+  check(!/(?:sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9_-]{16,}|Bearer\s+\S+)/i.test(raw),'SECRET');
   const r=JSON.parse(raw);check(n==='d230-first15-'+r.os+'.json','FILE_OS');return r;
  });
  const result=aggregate(rows,process.env.GITHUB_SHA);
