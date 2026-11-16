@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
+    branches: [test/d244-doctor-bundle-redaction-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
     paths: ['.github/workflows/**', 'scripts/d226-d083-policy.mjs']
   workflow_dispatch:
 permissions: read-all
