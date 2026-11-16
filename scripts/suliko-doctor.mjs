@@ -61,8 +61,10 @@ function main(args) {
       report.controls.providerKeyPresenceSource = "environment-variable-name-only-not-bb-secret-store";
       report.status = report.status === "synthetic-fixture-pass" &&
         report.plugins["suliko-hello"] === "enabled" ? "live-owned-bb-pass" : "review-required";
-    } catch {
-      process.stderr.write("D198_SAFE_LIVE_PROBE_NOT_VERIFIED; no private state was printed.\n");
+    } catch (err) {
+      const stages=new Set(["platform","owned-root","profile","published-cli","port-contract","native-loopback","plugin-list"]);
+      const stage=stages.has(err?.safeStage)?err.safeStage:"unclassified";
+      process.stderr.write("D198_SAFE_STAGE="+stage+"; no private state was printed.\n");
       return 1;
     }
     const serialized = JSON.stringify(report, null, 2) + "\n";
