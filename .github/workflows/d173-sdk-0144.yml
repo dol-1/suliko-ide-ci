@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d173-source-sdk-0144, main]
+    branches: [fix/d226-premerge-after-d211, feat/d173-source-sdk-0144, main]
     paths:
       - .github/workflows/d173-sdk-0144.yml
       - .github/workflows/d158-codeql-own-source.yml

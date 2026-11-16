@@ -1,7 +1,7 @@
 name: D-221 pin own native and reproducible CI actions on Node24 (NO release)
 on:
   push:
-    branches: [feat/d221-node24-after-d223]
+    branches: [fix/d226-premerge-after-d211, feat/d221-node24-after-d223]
     paths:
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'

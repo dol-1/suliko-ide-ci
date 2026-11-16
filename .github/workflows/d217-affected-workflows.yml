@@ -1,11 +1,7 @@
 name: D-217 affected workflow exact-head inventory (NO release)
 on:
   push:
-    branches: [feat/d217-affected-ci-after-main-f98, main]
-    paths:
-      - '.github/workflows/**'
-      - 'scripts/d217-affected-workflows.mjs'
-      - 'scripts/d217-affected-workflows.test.mjs'
+    branches: ['**']
 concurrency:
   group: d217-path-impact-${{ github.ref }}
   cancel-in-progress: true
@@ -29,6 +25,7 @@ jobs:
       - name: Compute exact feature/main changed-path affected workflows and premerge table
         run: node scripts/d217-affected-workflows.mjs
       - name: Upload own-source premerge inventory and note template, not raw repo data
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: d217-affected-workflows-premerge
