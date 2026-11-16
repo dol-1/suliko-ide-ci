@@ -1,0 +1,39 @@
+name: D-217 affected workflow exact-head inventory (NO release)
+on:
+  push:
+    branches: [feat/d217-affected-ci-after-main-f98, main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/d217-affected-workflows.mjs'
+      - 'scripts/d217-affected-workflows.test.mjs'
+concurrency:
+  group: d217-path-impact-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  diff-inventory:
+    if: github.repository == 'dol-1/suliko-ide-ci' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: D217 pure workflow path/filter/missing-branch negative tests
+        run: node --test scripts/d217-affected-workflows.test.mjs
+      - name: Compute exact feature/main changed-path affected workflows and premerge table
+        run: node scripts/d217-affected-workflows.mjs
+      - name: Upload own-source premerge inventory and note template, not raw repo data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d217-affected-workflows-premerge
+          path: |
+            d217-affected-workflows.json
+            d217-premerge-note.md
+          if-no-files-found: error
+          retention-days: 1
