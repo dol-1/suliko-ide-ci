@@ -3,6 +3,10 @@ on:
   push:
     branches: [test/d244-doctor-bundle-redaction-after-d226, main]
     paths:
+      - '.github/workflows/d063-gitleaks.yml'
+      - '.github/workflows/d063-semgrep.yml'
+      - '.github/workflows/d152-workflow-expression-guard.yml'
+      - '.github/workflows/d158-codeql-own-source.yml'
       - 'scripts/d244-doctor-redaction.test.mjs'
       - 'scripts/suliko-doctor.mjs'
       - 'scripts/d198-doctor-live.mjs'
