@@ -5,6 +5,7 @@ on:
     paths:
       - 'docs/owner-pack/**'
       - 'scripts/d181-owner-pack-lint.mjs'
+      - 'scripts/d226-d083-policy.mjs'
       - '.github/workflows/d181-owner-pack-lint.yml'
       - '.github/workflows/d062-docs.yml'
       - '.github/workflows/spike04-marketplace-rc.yml'

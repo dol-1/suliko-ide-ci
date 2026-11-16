@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/d217-affected-workflows.mjs'
       - 'scripts/d217-affected-workflows.test.mjs'
+      - 'scripts/d226-d083-policy.mjs'
       - 'scripts/d221-node24-pin.test.mjs'
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'

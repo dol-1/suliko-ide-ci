@@ -8,6 +8,7 @@ on:
     paths:
       - 'tests/parity/d211-docs-axe.mjs'
       - 'scripts/d233-trust-parity.test.py'
+      - 'scripts/d226-d083-policy.mjs'
       - 'site/**'
       - 'docs/ops/PILOT-SUPPORT-RUNBOOK.md'
       - 'scripts/d214-pilot-support-lint.mjs'

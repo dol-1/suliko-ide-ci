@@ -28,6 +28,8 @@ function selfTest(){
  assert.deepEqual(violations('test.yml',sample,x=>x===dir+'/safe.yml'),[]);
  assert(violations('test.yml',sample.replace(refExpression,'noref'),()=>true).includes('NO_PER_REF_CANCEL'));
  assert(violations('test.yml',sample.replace('cancel-in-progress: true','cancel-in-progress: false'),()=>true).includes('NO_PER_REF_CANCEL'));
+ assert(violations('test.yml',sample.replace('permissions: read-all','permissions: write-all'),()=>true).includes('PERMISSIONS_NOT_EXPLICIT'));
+ assert(violations('test.yml',sample.replace('cancel-in-progress: true','cancel-in-progress: True'),()=>true).includes('NO_PER_REF_CANCEL'));
  assert(violations('test.yml',sample.replace('github/codeql-action/init@'+ 'a'.repeat(40),'github/codeql-action/init@v3'),()=>true).includes('UNPINNED_OR_INVALID_USES'));
  assert(violations('test.yml',sample.replace('./.github/workflows/safe.yml','./../private/file.yml'),()=>true).includes('UNPINNED_OR_INVALID_USES'));
  assert(violations('test.yml',sample,()=>false).includes('UNPINNED_OR_INVALID_USES'));
