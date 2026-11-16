@@ -1,13 +1,15 @@
 name: D-166 two independent Hello RC candidate builds, SPDX and attestation (NO release)
 on:
   push:
-    branches: [feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
+    branches: [fix/d215-rc-pin-d117-icon-main-green, feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
     paths:
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d166-package-candidate.mjs'
       - 'plugins/suliko-hello/**'
       - 'marketplace/rc/EXPECTED_SHA.candidate'
       - 'marketplace/rc/EXPECTED_SHA'
+      - 'scripts/d215-rc-pin.mjs'
+      - 'scripts/d215-rc-pin.test.mjs'
       - '.github/workflows/d205-tag-d166-dispatch.yml'
   workflow_dispatch:
   workflow_call:
@@ -38,6 +40,8 @@ jobs:
         with:
           node-version: '22.19.0'
           package-manager-cache: false
+      - name: D215 verify disjoint reviewed source commit and artifact digests
+        run: node --test scripts/d215-rc-pin.test.mjs
       - name: Frozen own-plugin build with source tests (independent runner)
         shell: bash
         run: |
