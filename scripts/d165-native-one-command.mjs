@@ -41,7 +41,7 @@ const shell=(file,args,category,timeout=180000,cwd=workspace)=>{
     const captured=/D165_SAFE_PROVISION_CAUSE=([a-z0-9-]{2,60}) D165_SAFE_PROVISION_ERRNO=([A-Z]{2,15}|other)/.exec(raw);
     const causes=["published-npm-install","pinned-npm-not-found","published-cli-server-exited","published-cli-server-not-ready","published-cli-live-state","unreviewed-bb-app-metadata","unreviewed-candidate-manifest","live-sec02-hello-not-converged","real-local-listeners-not-proved-loopback","candidate-source-not-reviewed","candidate-digest-mismatch"];
     const code=causes.find(x=>raw.includes("Error: "+x))||"unclassified";
-    const boundedCause=new Set([...causes,"unsafe-user-parent","unsafe-regular-file","invalid-candidate-archive","invalid-candidate-member-types","candidate-archive-traversal","candidate-archive-link-refused","candidate-digest-mismatch","extract-candidate-failed","staged-candidate-digest-mismatch","staged-candidate-nonregular"]);
+    const boundedCause=new Set([...causes,"unreviewed-npm-lock-source","npm-lock-content-drift","unsafe-user-parent","unsafe-regular-file","invalid-candidate-archive","invalid-candidate-member-types","candidate-archive-traversal","candidate-archive-link-refused","candidate-digest-mismatch","extract-candidate-failed","staged-candidate-digest-mismatch","staged-candidate-nonregular"]);
     const safeCode=captured&&boundedCause.has(captured[1])?captured[1]:code;
     const safeErrno=captured&&new Set(["ENOENT","EACCES","EPERM","EINVAL","ENOTDIR","EEXIST","EBUSY","ETIMEDOUT"]).has(captured[2])?captured[2]:"other";
     console.error("D165_SAFE_STAGE="+latest+" D165_SAFE_CAUSE="+safeCode+" D165_SAFE_ERRNO="+safeErrno);
