@@ -26,7 +26,7 @@ function d229AllEnabledWorkflows(workflows,runs,sha){
  assert(Array.isArray(workflows)&&workflows.length>0&&workflows.length<=300,'D229_WORKFLOWS_INVENTORY_INVALID');
  const seen=new Set(),all=[];
  for(const w of workflows){
-  assert(Number.isSafeInteger(w.id)&&w.id>0&&typeof w.name==='string'&&typeof w.path==='string'&&w.path.startsWith('.github/workflows/'),'D229_WORKFLOW_SHAPE_INVALID');
+  assert(Number.isSafeInteger(w.id)&&w.id>0&&typeof w.name==='string'&&w.name.length>0,'D229_WORKFLOW_SHAPE_INVALID');
   if(w.state!=='active')continue;
   assert(!seen.has(w.id),'D229_DUPLICATE_WORKFLOW_ID');
   seen.add(w.id);
@@ -36,7 +36,8 @@ function d229AllEnabledWorkflows(workflows,runs,sha){
   const status=hit?hit.status==='completed'?(hit.conclusion||'unknown'):'pending':'MISSING';
   if(hit)assert(Number.isSafeInteger(hit.id)&&hit.id>0&&/^(success|failure|cancelled|skipped|timed_out|action_required|neutral|stale|startup_failure|unknown|pending)$/.test(status),'D229_RUN_INVALID');
   const name=w.name.replace(/[^a-zA-Z0-9 .()_+:/-]/g,'?').slice(0,150);
-  all.push({workflow:name,path:w.path,sha,conclusion:status,link:hit?'https://github.com/'+repo+'/actions/runs/'+hit.id:null});
+  const path=String(w.path||'unknown-path-'+w.id).replace(/[^a-zA-Z0-9_.\/@-]/g,'?').slice(0,240);
+  all.push({workflow:name,path,sha,conclusion:status,link:hit?'https://github.com/'+repo+'/actions/runs/'+hit.id:null});
  }
  all.sort((a,b)=>a.path.localeCompare(b.path));
  return all;
