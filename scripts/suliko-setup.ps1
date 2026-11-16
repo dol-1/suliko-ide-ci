@@ -51,7 +51,7 @@ $markerRecord = "SULIKO-IDE-VERIFIED-v1 $asset $sha"
 $installRoot = Join-Path $env:LOCALAPPDATA 'SulikoIDE'
 $installTarget = Join-Path $installRoot 'InstalledBB'
 $installedMarker = Join-Path $installRoot '.suliko-installed-bb-0.49.0-x64.sha256'
-$installedRecord = "SULIKO-IDE-USER-NSIS-v1 $asset $sha"
+$installedRecordPrefix = "SULIKO-IDE-USER-NSIS-v2 $asset $sha uninstaller-sha256="
 function Assert-ManagedInstallPath {
   foreach ($path in @($env:LOCALAPPDATA, $installRoot, $installTarget)) {
     $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
@@ -69,7 +69,10 @@ function Assert-OwnInstalledMarker {
     throw 'Refusing invalid installed-app ownership marker'
   }
   $record = [IO.File]::ReadAllText($installedMarker).TrimEnd([char[]]@("`r","`n"))
-  if ($record -cne $installedRecord) { throw 'Invalid installed-app ownership marker' }
+  if (-not $record.StartsWith($installedRecordPrefix, [StringComparison]::Ordinal)) { throw 'Invalid installed-app ownership marker' }
+  $ownerUninstallerHash = $record.Substring($installedRecordPrefix.Length)
+  if ($ownerUninstallerHash -cnotmatch '^[a-f0-9]{64}$') { throw 'Invalid installed-app uninstaller hash marker' }
+  return $ownerUninstallerHash
 }
 
 function Assert-ManagedCachePath {
@@ -100,13 +103,16 @@ if ($Uninstall) {
   Assert-ManagedInstallPath
   Assert-ManagedCachePath
   if (Test-Path -LiteralPath $installedMarker -PathType Leaf) {
-    Assert-OwnInstalledMarker
+    $ownerUninstallerHash = Assert-OwnInstalledMarker
     $uninstaller = Join-Path $installTarget 'Uninstall bb.exe'
     $installedExe = Join-Path $installTarget 'bb.exe'
     foreach ($file in @($uninstaller, $installedExe)) {
       $item = Get-Item -LiteralPath $file -Force -ErrorAction Stop
       if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Refusing invalid installed-app executable path' }
     }
+    # D202: verify owned uninstaller digest before executing any installed payload.
+    $currentUninstallerHash = (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($currentUninstallerHash -cne $ownerUninstallerHash) { throw 'D202 refused changed uninstaller executable; no execution or deletion' }
     $process = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -Wait -PassThru
     if ($process.ExitCode -ne 0 -or (Test-Path -LiteralPath $installedExe)) { throw 'User-only NSIS uninstall did not finish cleanly' }
     [IO.File]::Delete($installedMarker)
@@ -154,6 +160,10 @@ if ($Uninstall) {
     $item = Get-Item -LiteralPath (Join-Path $installTarget $name) -Force -ErrorAction Stop
     if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected installed-app executable type' }
   }
+  $uninstallerPath = Join-Path $installTarget 'Uninstall bb.exe'
+  $ownerUninstallerHash = (Get-FileHash -LiteralPath $uninstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($ownerUninstallerHash -cnotmatch '^[a-f0-9]{64}$') { throw 'D202 cannot bind uninstaller digest to owner marker' }
+  $installedRecord = $installedRecordPrefix + $ownerUninstallerHash
   # Exclusive owner marker, only after verified official install. On creation
   # failure preserve an untracked app rather than deleting foreign files.
   $stream = [IO.FileStream]::new($installedMarker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
