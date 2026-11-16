@@ -1,7 +1,7 @@
 name: D-224 daily exact-main evidence artifact, no external comments
 on:
   push:
-    branches: [fix/d224-exact-main-artifact-after-merge, main]
+    branches: [feat/d229-postmain-evidence-after-d210, fix/d224-exact-main-artifact-after-merge, main]
     paths:
       - '.github/workflows/d224-evidence-digest.yml'
       - 'scripts/d224-main-evidence.mjs'
@@ -36,6 +36,8 @@ jobs:
             gh api /repos/dol-1/suliko-ide-ci/branches/main
             printf ',"runs":'
             gh api '/repos/dol-1/suliko-ide-ci/actions/runs?branch=main&per_page=100'
+            printf ',"workflows":'
+            gh api '/repos/dol-1/suliko-ide-ci/actions/workflows?per_page=100' --paginate | jq -s '{workflows: (map(.workflows) | add)}'
             printf '}'
           } | node scripts/d224-main-evidence.mjs
       - name: Retain short-lived artifact, no issue comments
