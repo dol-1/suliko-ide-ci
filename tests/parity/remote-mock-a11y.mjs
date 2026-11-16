@@ -1,3 +1,5 @@
+import {mkdirSync} from 'node:fs';
+import {join} from 'node:path';
 // E9 D066 installed own Remote MOCK panel, no Remote service/network/token.
 import { chromium } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -56,6 +58,19 @@ try {
         "serious",serious.length,"incomplete",result.incomplete.length,
         "horizontal-clipping",clipping,"safe-demo-link",true);
       if(critical.length||clipping)throw Error("D066 Remote MOCK a11y/clipping gate failed: "+lang);
+      const ownText=await panel.innerText();
+      if(ownText.length>2200||/(?:sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9]{16,}|bearer\s+\S+)/i.test(ownText))
+        throw Error("D227 refused non-synthetic Web panel screenshot text");
+      const shots=join(process.env.RUNNER_TEMP||"/invalid","d227-web-own-panels");
+      mkdirSync(shots,{recursive:true,mode:0o700});
+      for(const width of [375,1180]){
+        await page.setViewportSize({width,height:width===375?812:800});
+        if(await panel.evaluate(x=>x.scrollWidth>x.clientWidth+2))
+          throw Error("D227 localized Web panel clips at "+width);
+        const pixels=await panel.screenshot({path:join(shots,"remote-"+(lang==="en"?"en":"ka")+"-"+width+"px.png"),animations:"disabled",caret:"hide",scale:"css"});
+        if(pixels.length<1000||pixels.length>1000000)throw Error("D227 Web panel screenshot size invalid");
+        console.log("D227 Web synthetic localized panel remote",lang,width,"bytes",pixels.length);
+      }
     } finally {await context.close();}
   }
 } finally {await browser.close();}
