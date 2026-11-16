@@ -72,8 +72,11 @@ else{
    headers:{accept:'text/html','user-agent':'Suliko-D219-CI-read-only'}});
  if(res.status===302){
    const loc=new URL(res.headers.get('location')||'',form);
+   const target=new URL(loc.searchParams.get('return_to')||'/',form);
    assert(loc.origin==='https://github.com'&&loc.pathname==='/login'&&
-     loc.searchParams.get('return_to')?.includes('pilot-signup.yml'),
+     target.origin==='https://github.com'&&
+     target.pathname==='/dol-1/suliko-ide-ci/issues/new'&&
+     target.searchParams.get('template')==='pilot-signup.yml',
      'D219_UNEXPECTED_FORM_REDIRECT');
    console.log('D219_GITHUB_ISSUE_FORM=AUTH_LOGIN_302_NOT_ANONYMOUS_HTTP200');
  }else if(res.status===200){
