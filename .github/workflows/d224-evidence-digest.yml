@@ -26,10 +26,18 @@ jobs:
           package-manager-cache: false
       - name: Read-only recent actual main runs and negative tests
         env:
-          GH_READ_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
+          set -euo pipefail
           node scripts/d224-main-evidence.mjs --self-test
-          node scripts/d224-main-evidence.mjs
+          {
+            printf '{"branch":'
+            gh api /repos/dol-1/suliko-ide-ci/branches/main
+            printf ',"runs":'
+            gh api '/repos/dol-1/suliko-ide-ci/actions/runs?branch=main&per_page=100'
+            printf '}'
+          } | node scripts/d224-main-evidence.mjs
       - name: Retain short-lived artifact, no issue comments
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
