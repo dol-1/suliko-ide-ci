@@ -3,6 +3,7 @@ on:
   push:
     branches: [feat/d230-first15-after-d226, feat/d218-tag-install-docs-after-d217, main]
     paths:
+      - 'scripts/d230-first15-metrics.mjs'
       - '.github/workflows/d218-tag-install-3os.yml'
       - 'scripts/d218-tag-install-docs.mjs'
       - 'site/docs/install.en.md'
