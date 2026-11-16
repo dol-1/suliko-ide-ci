@@ -1,15 +1,27 @@
-# Owner action 3/3 — SHARE-LINK (KA / EN, NOT SENT)
+# D219 — Owner action 3: SHARE-LINK readiness (KA / EN)
 
-**Prerequisites:** independent SEC-04 signoff, approved public beta/owner-phase GO, and Pages/RC readiness accepted. This is opt-in **interest only**, not invitation to install unapproved software; GitHub issues remain public even after closure.
+**Status: READY FOR OWNER REVIEW, NOT SENT.** This is a copy-ready public opt-in *interest* link, not an invitation to install a product. No invitations, issues, participant contact, deployments or user data were produced by this work. Actual owner outreach must follow separate review/approval. Source: [Claude #90 D219](https://gitlab.com/dol-1-group/suliko-ide/-/issues/90), [owner phase #86](https://gitlab.com/dol-1-group/suliko-ide/-/issues/86), [independent SEC04 scope-A #22](https://gitlab.com/dol-1-group/suliko-ide/-/issues/22).
 
-**ერთი ტექსტი / KA — owner copy after GO:**
-> Suliko IDE-ის ნებაყოფლობითი ორკვირიანი პილოტით დაინტერესების შემთხვევაში გამოიყენეთ მხოლოდ ეს საჯარო GitHub ფორმა. მონაწილეობა, წვდომა და დაწყების თარიღი გარანტირებული არ არის. ფორმა საჯაროა — გთხოვთ არ ჩაწეროთ სახელი, ასაკი, საკონტაქტო ინფორმაცია, სამუშაოს საიდუმლოებები ან API გასაღებები.
+## One public live docs URL
 
-**One copy / EN — owner after GO:**
-> Interested in a voluntary two-week Suliko IDE pilot? Use this public GitHub interest form. Access, start date and selection are not guaranteed. GitHub issues are public: do not post names, ages, contact details, employer or private project information, credentials or API keys.
+https://dol-1.github.io/suliko-ide-ci/
 
-**ONE LINK / ერთი ბმული:** https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml
+Actual official GitHub Pages deploy and all eight KA/EN links, including explicit Remote **synthetic/mock** disclaimer, completed-success on the same D215 green canonical main f98 [D062 43797806210](https://github.com/dol-1/suliko-ide-ci/actions/runs/43797806210). Helpful public pages: [Pilot information EN](https://dol-1.github.io/suliko-ide-ci/pilot.en/) and [პილოტის ინფორმაცია KA](https://dol-1.github.io/suliko-ide-ci/pilot.ka/).
 
-**Manual action:** approve and share exactly one copy + one link once; no automated sending, no recruitment or collection in this development task. Users can decline or close their issue, but old public text may remain visible.
+## One public opt-in form URL
 
-**Exact files:** `.github/ISSUE_TEMPLATE/pilot-signup.yml`, `site/docs/pilot.ka.md`, `site/docs/pilot.en.md`, `site/docs/pilot-metrics.en.md`. Source: [public issue-form template](https://github.com/dol-1/suliko-ide-ci/blob/main/.github/ISSUE_TEMPLATE/pilot-signup.yml).
+https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml
+
+The reviewed [public GitHub issue template](https://github.com/dol-1/suliko-ide-ci/blob/main/.github/ISSUE_TEMPLATE/pilot-signup.yml) is the sole form. Its required **nonidentifying choice fields**: `os` (Windows/macOS/Linux), `mode` (Desktop/Web/Both), `usage` (generic use category), `cadence` (two-week availability), and `public-consent` (acknowledge PUBLIC). Optional categories only: `price-band` (hypothetical, NOT a payment) and `goals` (generic task; no private content). GitHub account sign-in may be required to submit; **do not ask for any external contact information or credentials**. Issues are public even when closed.
+
+D219's CI performs read-only unauthenticated HTTP 200 checks against fixed Pages URLs, official public GitHub repository template API, the public form URL when reachable, and source text field IDs; it performs **no POST or submit**. If the actual issue form cannot be read without sign-in, report that limitation, not a false 200 claim. The hosted template/YAML source still has to be verified separately.
+
+## Approved-owner copy (not sent)
+
+**KA:** „Suliko IDE-ის ორკვირიანი, ნებაყოფლობითი და ჯერ არაგახსნილი პილოტით დაინტერესების შემთხვევაში შეგიძლიათ გაეცნოთ საჯარო [ინფორმაციას](https://dol-1.github.io/suliko-ide-ci/pilot.ka/) და მხოლოდ ზოგადი, არაიდენტიფიცირებადი არჩევანით გამოხატოთ [ინტერესი GitHub-ის საჯარო ფორმით](https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml). ადგილი, რეალური პროგრამაზე წვდომა და დაწყების თარიღი გარანტირებული არ არის. საჯარო issue-ში არ ჩაწეროთ სახელი, ასაკი, ელფოსტა, მისამართი, სამუშაოს კერძო მონაცემები, ბილიკები, ანგარიშები ან API გასაღებები.“ 
+
+**EN:** “If you're interested in a future voluntary two-week Suliko IDE pilot, read the [public pilot guide](https://dol-1.github.io/suliko-ide-ci/pilot.en/) and use [GitHub's PUBLIC opt-in interest form](https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml) to select only generic nonidentifying categories. A place, access to a working product, and start date are not guaranteed. Do not include a name, age, email, address, private work, screenshots, account details or API keys.”
+
+## Strict boundary
+
+**No one was contacted, no issue was created, no pilot access was opened.** There is no verified production Remote service; docs describe demo/mock only. The official Windows package remains **NotSigned**; never recommend bypassing platform security. D219 CI cannot independently prove an individual has access to GitHub authentication or create a participant record. Final explicit owner and separately scoped release/security GO are still prerequisites for sending anything.
