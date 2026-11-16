@@ -13,6 +13,7 @@ hashes=[
 "5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17",
 "201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f"
 ]
+assert len(hashes[0]) == 40 and all(len(h) == 64 for h in hashes[1:]), 'D206 source commit and candidate/BB archive SHA lengths cannot be interchanged'
 for text in [src,en,ka]:
  for h in hashes: assert h in text,"D206 SHA mismatch between source and bilingual site"
  for required in ["NotSigned","WSL2","Remote","D197","D198","D202","D203"]:
