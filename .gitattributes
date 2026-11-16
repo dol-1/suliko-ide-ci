@@ -1,0 +1,4 @@
+# D197: keep reviewed SHA256-pinned lock bytes identical on Windows/macOS/Linux.
+# The security verifier and npm ci consume these exact repository-tracked LF bytes.
+scripts/d197-bb-cli-lock/package-lock.json -text
+scripts/d197-bb-cli-lock/package.json -text

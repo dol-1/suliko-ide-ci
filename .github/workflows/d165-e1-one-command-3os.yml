@@ -1,13 +1,15 @@
 name: D-165 actual one-command user GUI plus published CLI RC in single native 3OS CI run (NO release)
 on:
   push:
-    branches: [feat/d165-end-user-one-command, main]
+    branches: [feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
     paths:
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d165-setup-args.mjs'
       - 'scripts/d165-setup-args.test.mjs'
       - 'scripts/d165-user-provision.mjs'
+      - '.gitattributes'
+      - 'scripts/d197-bb-cli-lock/**'
       - 'scripts/d165-native-one-command.mjs'
       - 'tests/parity/d174-windows-gui-no-cli-project.mjs'
       - 'config/hardened/.env.hardened'

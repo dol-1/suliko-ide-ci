@@ -15,6 +15,7 @@ const safeProvisionCauses=new Set([
  "invalid-candidate-archive","invalid-candidate-member-count","invalid-candidate-archive-traversal",
  "candidate-archive-traversal","invalid-candidate-member-types","candidate-archive-link-refused",
  "published-npm-install","pinned-npm-not-found","unreviewed-bb-app-metadata",
+ "unreviewed-npm-lock-source","npm-lock-content-drift",
  "unreviewed-candidate-manifest","candidate-nonregular-member","published-cli-server-not-ready",
  "published-cli-server-exited","published-cli-live-state","real-local-listeners-not-proved-loopback",
  "live-sec02-hello-not-converged","require-reviewed-node-22-19-0","unsafe-user-root",
@@ -202,10 +203,44 @@ if(args.mode==="dry-run"){
   const env={...e,BB_DATA_DIR:data,BB_TELEMETRY:"false",BB_SERVER_BIND_HOST:"127.0.0.1",
    BB_SERVER_PORT:win?"38895":mac?"38914":"38906",BB_HOST_DAEMON_PORT:win?"38896":mac?"38915":"38907",
    ...(linux?{APPIMAGE_EXTRACT_AND_RUN:"1"}:{})};
+  // D197: never resolve a mutable transitive range at user install time.
+  // This repo-reviewed npm lock pins the full published dependency graph with
+  // sha512 integrity; we copy it only into our newly owned, empty CLI prefix.
+  const lockRoot=path.join(repoRoot,"scripts","d197-bb-cli-lock");
+  const rootManifestBytes=readRegular(path.join(lockRoot,"package.json"),10000);
+  const lockBytes=readRegular(path.join(lockRoot,"package-lock.json"),200000);
+  if(sha("sha256").update(lockBytes).digest("hex")!==
+    "f31092f27b9a982793c19741d7ff13f8e8eaf05a4d9a1f6464968dc150c620df")
+    fail("unreviewed-npm-lock-source");
+  const rootManifest=JSON.parse(rootManifestBytes.toString("utf8"));
+  const lock=JSON.parse(lockBytes.toString("utf8"));
+  const bbLock=lock.packages?.["node_modules/bb-app"];
+  if(rootManifest.name!=="suliko-pinned-bb-app-cli"||
+     rootManifest.dependencies?.["bb-app"]!=="0.49.0"||
+     Object.keys(rootManifest.dependencies||{}).length!==1||
+     lock.lockfileVersion!==3||
+     lock.packages?.[""].dependencies?.["bb-app"]!=="0.49.0"||
+     bbLock?.version!=="0.49.0"||
+     !/^sha512-[A-Za-z0-9+/]+=*$/.test(bbLock.integrity||""))
+    fail("unreviewed-npm-lock-source");
+  for(const [name,item] of Object.entries(lock.packages)){
+    if(!name)continue;
+    // npm packages bundled within the independently integrity-pinned npm tarball
+    // have no separate integrity, as represented in npm's official lock format.
+    if(item.inBundle===true && name.startsWith("node_modules/npm/node_modules/"))continue;
+    if(!/^sha512-[A-Za-z0-9+/]+=*$/.test(item.integrity||"")||
+       !item.resolved?.startsWith("https://registry.npmjs.org/"))
+      fail("unreviewed-npm-lock-source");
+  }
+  fs.writeFileSync(path.join(prefix,"package.json"),rootManifestBytes,{flag:"wx",mode:0o600});
+  fs.writeFileSync(path.join(prefix,"package-lock.json"),lockBytes,{flag:"wx",mode:0o600});
   const npm=args=>shell(process.execPath,[npmCli,...args],"published-npm-install",420000,base,env);
   const meta=JSON.parse(npm(["view","bb-app@0.49.0","--json"]));
-  if(meta.name!=="bb-app"||meta.version!=="0.49.0"||!/^sha512-[A-Za-z0-9+/]+=*$/.test(meta.dist?.integrity||""))fail("unreviewed-bb-app-metadata");
-  npm(["--prefix",prefix,"install","--no-audit","--no-fund","--save-exact","bb-app@0.49.0"]);
+  if(meta.name!=="bb-app"||meta.version!=="0.49.0"||
+    meta.dist?.integrity!==bbLock.integrity)fail("unreviewed-bb-app-metadata");
+  npm(["--prefix",prefix,"ci","--ignore-scripts","--no-audit","--no-fund"]);
+  if(!readRegular(path.join(prefix,"package-lock.json"),200000).equals(lockBytes))
+    fail("npm-lock-content-drift");
   console.log("D165_STAGE=published-cli-installed");
   const pkg=path.join(prefix,"node_modules","bb-app");
   const m=JSON.parse(fs.readFileSync(path.join(pkg,"package.json"),"utf8"));
