@@ -4,8 +4,8 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [fix/d083-workflow-concurrency]
-    paths: ['.github/workflows/**']
+    branches: [fix/d226-premerge-after-d227, fix/d083-workflow-concurrency]
+    paths: ['.github/workflows/**', 'scripts/d226-d083-policy.mjs']
   workflow_dispatch:
 permissions: read-all
 jobs:
@@ -25,22 +25,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=commonjs <<'NODE'
-          const fs=require('node:fs'),p='.github/workflows';
-          const names=fs.readdirSync(p).filter(x=>/\.ya?ml$/.test(x));
-          if(names.length<47)throw Error('Public workflows missing from security audit');
-          let unpinned=0,missing=0;
-          for(const file of names){
-            const s=fs.readFileSync(p+'/'+file,'utf8');
-            if(!/^concurrency:\s*\n\s+group:\s*\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.ref\s*\}\}\s*\n\s+cancel-in-progress:\s*true/m.test(s))
-              { console.error(file+': missing per-ref cancellation'); missing++; }
-            if(!/^permissions:\s*(read-all|\n\s{2}[a-z-]+:\s*(read|none|write))/m.test(s))
-              { console.error(file+': missing explicit permissions'); missing++; }
-            for(const m of s.matchAll(/^\s*uses:\s*([^\s#]+)/gm)){
-              if(!/^[-\w.]+\/[-\w.]+@[a-f0-9]{40}$/.test(m[1]))
-                { console.error(file+': action not pinned to SHA'); unpinned++; }
-            }
-          }
-          if(missing||unpinned)throw Error('Public workflow hardening failed: '+missing+' missing policy, '+unpinned+' unpinned actions');
-          console.log('D083 checked '+names.length+' public workflow source files: concurrency/permissions/action pins PASS; no claim about repository rulesets');
-          NODE
+          node scripts/d226-d083-policy.mjs --self-test
+          node scripts/d226-d083-policy.mjs
+
