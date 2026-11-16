@@ -3,6 +3,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d162-native-3os-same-run.yml'
       - 'scripts/d159-installed-gui-published-native.mjs'
       - 'scripts/d159-installed-gui-published-native.test.mjs'

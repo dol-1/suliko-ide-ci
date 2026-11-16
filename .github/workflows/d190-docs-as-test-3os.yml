@@ -3,6 +3,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d218-tag-install-docs-after-d217, feat/d190-docs-as-test-3os, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d190-docs-as-test-3os.yml'
       - 'site/docs/install.en.md'
       - 'site/docs/install.ka.md'

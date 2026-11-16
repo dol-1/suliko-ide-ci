@@ -6,6 +6,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/d230-first15-metrics.mjs'
       - .github/workflows/d173-sdk-0144.yml
       - scripts/d226-d083-policy.mjs

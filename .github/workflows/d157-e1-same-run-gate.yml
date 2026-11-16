@@ -3,6 +3,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d157-e1-same-run-3os-gui-cli, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d157-e1-same-run-gate.yml'
       - '.github/workflows/e1-setup-3os.yml'
       - '.github/workflows/e1-npm-native-sec02-2os.yml'

@@ -7,6 +7,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d149-e1-three-os-one-entry-matrix, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/e1-setup-3os.yml'
       - '.github/workflows/e1-windows-one-command.yml'
       - '.github/workflows/e1-linux-one-command.yml'

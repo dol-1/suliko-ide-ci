@@ -7,6 +7,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d141-windows-one-command-stage]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/e1-windows-one-command.yml'
       - 'tests/parity/d129-windows-installed-desktop.mjs'
       - 'scripts/suliko-setup.ps1'

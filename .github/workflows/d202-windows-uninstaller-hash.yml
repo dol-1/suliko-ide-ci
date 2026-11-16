@@ -3,6 +3,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/suliko-setup.ps1'
       - 'scripts/d202-windows-uninstaller-hash.test.ps1'
       - '.github/workflows/d202-windows-uninstaller-hash.yml'
