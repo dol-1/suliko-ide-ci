@@ -22,6 +22,9 @@ assert "release.en.md" in nav and "release.ka.md" in nav
 assert "not a public" in en.lower() or "not been published" in en.lower()
 assert "არა საჯარო" in ka or "არ არის გამოქვეყნებული" in ka
 assert len(re.findall("[ა-ჰ]",ka))>200,"D206 Georgian not translated"
-assert "not a run on the tag ref" in en or "not yet a D166 workflow run on the tag ref" in en
-assert "ტეგზე უშუალო" in ka
+for text in [src,en,ka]:
+ assert "43787354480" in text,"D206 missing actual immutable tag-ref D166 two-build proof"
+ assert "43776957679" in text,"D206 missing earlier same-source main proof"
+ assert "not" not in text.split("43787354480")[0][-5:],"D206 ambiguous tag-run claim"
+ assert ("არა" in text or "not a" in text.lower() or "not a public" in text.lower()),"D206 falsely promises release"
 print("D206 5 fixed digests + KA EN limitations, tag run distinction and live-nav parity PASS")
