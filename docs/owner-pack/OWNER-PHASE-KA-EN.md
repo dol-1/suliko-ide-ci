@@ -1,6 +1,6 @@
 # Suliko IDE — owner phase checklist (KA/EN)
 
-**Status: prepared, NOT authorized, NOT performed.** Only three owner actions exist, in this exact order. A reviewer or CI success is not a substitute for independently accepted SEC-04, native 3OS setup GREEN, and an explicit owner-phase GO. No RC tag, `EXPECTED_SHA` approval, Pages publication, personal outreach or beta has occurred.
+**Status: prepared, NOT authorized to publish or share.** Owner has selected GitHub Pages Source = GitHub Actions; the reviewed immutable `suliko-hello/v0.1.0-rc.1` tag now exists at `1c7470934ab694ce69ac92e70de300d6f6c50743`. However live Pages URL, tag-specific D166, the separate `EXPECTED_SHA` gate, personal outreach and public beta are **not yet verified/approved**. Exactly three owner-phase actions remain in this order. A green build alone is not permission to publish.
 
 | # | Action / ქმედება | Readiness gate | Owner instructions |
 | --- | --- | --- | --- |
