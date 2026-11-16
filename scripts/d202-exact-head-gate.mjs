@@ -16,4 +16,16 @@ assert.match(test,/keep-unchanged/);
 assert.match(workflow,/runs-on: windows-2025/);
 assert.match(workflow,/permissions: read-all/);
 assert.match(workflow,/persist-credentials: false/);
+// Final exact-head proof: old-owner markers or a changed uninstaller cannot reach Start-Process.
+const hashStart=setup.indexOf('$currentUninstallerHash = (Get-FileHash -LiteralPath $uninstaller');
+const rejectStart=setup.indexOf('if ($currentUninstallerHash -cne $ownerUninstallerHash)');
+const launchStart=setup.indexOf('$process = Start-Process -FilePath $uninstaller');
+assert(hashStart > 0 && rejectStart > hashStart && launchStart > rejectStart, 'D202_UNINSTALL_HASH_CHECK_MUST_PRECEDE_EXEC');
+const d217=read('scripts/d217-affected-workflows.mjs');
+assert.match(d217,/D217_BLOCKED_AFFECTED_NOT_RUNNABLE=/);
+assert.match(d217,/process\.exitCode=1/);
+const d081=read('.github/workflows/d081-ports.yml');
+assert.match(d081,/node scripts\/d202-exact-head-gate\.mjs/);
+console.log('D202 exact-head review: hash-before-execute, D217 fail-closed, and branch regression verified');
+
 console.log('D202 source audit: SHA-bound owner, tamper/v1 refusal, synthetic user data preservation and public hosted CI present');
