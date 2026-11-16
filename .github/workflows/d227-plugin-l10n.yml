@@ -1,0 +1,43 @@
+name: D-227 KA EN own-plugin string key inventory and mock clipping (NO beta)
+on:
+  push:
+    branches: [feat/d227-plugin-l10n-clipping-after-d210, main]
+    paths:
+      - '.github/workflows/d227-plugin-l10n.yml'
+      - 'tests/parity/d227-plugin-l10n.mjs'
+      - 'plugins/suliko-hello/i18n.ts'
+      - 'plugins/suliko-remote-panel/i18n.ts'
+concurrency:
+  group: d227-l10n-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  inventory:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Install pinned Playwright in ephemeral public CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd tests/parity && npm install --no-save --no-package-lock --no-audit --no-fund '@playwright/test@1.56.0')
+          (cd tests/parity && npx playwright install chromium)
+      - name: Strict own-plugin EN KA key parity and missing empty duplicate negative tests
+        run: node tests/parity/d227-plugin-l10n.mjs --self-test
+      - name: Eight offline source-mock KA clipping snapshots
+        run: D227_OUTPUT_DIR="$RUNNER_TEMP/d227-ka" node tests/parity/d227-plugin-l10n.mjs
+      - name: Retain mock source-string screenshot artifact one day
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: d227-ka-plugin-clipping-8-mock
+          path: ${{ runner.temp }}/d227-ka/
+          if-no-files-found: error
+          retention-days: 1
