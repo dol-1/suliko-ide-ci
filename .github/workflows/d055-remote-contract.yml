@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d055-remote-contract-mock]
+    branches: [feat/d234-mock-schema-after-d228, feat/d055-remote-contract-mock]
     paths:
       - ".github/workflows/d055-remote-contract.yml"
       - "plugins/suliko-remote-panel/**"
