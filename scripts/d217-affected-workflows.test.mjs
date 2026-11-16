@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {parseItems,readPushTrigger,globRegex,matchPath,matchBranch,analyze}
  from './d217-affected-workflows.mjs';
 test('D217 YAML inline branches and listed paths parsed without executing YAML',()=>{
@@ -53,4 +54,26 @@ test('D217 unsupported scalar path filters rejected rather than omitted',()=>{
 });
 test('D217 static parser never treats a non-push schedule as automatic feature green',()=>{
  assert.equal(readPushTrigger("on:\n  schedule:\n    - cron: '17 3 * * *'\n  workflow_dispatch:\n"),null);
+});
+
+
+test('D226 !202 SHARE-LINK path replay identifies D181 and historical un-runnable branch',()=>{
+ const f='.github/workflows/d181-owner-pack-lint.yml';
+ const historic="on:\n  push:\n    branches: [fix/d225-owner-one-canonical-link-after-d219, main]\n    paths: ['docs/owner-pack/**']\n";
+ const old=analyze(['docs/owner-pack/SHARE-LINK.md'],{[f]:historic},'feat/d219-share-readiness-after-d218');
+ assert.deepEqual(old.affected.map(x=>x.workflow),[f]);
+ assert.deepEqual(old.needsManual.map(x=>x.workflow),[f]);
+ const current=analyze(['docs/owner-pack/SHARE-LINK.md'],{[f]:fs.readFileSync(new URL('../.github/workflows/d181-owner-pack-lint.yml',import.meta.url),'utf8')},'feat/d219-share-readiness-after-d218');
+ assert.deepEqual(current.affected.map(x=>x.workflow),[f]);
+ assert.deepEqual(current.featureRunnable.map(x=>x.workflow),[f]);
+});
+test('D226 !183 EXPECTED_SHA path replay identifies D165 3OS and historical un-runnable branch',()=>{
+ const f='.github/workflows/d165-e1-one-command-3os.yml';
+ const historic="on:\n  push:\n    branches: [feat/d165-end-user-one-command, main]\n    paths: ['marketplace/rc/**']\n";
+ const old=analyze(['marketplace/rc/EXPECTED_SHA'],{[f]:historic},'feat/d205-tag-proof-after-pages-fix');
+ assert.deepEqual(old.affected.map(x=>x.workflow),[f]);
+ assert.deepEqual(old.needsManual.map(x=>x.workflow),[f]);
+ const current=analyze(['marketplace/rc/EXPECTED_SHA'],{[f]:fs.readFileSync(new URL('../.github/workflows/d165-e1-one-command-3os.yml',import.meta.url),'utf8')},'feat/d205-tag-proof-after-pages-fix');
+ assert.deepEqual(current.affected.map(x=>x.workflow),[f]);
+ assert.deepEqual(current.featureRunnable.map(x=>x.workflow),[f]);
 });
