@@ -46,6 +46,11 @@ const shell=(file,args,category,timeout=180000,cwd=workspace)=>{
     const safeErrno=captured&&new Set(["ENOENT","EACCES","EPERM","EINVAL","ENOTDIR","EEXIST","EBUSY","ETIMEDOUT"]).has(captured[2])?captured[2]:"other";
     console.error("D165_SAFE_STAGE="+latest+" D165_SAFE_CAUSE="+safeCode+" D165_SAFE_ERRNO="+safeErrno);
   }
+  if(category==="d198-live-owned-bb-doctor"){
+    const text=String(o.stderr||"")+String(o.stdout||"");
+    const safe=/D198_SAFE_STAGE=(platform|owned-root|profile|published-cli|port-contract|native-loopback|plugin-list|unclassified)/.exec(text)?.[1]||"report-refused";
+    console.error("D198_SAFE_STAGE="+safe);
+  }
   if(category==="d165-actual-electron-hello"&&win){
     // Do not print Playwright failure snapshots: they could include user paths.
     // Only print the latest fixed, allowlisted GUI traversal stage token.
