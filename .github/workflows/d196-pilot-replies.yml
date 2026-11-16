@@ -1,7 +1,7 @@
 name: D-196 five KA EN pilot draft reply safety guard (NO outreach)
 on:
   push:
-    branches: [feat/d196-pilot-support-main-replay, main]
+    branches: [feat/d230-first15-after-d226, feat/d196-pilot-support-main-replay, main]
     paths: ['docs/pilot/**', 'scripts/d196-pilot-reply-lint.mjs', '.github/workflows/d196-pilot-replies.yml']
   workflow_dispatch:
 concurrency:
