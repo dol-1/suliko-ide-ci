@@ -25,6 +25,7 @@ assert len(re.findall("[ა-ჰ]",ka))>200,"D206 Georgian not translated"
 for text in [src,en,ka]:
  assert "43787354480" in text,"D206 missing actual immutable tag-ref D166 two-build proof"
  assert "43776957679" in text,"D206 missing earlier same-source main proof"
- assert "not" not in text.split("43787354480")[0][-5:],"D206 ambiguous tag-run claim"
+ assert "not yet a D166 workflow run on the tag ref" not in text,"D206 stale tag-run denial"
+ assert "tag-ზე უშუალო D166 ჯერ დასადასტურებელია" not in text,"D206 stale KA tag-run denial"
  assert ("არა" in text or "not a" in text.lower() or "not a public" in text.lower()),"D206 falsely promises release"
 print("D206 5 fixed digests + KA EN limitations, tag run distinction and live-nav parity PASS")
