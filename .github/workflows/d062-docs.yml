@@ -14,6 +14,8 @@ on:
       - '.github/workflows/d152-workflow-expression-guard.yml'
       - 'scripts/docs-check.py'
       - 'scripts/docs-check.test.py'
+      - 'scripts/d203-pages-gate.test.py'
+      - 'docs/owner-pack/ENABLE-PAGES.md'
       - 'scripts/docs-license-check.py'
   workflow_dispatch:
 permissions:
@@ -34,6 +36,8 @@ jobs:
         run: python3 scripts/docs-check.py
       - name: Validate public link policy negative fixtures
         run: python3 scripts/docs-check.test.py
+      - name: D203 verify API-only Pages gate and disabled-safe owner single action
+        run: python3 scripts/d203-pages-gate.test.py
       - name: Install pinned MIT documentation generator in disposable venv
         run: |
           set -euo pipefail
