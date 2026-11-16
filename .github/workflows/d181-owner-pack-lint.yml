@@ -1,16 +1,20 @@
 name: D-181 owner phase 3-action reference lint (NO launch)
 on:
   push:
-    branches: [fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
+    branches: ['**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
     paths:
       - 'docs/owner-pack/**'
       - 'scripts/d181-owner-pack-lint.mjs'
+      - 'scripts/d226-d083-policy.mjs'
       - '.github/workflows/d181-owner-pack-lint.yml'
       - '.github/workflows/d062-docs.yml'
       - '.github/workflows/spike04-marketplace-rc.yml'
       - 'marketplace/rc/**'
       - '.github/ISSUE_TEMPLATE/pilot-signup.yml'
   workflow_dispatch:
+concurrency:
+  group: d181-owner-pack-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

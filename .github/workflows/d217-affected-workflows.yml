@@ -1,16 +1,26 @@
 name: D-217 affected workflow exact-head inventory (NO release)
 on:
   push:
-    branches: [feat/d217-affected-ci-after-main-f98, main]
-    paths:
-      - '.github/workflows/**'
-      - 'scripts/d217-affected-workflows.mjs'
-      - 'scripts/d217-affected-workflows.test.mjs'
+    branches: ['**']
 concurrency:
   group: d217-path-impact-${{ github.ref }}
   cancel-in-progress: true
 permissions: read-all
 jobs:
+  main-parser-regression:
+    if: github.repository == 'dol-1/suliko-ide-ci' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Verify D217 D226 negative fixtures on exact main (not feature diff)
+        run: node --test scripts/d217-affected-workflows.test.mjs
   diff-inventory:
     if: github.repository == 'dol-1/suliko-ide-ci' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -29,6 +39,7 @@ jobs:
       - name: Compute exact feature/main changed-path affected workflows and premerge table
         run: node scripts/d217-affected-workflows.mjs
       - name: Upload own-source premerge inventory and note template, not raw repo data
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: d217-affected-workflows-premerge
