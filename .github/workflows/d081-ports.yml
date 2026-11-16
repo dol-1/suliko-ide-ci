@@ -8,6 +8,7 @@ on:
       - feat/d076-lock-integrity
       - fix/d080-e4-version-display
       - fix/d226-premerge-after-d227
+      - main
     paths:
       - '.github/workflows/d081-ports.yml'
       - 'scripts/**'
