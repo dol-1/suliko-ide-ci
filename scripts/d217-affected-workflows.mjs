@@ -126,6 +126,8 @@ function main(){
  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join('\n')+'\n');
  console.log('D217_AFFECTED_WORKFLOWS='+audit.affected.length);
  console.log('D217_NOT_FEATURE_RUNNABLE='+audit.needsManual.length);
+ console.log('D217_NOT_FEATURE_RUNNABLE_NAMES='+audit.needsManual.map(x=>x.workflow).join(','));
+ console.log('D217_FEATURE_REQUIRED_NAMES='+audit.featureRunnable.map(x=>x.workflow).join(','));
  console.log('D217_DIFF_FILES='+changed.length);
 }
 if(process.argv[1] && process.argv[1].endsWith('d217-affected-workflows.mjs'))main();
