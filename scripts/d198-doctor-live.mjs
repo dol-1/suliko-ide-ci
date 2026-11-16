@@ -7,7 +7,8 @@ import {verifyNativeLoopback} from './d164-native-listener-guard.mjs';
 
 const allowlist=['account-pool','bb--mcp','connect','bb--connect-next','memory',
  'suliko-hello','suliko-remote-panel'];
-const fail=()=>{throw new Error('D198_SAFE_LIVE_PROBE_NOT_VERIFIED')};
+let safeStage='platform';
+const fail=()=>{throw Object.assign(new Error('D198_SAFE_LIVE_PROBE_NOT_VERIFIED'),{safeStage})};
 const nonlink=(p,dir=false)=>{
  const v=fs.lstatSync(p);
  if(v.isSymbolicLink()||(dir?!v.isDirectory():!v.isFile()))fail();
@@ -20,6 +21,7 @@ const run=(exe,args,cwd,max=400000)=>{
  return out.stdout; // never printed, parsed to an exact whitelist only
 };
 export function collectOwnedLiveDoctor() {
+ try{
  const env=process.env;
  const win=process.platform==='win32',mac=process.platform==='darwin',linux=process.platform==='linux';
  if(!(win||mac||linux)||process.versions.node!=='22.19.0')fail();
@@ -31,10 +33,12 @@ export function collectOwnedLiveDoctor() {
  // Every parent traversed by the owned BB path must be a real directory.
  if(!win){nonlink(path.join(home,'.local'),true);nonlink(path.join(home,'.local','share'),true);}
  nonlink(sub,true);
+ safeStage='owned-root';
  const root=path.join(sub,'UserSetup'),data=path.join(sub,'UserData');
  nonlink(root,true);nonlink(data,true);
  if(env.BB_DATA_DIR!==data||env.BB_SERVER_BIND_HOST!=='127.0.0.1'||
     env.BB_TELEMETRY!=='false')fail();
+ safeStage='profile';
  const pkgdir=path.join(root,'cli','node_modules','bb-app');
  for(const p of [path.join(root,'cli'),path.join(root,'cli','node_modules'),pkgdir])nonlink(p,true);
  const manifestFile=path.join(pkgdir,'package.json');
@@ -44,10 +48,12 @@ export function collectOwnedLiveDoctor() {
  const bin=path.resolve(pkgdir,manifest.bin.bb);
  if(!bin.startsWith(pkgdir+path.sep))fail();
  nonlink(bin);
+ safeStage='published-cli';
  const serverPort=Number(env.BB_SERVER_PORT),daemonPort=Number(env.BB_HOST_DAEMON_PORT);
  if(!Number.isSafeInteger(serverPort)||!Number.isSafeInteger(daemonPort)||
     serverPort===daemonPort||serverPort<1024||daemonPort<1024||
     serverPort>65535||daemonPort>65535)fail();
+ safeStage='port-contract';
  const os=win?'Windows':mac?'macOS':'Linux';
  let raw;
  if(linux)raw=run('ss',['-ltnH'],home);
@@ -60,8 +66,10 @@ export function collectOwnedLiveDoctor() {
  }
  // Fails closed on an absent port, non-loopback address or malformed snapshot.
  verifyNativeLoopback(os,raw,[serverPort,daemonPort]);
+ safeStage='native-loopback';
  const status=JSON.parse(run(process.execPath,[bin,'plugin','list','--json'],home));
  if(!Array.isArray(status.plugins)||status.plugins.length>200)fail();
+ safeStage='plugin-list';
  const plugins={};
  for(const id of allowlist){
    const rows=status.plugins.filter(x=>x&&x.id===id);
@@ -80,4 +88,5 @@ export function collectOwnedLiveDoctor() {
   bbVersion:manifest.version,listenerHost:'127.0.0.1',profileHardened:true,
   plugins,providerKeyPresent
  };
+ }catch(e){throw Object.assign(new Error('D198_SAFE_LIVE_PROBE_NOT_VERIFIED'),{safeStage})}
 }
