@@ -5,7 +5,7 @@ concurrency:
 on:
   workflow_call:
   push:
-    branches: [feat/d149-e1-three-os-one-entry-matrix, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d149-e1-three-os-one-entry-matrix, main]
     paths:
       - '.github/workflows/e1-setup-3os.yml'
       - '.github/workflows/e1-windows-one-command.yml'

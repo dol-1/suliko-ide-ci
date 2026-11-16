@@ -5,7 +5,7 @@ concurrency:
 on:
   workflow_call:
   push:
-    branches: [main, feat/d133-win2025-installed-hello-gyp13, feat/d137-win2025-installed-hello-main-gate]
+    branches: [feat/d202-uninstall-after-d230, main, feat/d133-win2025-installed-hello-gyp13, feat/d137-win2025-installed-hello-main-gate]
     paths:
       - '.github/workflows/d129-windows-installed-desktop-hello.yml'
       - 'tests/parity/d129-windows-installed-desktop.mjs'

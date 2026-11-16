@@ -5,7 +5,7 @@ concurrency:
 on:
   workflow_call:
   push:
-    branches: [feat/d141-windows-one-command-stage]
+    branches: [feat/d202-uninstall-after-d230, feat/d141-windows-one-command-stage]
     paths:
       - '.github/workflows/e1-windows-one-command.yml'
       - 'tests/parity/d129-windows-installed-desktop.mjs'

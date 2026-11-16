@@ -1,7 +1,7 @@
 name: D-157 E1 genuine 3OS official GUI + 3OS published CLI same-source gate (PARTIAL)
 on:
   push:
-    branches: [feat/d157-e1-same-run-3os-gui-cli, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d157-e1-same-run-3os-gui-cli, main]
     paths:
       - '.github/workflows/d157-e1-same-run-gate.yml'
       - '.github/workflows/e1-setup-3os.yml'

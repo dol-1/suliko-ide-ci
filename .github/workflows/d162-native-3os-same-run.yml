@@ -1,7 +1,7 @@
 name: D-162 one genuine native 3OS installed GUI plus published CLI same synthetic data fan-in (CI ONLY)
 on:
   push:
-    branches: [feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, main]
     paths:
       - '.github/workflows/d162-native-3os-same-run.yml'
       - 'scripts/d159-installed-gui-published-native.mjs'

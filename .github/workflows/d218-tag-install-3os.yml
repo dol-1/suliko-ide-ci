@@ -1,7 +1,7 @@
 name: D-218 pinned rc.1 tag literal KA EN install and uninstall native 3OS (NO release)
 on:
   push:
-    branches: [feat/d230-first15-after-d226, feat/d218-tag-install-docs-after-d217, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, feat/d218-tag-install-docs-after-d217, main]
     paths:
       - 'scripts/d230-first15-metrics.mjs'
       - '.github/workflows/d218-tag-install-3os.yml'
