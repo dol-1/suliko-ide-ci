@@ -10,7 +10,9 @@ const pages=[
   ['remote.en/','synthetic/mock','privacy.en/'],
   ['remote.ka/','სინთეტიკურ','privacy.ka/'],
   ['pilot.en/','pilot','troubleshooting.en/'],
-  ['pilot.ka/','პილოტ','troubleshooting.ka/']
+  ['pilot.ka/','პილოტ','troubleshooting.ka/'],
+  ['windows-trust.en/','NotSigned','install.en/'],
+  ['windows-trust.ka/','NotSigned','install.ka/']
 ];
 const validate=(html,page,word,link)=>{
   assert(typeof html==='string'&&html.length>=300&&html.length<1000000,'D204_PAGE_LENGTH_INVALID');
@@ -19,6 +21,7 @@ const validate=(html,page,word,link)=>{
   assert(html.includes(link),'D204_INTERNAL_LINK_MISSING:'+page);
 };
 export function staticCheck(){
+  assert(pages.length===10,'D233_EXPECT_10_LIVE_ROUTES');
   for(const [path,word,link] of pages){
     assert(/^[a-z.\/]*$/.test(path)&&!path.includes('..'),'D204_UNREVIEWED_PATH');
     assert(word&&link&&!link.includes('..'),'D204_UNREVIEWED_LITERAL');
@@ -53,4 +56,4 @@ for(const [page,word,link] of pages){
  const html=await read(page);
  validate(html,page,word,link);
 }
-console.log('D204_OFFICIAL_LIVE_GITHUB_PAGES_8_URLS_KA_EN_LINKS_REMOTE_DEMO=PASS');
+console.log('D204_OFFICIAL_LIVE_GITHUB_PAGES_10_URLS_KA_EN_LINKS_REMOTE_DEMO=PASS');

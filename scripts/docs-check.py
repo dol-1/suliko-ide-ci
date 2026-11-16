@@ -6,7 +6,7 @@ from urllib.parse import unquote
 
 root = Path("site/docs")
 assert root.is_dir() and not root.is_symlink(), "unsafe public docs directory"
-expected = ["index", "install", "first-steps", "faq", "web", "remote", "privacy", "troubleshooting", "pilot", "pilot-metrics"]
+expected = ["index", "install", "first-steps", "faq", "web", "remote", "privacy", "troubleshooting", "pilot", "pilot-metrics", "windows-trust"]
 config = Path("site/mkdocs.yml").read_text(encoding="utf-8")
 for stem in expected:
     for lang in ("en", "ka"):
