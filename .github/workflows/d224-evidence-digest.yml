@@ -1,10 +1,12 @@
 name: D-224 daily exact-main evidence artifact, no external comments
 on:
   push:
-    branches: [fix/d224-exact-main-artifact-after-merge, main]
+    branches: [feat/d229-main-completeness-after-d210, fix/d224-exact-main-artifact-after-merge, main]
     paths:
       - '.github/workflows/d224-evidence-digest.yml'
       - 'scripts/d224-main-evidence.mjs'
+      - 'scripts/d229-main-completeness.mjs'
+      - 'docs/release/CHANGELOG.md'
   schedule:
     - cron: '27 11 * * *'
 concurrency:
@@ -38,6 +40,10 @@ jobs:
             gh api '/repos/dol-1/suliko-ide-ci/actions/runs?branch=main&per_page=100'
             printf '}'
           } | node scripts/d224-main-evidence.mjs
+      - name: D229 enumerate main-eligible workflows, explicit MISSING and wrong-SHA negatives
+        run: |
+          node scripts/d229-main-completeness.mjs --self-test
+          node scripts/d229-main-completeness.mjs
       - name: Retain short-lived artifact, no issue comments
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
