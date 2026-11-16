@@ -2,6 +2,7 @@
 // Suliko Doctor D-059: OFFLINE SYNTHETIC fixture verifier.
 // This preview never touches user credentials, BB runtime, local devices or home directories.
 import { readFileSync, writeFileSync } from "node:fs";
+import { collectOwnedLiveDoctor } from "./d198-doctor-live.mjs";
 
 const guarded = ["account-pool", "bb--mcp", "connect", "bb--connect-next", "memory"];
 const owned = ["suliko-hello", "suliko-remote-panel"];
@@ -41,8 +42,42 @@ function inspect(source) {
 }
 function main(args) {
   if (args.includes("--help")) {
-    process.stdout.write("Usage: node scripts/suliko-doctor.mjs --fixture SYNTHETIC.json [--bundle NEWFILE.json]\nPreview only: does not inspect live BB, personal credentials or files.\n");
+    process.stdout.write("Usage: node scripts/suliko-doctor.mjs --fixture SYNTHETIC.json [--bundle NEWFILE.json] OR --live [--bundle NEWFILE.json]\nFixture preview is synthetic; live probes only an owned BB CLI, native listeners and provider ENV NAME presence (not actual BB store). No token values, logs or paths are emitted.\n");
     return 0;
+  }
+  // --live is deliberately narrower than a support-bundle/log exporter.
+  // Only user-owned published bb-app metadata, CLI plugin list, native socket
+  // listeners and recognized environment VARIABLE NAMES are consulted.
+  if (args[0] === "--live") {
+    if (args.length !== 1 && !(args.length === 3 && args[1] === "--bundle")) {
+      process.stderr.write("Live argument validation failed.\n");
+      return 2;
+    }
+    let report;
+    try {
+      report = inspect(collectOwnedLiveDoctor());
+      report.schema = "suliko-doctor-live-v1";
+      report.evidence = "user-owned-cli-plus-native-os-readonly-not-remote";
+      report.controls.providerKeyPresenceSource = "environment-variable-name-only-not-bb-secret-store";
+      report.status = report.status === "synthetic-fixture-pass" &&
+        report.plugins["suliko-hello"] === "enabled" ? "live-owned-bb-pass" : "review-required";
+    } catch (err) {
+      const stages=new Set(["platform","owned-root","profile","published-cli","port-contract","native-loopback","plugin-list"]);
+      const stage=stages.has(err?.safeStage)?err.safeStage:"unclassified";
+      process.stderr.write("D198_SAFE_STAGE="+stage+"; no private state was printed.\n");
+      return 1;
+    }
+    const serialized = JSON.stringify(report, null, 2) + "\n";
+    if (args.length === 3) {
+      try {
+        writeFileSync(args[2], serialized, { flag: "wx", mode: 0o600 });
+      } catch {
+        process.stderr.write("Cannot exclusively create live redacted bundle.\n");
+        return 2;
+      }
+    }
+    process.stdout.write(serialized);
+    return report.status === "live-owned-bb-pass" ? 0 : 1;
   }
   if (args.length !== 2 && args.length !== 4) {
     process.stderr.write("Argument validation failed: use --fixture and optional --bundle.\n");
