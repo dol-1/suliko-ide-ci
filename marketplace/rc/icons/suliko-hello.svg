@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Suliko Hello">
+  <rect width="64" height="64" rx="15" fill="#203650"/>
+  <path d="M18 20h28v18H30l-9 8v-8h-3z" fill="none" stroke="#bce1db" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="27" cy="29" r="2" fill="#bce1db"/><circle cx="37" cy="29" r="2" fill="#bce1db"/>
+</svg>

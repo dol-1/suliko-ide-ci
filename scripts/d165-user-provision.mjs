@@ -6,6 +6,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {spawn,spawnSync} from "node:child_process";
 import {parseSetupArgs} from "./d165-setup-args.mjs";
+import {validateRcPins} from "./d215-rc-pin.mjs";
 import {FORBIDDEN_IDS,inspectStrictNativePluginState} from "./d163-strict-native-plugin-state.mjs";
 import {verifyNativeLoopback} from "./d164-native-listener-guard.mjs";
 // Fail closed with fixed vocabulary only; no user paths, npm logs or stack traces.
@@ -87,9 +88,9 @@ function assertCandidate(){
  if(got!==args.sha)fail("candidate-digest-mismatch");
  const known=candidateDigest();
  const approved=expected(approvedFile);
- if(!/^[a-f0-9]{64}$/.test(known)||!((args.sha===known)||(approved===args.sha)))
-  fail("candidate-source-not-reviewed");
- if(approved!=="UNSET"&&!/^[a-f0-9]{64}$/.test(approved))fail("malformed-approved-rc-pin");
+ // Reviewed RC commit is a 40hex source pin, NOT an alternate archive hash.
+ // A candidate must independently match EXPECTED_SHA.candidate's 64hex digest.
+ validateRcPins(approved,known,args.sha);
  return got;
 }
 function verifyTar(){

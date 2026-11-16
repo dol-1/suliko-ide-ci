@@ -1,13 +1,15 @@
 name: D-165 actual one-command user GUI plus published CLI RC in single native 3OS CI run (NO release)
 on:
   push:
-    branches: [feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
+    branches: [fix/d215-rc-pin-d117-icon-main-green, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
     paths:
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d165-setup-args.mjs'
       - 'scripts/d165-setup-args.test.mjs'
       - 'scripts/d165-user-provision.mjs'
+      - 'scripts/d215-rc-pin.mjs'
+      - 'scripts/d215-rc-pin.test.mjs'
       - '.gitattributes'
       - 'scripts/d197-bb-cli-lock/**'
       - 'scripts/d198-doctor-live.mjs'
@@ -43,6 +45,8 @@ jobs:
         with:
           node-version: '22.19.0'
           package-manager-cache: false
+      - name: D215 reject 64hex source-pin and candidate digest confusion
+        run: node --test scripts/d215-rc-pin.test.mjs
       - name: Frozen own-plugin build with source tests (independent runner)
         shell: bash
         run: |
