@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const source=fs.readFileSync('.github/workflows/d205-tag-d166-dispatch.yml','utf8');
+assert(source.includes("permissions: read-all"),"default permission must remain read-only");
+assert(source.includes("actions: write"),"only tag workflow-dispatch needs actions write");
+assert(source.includes("github.ref == 'refs/heads/main' && github.event_name == 'push'"),"never dispatch on feature/tag, only exact main push");
+assert(source.includes("needs.verify-tag-ref.result == 'success'"),"require independent tag ref read first");
+assert(source.includes("repos/$GITHUB_REPOSITORY/git/ref/tags/suliko-hello/v0.1.0-rc.1"),"read actual GitHub ref before dispatch");
+assert(source.includes('test "$actual" = ') && source.includes("1c7470934ab694ce69ac92e70de300d6f6c50743"),"strict reviewed tag SHA must match");
+assert(source.includes("actions/workflows/d166-rc-candidate.yml/dispatches"),"dispatch D166 only");
+assert(source.includes("-f ref='suliko-hello/v0.1.0-rc.1'"),"only immutable reviewed tag ref");
+assert(!source.includes("git tag ")&&!source.includes("gh release ")&&!source.includes("contents: write"),"no release/ref mutating rights");
+console.log("D205 exact tag-only immutable source and narrow main-push-only internal dispatch contract PASS");
