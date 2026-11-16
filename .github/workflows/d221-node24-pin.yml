@@ -1,0 +1,27 @@
+name: D-221 pin own native and reproducible CI actions on Node24 (NO release)
+on:
+  push:
+    branches: [feat/d221-node24-pinned-native-rc]
+    paths:
+      - '.github/workflows/d165-e1-one-command-3os.yml'
+      - '.github/workflows/d166-rc-candidate.yml'
+      - '.github/workflows/d221-node24-pin.yml'
+      - 'scripts/d221-node24-pin.test.mjs'
+concurrency:
+  group: d221-node24-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  validate:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - run: node scripts/d221-node24-pin.test.mjs
