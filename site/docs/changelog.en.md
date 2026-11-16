@@ -6,7 +6,7 @@ Canonical immutable tag: `suliko-hello/v0.1.0-rc.1` at `1c7470934ab694ce69ac92e7
 
 **Included in tagged source:** our own Hello plugin, local SEC02 safety checks, installation/uninstall contract for disposable CI, KA/EN documentation, and Web/Desktop synthetic Remote **mock** panel.
 
-**Unreleased main-only work after this tag:** D197 dependency pinning, D198 doctor hardening, D202 Windows uninstaller validation, D203/D204 Pages, D215 SHA provenance fix/icon, D217 workflow reporting, D218 native3OS tagged-install docs, tracked separately. None were backported to the tag.
+**Unreleased main-only work after this tag:** D197 dependency pinning, D198 doctor hardening, D203/D204 Pages, D215 SHA provenance fix/icon, D217 workflow reporting, D218 native3OS tagged-install docs, tracked separately. Proposed D202 Windows uninstaller protection is **still draft, not merged**. None were backported to the tag.
 
 **Known limitations:** official Windows package **NotSigned** (digest is not publisher signature); BB CLI on Windows runs in **WSL2**, while desktop GUI is native; Remote remains a **mock**, not authenticated live service. This is **not a public beta** or permission to install on personal devices; no GitHub release object or user invitation.
 
