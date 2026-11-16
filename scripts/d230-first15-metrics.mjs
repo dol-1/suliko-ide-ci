@@ -22,6 +22,10 @@ export function aggregate(rows,head){
  const seen=new Set();
  for(const r of rows){
   check(r?.schema==='suliko-d230-first15-v1'&&oses.has(r.os)&&!seen.has(r.os),'DUPLICATE_OS');
+  // Strictly numeric allowlisted evidence; unexpected fields can conceal sensitive fixture content.
+  const schemaKeys=['schema','tagCommit','candidateSha','sourceHead','os','synthetic','participants','realRemote','bundleLeakFree','ordered','intervals','totalMs','within15min'];
+  check(Object.keys(r).length===schemaKeys.length&&Object.keys(r).every(k=>schemaKeys.includes(k)),'UNEXPECTED_FIELD');
+  check(r.ordered&&typeof r.ordered==='object'&&Object.keys(r.ordered).length===stages.length&&Object.keys(r.ordered).every(k=>stages.includes(k)),'UNEXPECTED_STAGE');
   seen.add(r.os);check(r.sourceHead===head&&r.tagCommit===TAG&&r.candidateSha===DIGEST,'TAG_HEAD_DIGEST');
   check(r.synthetic===true&&r.participants===0&&r.realRemote===false&&r.bundleLeakFree===true,'NO_REAL_USERS');
   const expected=createTiming(r.os,head,DIGEST,r.ordered);
@@ -37,7 +41,7 @@ function selfTest(){
  const sha='a'.repeat(40),m={setup:100,hello:200,doctor:260,bundle:280,uninstall:400};
  const rows=['linux','macos','windows'].map((os,i)=>createTiming(os,sha,DIGEST,Object.fromEntries(stages.map(k=>[k,m[k]+i*100]))));
  check(aggregate(rows,sha).stats.total.p90Ms===600,'P90');
- const invalid=[[rows[0],rows[1],rows[1]],[rows[0],rows[1]],[{...rows[0],sourceHead:'b'.repeat(40)},rows[1],rows[2]],[{...rows[0],participants:1},rows[1],rows[2]],[{...rows[0],ordered:{...rows[0].ordered,doctor:150}},rows[1],rows[2]]];
+ const invalid=[[rows[0],rows[1],rows[1]],[rows[0],rows[1]],[{...rows[0],sourceHead:'b'.repeat(40)},rows[1],rows[2]],[{...rows[0],participants:1},rows[1],rows[2]],[{...rows[0],secretBundle:'not-exported'},rows[1],rows[2]],[{...rows[0],ordered:{...rows[0].ordered,unknown:500}},rows[1],rows[2]],[{...rows[0],ordered:{...rows[0].ordered,doctor:150}},rows[1],rows[2]]];
  for(const b of invalid){let denied=false;try{aggregate(b,sha)}catch{denied=true}check(denied,'NEGATIVE_BYPASS')}
  console.log('D230_SHA_TAG_THREE_OS_ORDERED_PERCENTILES_NEGATIVES=PASS');
 }
