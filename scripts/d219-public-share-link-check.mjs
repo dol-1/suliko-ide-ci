@@ -25,9 +25,16 @@ function validateSource(yaml,owner,en,ka){
  assert(ka.includes('Issue საჯაროა')||ka.includes('GitHub-ის საჯარო'),'D219_KA_PRIVACY_MISSING');
  return true;
 }
-async function get(url,contentType){
- const out=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(15000),
-   headers:{'accept':contentType,'user-agent':'Suliko-D219-CI-read-only'}});
+async function get(url,contentType,githubApi=false){
+ const headers={'accept':contentType,'user-agent':'Suliko-D219-CI-read-only'};
+ if(githubApi){
+   const exact='https://api.github.com/repos/'+repo+'/contents/.github/ISSUE_TEMPLATE/pilot-signup.yml?ref=main';
+   assert.equal(url,exact,'D219_TOKEN_ONLY_ALLOWED_PUBLIC_REPO_SOURCE');
+   const token=process.env.GITHUB_TOKEN;
+   assert(typeof token==='string'&&token.length>10,'D219_READONLY_GITHUB_TOKEN_UNAVAILABLE');
+   headers.authorization='Bearer '+token;
+ }
+ const out=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(15000),headers});
  assert.equal(out.status,200,'D219_HTTP_NOT_200:'+url.split('?')[0]);
  assert(out.url===url,'D219_URL_REDIRECT:'+url.split('?')[0]);
  const data=await out.text();
@@ -58,7 +65,7 @@ else{
  // Official public GitHub REST source must itself return HTTP200 and exactly
  // the reviewed form fields, not an error page or private credential data.
  const api='https://api.github.com/repos/'+repo+'/contents/.github/ISSUE_TEMPLATE/pilot-signup.yml?ref=main';
- const remote=await get(api,'application/vnd.github+json');
+ const remote=await get(api,'application/vnd.github+json',true);
  assert(remote.ct.includes('json'),'D219_FORM_API_MISSING_JSON');
  const obj=JSON.parse(remote.data);
  assert(obj.type==='file'&&obj.path==='.github/ISSUE_TEMPLATE/pilot-signup.yml'&&

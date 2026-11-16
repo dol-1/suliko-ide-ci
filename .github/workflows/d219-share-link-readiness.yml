@@ -28,6 +28,8 @@ jobs:
           node-version: '22.19.0'
           package-manager-cache: false
       - name: Only PUBLIC GET and privacy-first template source tests, no submit/outreach
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           node scripts/d219-public-share-link-check.mjs --self-test
           node scripts/d219-public-share-link-check.mjs
