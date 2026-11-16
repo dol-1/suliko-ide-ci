@@ -2,6 +2,7 @@ name: D-081 public-only rescue patch regressions
 on:
   push:
     branches:
+      - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership
       - fix/d059-version-output
       - fix/d078-qa01-summary-redaction
