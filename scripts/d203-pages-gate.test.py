@@ -8,7 +8,9 @@ owner_pack = Path("docs/owner-pack/ENABLE-PAGES.md").read_text(encoding="utf-8")
 assert "vars.PAGES_ENABLED" not in workflow
 assert "if: github.ref == 'refs/heads/main' && github.event_name == 'push'" in workflow
 assert workflow.count("if: github.ref == 'refs/heads/main' && github.event_name == 'push'") == 3
-assert "gh api --silent \"repos/$GITHUB_REPOSITORY/pages\"" in workflow
+assert 'gh api "repos/$GITHUB_REPOSITORY/pages"' in workflow
+assert "gh api --silent" not in workflow
+assert 'test -s "$result"' in workflow
 assert 'j.build_type==="workflow"' in workflow
 assert 'j.html_url.startsWith("https://")' in workflow
 assert 'enabled=false' in workflow
