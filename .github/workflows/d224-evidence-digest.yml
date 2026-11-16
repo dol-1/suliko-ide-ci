@@ -1,7 +1,7 @@
 name: D-224 daily exact-main evidence artifact, no external comments
 on:
   push:
-    branches: [feat/d224-digest-after-d221]
+    branches: [fix/d224-exact-main-artifact-after-merge, main]
     paths:
       - '.github/workflows/d224-evidence-digest.yml'
       - 'scripts/d224-main-evidence.mjs'
