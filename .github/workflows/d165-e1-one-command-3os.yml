@@ -1,7 +1,7 @@
 name: D-165 actual one-command user GUI plus published CLI RC in single native 3OS CI run (NO release)
 on:
   push:
-    branches: [feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
+    branches: [feat/d202-owner-hash-after-d198, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
     paths:
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'
@@ -17,6 +17,7 @@ on:
       - 'config/hardened/.env.hardened'
       - 'scripts/suliko-setup.sh'
       - 'scripts/suliko-setup.ps1'
+      - 'scripts/d202-windows-uninstaller-hash.test.ps1'
       - 'scripts/suliko-stage-linux.sh'
       - 'plugins/suliko-hello/**'
       - 'marketplace/rc/EXPECTED_SHA.candidate'
