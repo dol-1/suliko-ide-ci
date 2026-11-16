@@ -19,6 +19,8 @@ for text in [src,en,ka]:
  for required in ["NotSigned","WSL2","Remote","D197","D198","D202","D203"]:
   assert required in text,"D206 missing caveat: "+required
  assert "43776957679" in text,"D206 missing actual immutable-source two-builder evidence"
+for item in [src,en,ka]:
+ assert 'D202' in item and ('draft' in item.lower() or 'გაუერთიანებელი' in item), 'D206 unmerged D202 must not appear as shipped in rc.1'
 assert "release.en.md" in nav and "release.ka.md" in nav
 assert "not a public" in en.lower() or "not been published" in en.lower()
 assert "არა საჯარო" in ka or "არ არის გამოქვეყნებული" in ka

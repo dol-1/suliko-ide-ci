@@ -54,7 +54,9 @@ jobs:
       - name: D208 KA EN 15-minute pilot kit and privacy lint
         run: python3 scripts/d208-pilot-kit-parity.test.py
       - name: D206 immutable-tag RC1 KA EN source SHA and release safety parity
-        run: python3 scripts/d206-release-parity.test.py
+        run: |
+          python3 scripts/d206-release-parity.test.py
+          echo 'D206_RC1_TAG_40HEX_ARCHIVE_64HEX_D202_UNMERGED_KA_EN=PASS_SOURCE_ONLY_NOT_RELEASE' >> "$GITHUB_STEP_SUMMARY"
       - name: Install pinned MIT documentation generator in disposable venv
         run: |
           set -euo pipefail
