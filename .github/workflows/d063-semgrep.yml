@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d203-pages-api-only-gate, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d199-candidate-main-proof, feat/d189-e3-mock-after-d196, feat/d196-pilot-support-main-replay, feat/d190-docs-as-test-3os, feat/d188-qa-concurrency-isolation, feat/d187-e3-main-push-gate, feat/d186-e3-approval-status-integrity, feat/d169-fastcheck-native-parsers, feat/d165-end-user-one-command, fix/d184-owner-lint-nofollow, feat/d176-repro-builder-env-hardening, feat/d166-repro-rc-candidate, feat/d063-semgrep-own-code, feat/d155-published-native-3os-sec02-hello, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, feat/d173-source-sdk-0144, feat/d171-daily-qa01-main-v2, feat/d168-pages-preflight-main, main]
+    branches: [feat/d205-tag-d166-proof-dispatch, draft/d199-owner-rc-sha-main-1c747093, feat/d203-pages-api-only-gate, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d199-candidate-main-proof, feat/d189-e3-mock-after-d196, feat/d196-pilot-support-main-replay, feat/d190-docs-as-test-3os, feat/d188-qa-concurrency-isolation, feat/d187-e3-main-push-gate, feat/d186-e3-approval-status-integrity, feat/d169-fastcheck-native-parsers, feat/d165-end-user-one-command, fix/d184-owner-lint-nofollow, feat/d176-repro-builder-env-hardening, feat/d166-repro-rc-candidate, feat/d063-semgrep-own-code, feat/d155-published-native-3os-sec02-hello, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, feat/d161-native-linux-same-runtime, feat/d162-native-3os-same-run, feat/d163-strict-live-plugin-state-contract, feat/d164-native-loopback-real-listeners, feat/d173-source-sdk-0144, feat/d171-daily-qa01-main-v2, feat/d168-pages-preflight-main, main]
     paths:
       - '.github/workflows/d128-e3-same-run-mock.yml'
       - '.github/workflows/d196-pilot-replies.yml'
@@ -18,6 +18,8 @@ on:
       - '.github/workflows/d173-sdk-0144.yml'
       - '.github/workflows/d063-semgrep.yml'
       - '.github/workflows/d062-docs.yml'
+      - '.github/workflows/d205-tag-d166-dispatch.yml'
+      - 'marketplace/rc/EXPECTED_SHA'
       - 'plugins/**'
       - 'scripts/**'
   schedule:
