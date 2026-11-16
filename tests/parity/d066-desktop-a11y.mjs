@@ -88,6 +88,16 @@ for(const [lang,helloLabel,remoteLabel] of [
       const pixels=await panel.screenshot({path:join(screenshots,key+".png"),type:"png",animations:"disabled",caret:"hide",scale:"css"});
       if(pixels.length<1000||pixels.length>1000000)throw Error("D088 bounded screenshot bytes invalid");
       console.log("D088 packaged Desktop synthetic own panel",key,"SHA256",createHash("sha256").update(pixels).digest("hex"),"bytes",pixels.length);
+      // D227 extra narrow and standard Desktop mock viewports, preserving the
+      // previous D088 panel-only screenshot and all original a11y assertions.
+      for(const width of [375,1180]){
+        await page.setViewportSize({width,height:width===375?812:800});
+        const overflow=await panel.evaluate(x=>x.scrollWidth>x.clientWidth+2);
+        if(overflow)throw Error("D227 Desktop localized panel clips at "+width);
+        const screenshot=await panel.screenshot({path:join(screenshots,key+"-"+width+"px.png"),type:"png",animations:"disabled",caret:"hide",scale:"css"});
+        if(screenshot.length<1000||screenshot.length>1000000)throw Error("D227 Desktop screenshot size invalid");
+        console.log("D227 Desktop synthetic own-panel 2 viewport",key,width,"SHA256",createHash("sha256").update(screenshot).digest("hex"));
+      }
     }
   }finally{await electron.close();}
 }

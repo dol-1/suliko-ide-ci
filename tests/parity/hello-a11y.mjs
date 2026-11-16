@@ -1,3 +1,5 @@
+import {mkdirSync} from 'node:fs';
+import {join} from 'node:path';
 // D066 Web-only accessibility audit against installed own Hello panel on stock BB.
 import { chromium } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -53,6 +55,19 @@ try {
         "horizontal-clipping",clips);
       if(critical.length||clips)
         throw Error("D066 localized Hello failed critical axe or clipping gate: "+lang);
+      const ownText=await panel.innerText();
+      if(ownText.length>2200||/(?:sk-[a-z0-9_-]{16,}|gh[pso]_[a-z0-9]{16,}|bearer\s+\S+)/i.test(ownText))
+        throw Error("D227 refused non-synthetic Web panel screenshot text");
+      const shots=join(process.env.RUNNER_TEMP||"/invalid","d227-web-own-panels");
+      mkdirSync(shots,{recursive:true,mode:0o700});
+      for(const width of [375,1180]){
+        await page.setViewportSize({width,height:width===375?812:800});
+        if(await panel.evaluate(x=>x.scrollWidth>x.clientWidth+2))
+          throw Error("D227 localized Web panel clips at "+width);
+        const pixels=await panel.screenshot({path:join(shots,"hello-"+(lang==="en"?"en":"ka")+"-"+width+"px.png"),animations:"disabled",caret:"hide",scale:"css"});
+        if(pixels.length<1000||pixels.length>1000000)throw Error("D227 Web panel screenshot size invalid");
+        console.log("D227 Web synthetic localized panel hello",lang,width,"bytes",pixels.length);
+      }
     } finally {await context.close();}
   }
 } finally {await browser.close();}

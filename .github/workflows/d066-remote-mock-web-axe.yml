@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d234-mock-schema-after-d228, feat/d066-remote-mock-web-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
+    branches: [feat/d227-two-viewport-after-d234, feat/d234-mock-schema-after-d228, feat/d066-remote-mock-web-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
     paths:
       - '.github/workflows/d066-remote-mock-web-axe.yml'
       - 'tests/parity/remote-mock-a11y.mjs'
@@ -99,6 +99,14 @@ jobs:
         run: |
           node tests/parity/remote-mock-a11y.mjs
           echo 'D066 checked installed own Remote MOCK Web panel EN/KA without live Remote connection, token, approvals or Desktop.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain D227 two Web viewport localized own-panel screenshots for 1 day
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d227-remote-web-panel-2view
+          path: ${{ runner.temp }}/d227-web-own-panels/*.png
+          retention-days: 1
+          if-no-files-found: error
       - name: Stop disposable server
         if: always()
         shell: bash
