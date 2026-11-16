@@ -27,6 +27,8 @@ on:
       - 'plugins/suliko-hello/**'
       - 'marketplace/rc/EXPECTED_SHA.candidate'
       - 'marketplace/rc/EXPECTED_SHA'
+      - 'scripts/d230-first15-metrics.mjs'
+      - 'docs/pilot/D230-FIRST-15-MIN-KA-EN.md'
   workflow_dispatch:
 concurrency:
   group: d165-native-one-command-${{ github.ref }}
@@ -216,9 +218,32 @@ jobs:
             ${{ runner.temp }}/d166-verified/candidate.spdx.json
           if-no-files-found: error
           retention-days: 1
+  tag-proof:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          ref: 1c7470934ab694ce69ac92e70de300d6f6c50743
+          path: tagged-source
+      - name: D230 require immutable mirrored RC1 tag and full reviewed SHA-256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C tagged-source rev-parse HEAD)" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/suliko-hello/v0.1.0-rc.1" --jq '.object.sha')" = '1c7470934ab694ce69ac92e70de300d6f6c50743'
+          test "$(sed -n 's/^sha256=//p' marketplace/rc/EXPECTED_SHA.candidate)" = '8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a'
+          node scripts/d230-first15-metrics.mjs --self-test
   native:
-    needs: verify
-    if: github.repository == 'dol-1/suliko-ide-ci' && needs.verify.result == 'success'
+    needs: [verify,tag-proof]
+    if: github.repository == 'dol-1/suliko-ide-ci' && needs.verify.result == 'success' && needs.tag-proof.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -230,6 +255,7 @@ jobs:
       BB_TELEMETRY: 'false'
       APPIMAGE_EXTRACT_AND_RUN: '1'
       VERIFIED_CANDIDATE_SHA: ${{ needs.verify.outputs.sha }}
+      D230_REHEARSAL: '1'
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -283,13 +309,22 @@ jobs:
           set -euo pipefail
           node scripts/d165-native-one-command.mjs
           echo 'D165 genuine same-run candidate, actual one user entry (native), strict five forbidden stock plugins disabled and own Hello enabled, GUI mounted, D170 data preserved. CI-only, NOT independently approved immutable release RC/SEC04 or beta.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve synthetic 3OS D230 timings 1 day only
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: d230-first15-${{ matrix.os }}
+          path: ${{ runner.temp }}/d230-first15-*.json
+          retention-days: 1
+          if-no-files-found: error
   strict_three_os_fan_in:
     if: always() && github.repository == 'dol-1/suliko-ide-ci'
-    needs: [independent_builds,verify,native]
+    needs: [independent_builds,verify,tag-proof,native]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
       CANDIDATE_RESULT: ${{ needs.verify.result }}
+      TAG_RESULT: ${{ needs.tag-proof.result }}
       BUILDS_RESULT: ${{ needs.independent_builds.result }}
       NATIVE_RESULT: ${{ needs.native.result }}
     steps:
@@ -297,9 +332,47 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$CANDIDATE_RESULT" != success || "$BUILDS_RESULT" != success || "$NATIVE_RESULT" != success ]]; then
+          if [[ "$CANDIDATE_RESULT" != success || "$BUILDS_RESULT" != success || "$TAG_RESULT" != success || "$NATIVE_RESULT" != success ]]; then
             echo 'D165_FAIL_CLOSED: exact candidate or genuine three-OS native user setup matrix missing, failed or skipped' >&2
             exit 1
           fi
           echo 'D165_ALL_THREE_REAL_NATIVE_OS_ONE_COMMAND_SAME_CANDIDATE=PASS' >> "$GITHUB_STEP_SUMMARY"
           echo 'User-facing CI synthetic 3OS gate only; SHA candidate not tag/review, SEC04 unsigned, beta NO-GO.' >> "$GITHUB_STEP_SUMMARY"
+  d230_aggregate:
+    if: always() && github.repository == 'dol-1/suliko-ide-ci'
+    needs: [strict_three_os_fan_in,native,tag-proof]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Require all strict native jobs and tag proof before reporting statistics
+        env:
+          NATIVE: ${{ needs.native.result }}
+          FAN: ${{ needs.strict_three_os_fan_in.result }}
+          TAG: ${{ needs.tag-proof.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$NATIVE" = success && test "$FAN" = success && test "$TAG" = success
+          node scripts/d230-first15-metrics.mjs --self-test
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: d230-first15-*
+          path: ${{ runner.temp }}/d230-input
+          merge-multiple: true
+      - name: Aggregate numeric 3 OS p50 p90, no actual participant inference
+        shell: bash
+        run: node scripts/d230-first15-metrics.mjs --aggregate "$RUNNER_TEMP/d230-input"
+      - name: Retain only synthetic bounded 3OS rehearsal artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: d230-synthetic-3os-rehearsal
+          path: out/d230/
+          retention-days: 7
+          if-no-files-found: error

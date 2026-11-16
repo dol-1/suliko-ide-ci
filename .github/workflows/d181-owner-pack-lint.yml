@@ -1,8 +1,9 @@
 name: D-181 owner phase 3-action reference lint (NO launch)
 on:
   push:
-    branches: ['**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
+    branches: [feat/d230-first15-after-d226, '**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
     paths:
+      - 'scripts/d230-first15-metrics.mjs'
       - 'docs/owner-pack/**'
       - 'scripts/d181-owner-pack-lint.mjs'
       - 'scripts/d226-d083-policy.mjs'
