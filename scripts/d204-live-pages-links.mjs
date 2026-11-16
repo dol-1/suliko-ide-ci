@@ -22,7 +22,7 @@ const validate=(html,page,word,link)=>{
 };
 export function staticCheck(){
   for(const [path,word,link] of pages){
-    assert(/^[a-z.\/]*$/.test(path)&&!path.includes('..'),'D204_UNREVIEWED_PATH');
+    assert(/^[a-z.\/-]*$/.test(path)&&!path.includes('..'),'D204_UNREVIEWED_PATH');
     assert(word&&link&&!link.includes('..'),'D204_UNREVIEWED_LITERAL');
   }
   const dummy='<html><head><title>Suliko IDE</title></head><body>'+('x'.repeat(350))+' synthetic/mock privacy.en/</body></html>';

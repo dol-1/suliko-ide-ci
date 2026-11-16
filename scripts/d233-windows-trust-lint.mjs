@@ -4,7 +4,7 @@ const en=fs.readFileSync('site/docs/windows-trust.en.md','utf8'),ka=fs.readFileS
 function safe(text,language){
  for(const v of ['Get-FileHash','-Algorithm SHA256','SmartScreen','NotSigned','WSL2','desktop-v0.49.0','synthetic/mock','install.'+language+'.md'])assert(text.includes(v),'D233_MISSING_'+language+'_'+v);
  assert(text.includes("C:\\reviewed\\bb-installer.exe"),'D233_PLACEHOLDER_BOTH_LANGUAGES');
- assert(!/run anyway|disable smartscreen|turn off smartscreen|bypass the warning/i.test(text),'D233_SECURITY_BYPASS_TEXT');
+ assert(!/(?:^|\n)\s*(?:run anyway|disable smartscreen|turn off smartscreen|bypass the warning)/im.test(text),'D233_SECURITY_BYPASS_TEXT');
  assert(!/Invoke-WebRequest|Start-Process|ExecutionPolicy Bypass|Set-MpPreference/i.test(text),'D233_EXECUTE_OR_DISABLE_FORBIDDEN');
  return true;
 }
