@@ -55,17 +55,28 @@ export function collectOwnedLiveDoctor() {
     serverPort>65535||daemonPort>65535)fail();
  safeStage='port-contract';
  const os=win?'Windows':mac?'macOS':'Linux';
- let raw;
- if(linux)raw=run('ss',['-ltnH'],home);
- else if(mac)raw=run('lsof',['-nP','-iTCP','-sTCP:LISTEN'],home);
- else {
+ const snapshot=()=>{
+   if(linux)return run('ss',['-ltnH'],home);
+   if(mac)return run('lsof',['-nP','-iTCP','-sTCP:LISTEN'],home);
    const code='$ports=@('+serverPort+','+daemonPort+');'+
       '$rows=@(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $ports -contains [int]$_.LocalPort } | Select-Object LocalAddress,LocalPort);'+
       'ConvertTo-Json -InputObject $rows -Compress';
-   raw=run('pwsh',['-NoProfile','-NonInteractive','-Command',code],home);
+   return run('pwsh',['-NoProfile','-NonInteractive','-Command',code],home);
+ };
+ // A real freshly started host daemon may register its own loopback listener
+ // after the CLI responds. Retry ONLY transient absent-listener observations;
+ // never downgrade an exposed/non-loopback or unparseable listener to success.
+ let observed=false;
+ for(let attempt=0;attempt<12;attempt++){
+   try{
+     verifyNativeLoopback(os,snapshot(),[serverPort,daemonPort]);
+     observed=true;break;
+   }catch(e){
+     if(e?.category!=='listener-not-observed')throw e;
+     if(attempt<11)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500);
+   }
  }
- // Fails closed on an absent port, non-loopback address or malformed snapshot.
- verifyNativeLoopback(os,raw,[serverPort,daemonPort]);
+ if(!observed)fail();
  safeStage='native-loopback';
  const status=JSON.parse(run(process.execPath,[bin,'plugin','list','--json'],home));
  if(!Array.isArray(status.plugins)||status.plugins.length>200)fail();
