@@ -1,12 +1,14 @@
 name: D-166 two independent Hello RC candidate builds, SPDX and attestation (NO release)
 on:
   push:
-    branches: [feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
+    branches: [feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
     paths:
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d166-package-candidate.mjs'
       - 'plugins/suliko-hello/**'
       - 'marketplace/rc/EXPECTED_SHA.candidate'
+      - 'marketplace/rc/EXPECTED_SHA'
+      - '.github/workflows/d205-tag-d166-dispatch.yml'
   workflow_dispatch:
   workflow_call:
     outputs:
