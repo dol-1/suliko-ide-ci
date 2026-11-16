@@ -12,6 +12,7 @@ on:
       - feat/d230-first15-after-d226
       - main
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d081-ports.yml'
       - 'scripts/**'
       - 'tests/**'
@@ -76,6 +77,7 @@ jobs:
               ;;
             feat/d202-uninstall-after-d230)
               node --test scripts/d217-affected-workflows.test.mjs
+              node scripts/d202-exact-head-gate.mjs
               ;;
             feat/d230-first15-after-d226)
               node scripts/d230-first15-metrics.mjs --self-test

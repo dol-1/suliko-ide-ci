@@ -6,6 +6,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d058-safe-bootstrap, feat/d058-verified-download-ci, feat/d058-cache-isolation-tests, feat/d058-symlink-cache-guard, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - scripts/suliko-setup.sh
       - scripts/suliko-setup.ps1
       - .github/workflows/d058-preflight.yml

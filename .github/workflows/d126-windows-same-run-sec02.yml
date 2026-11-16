@@ -6,6 +6,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d126-windows-same-run-sec02]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d126-windows-same-run-sec02.yml'
       - 'scripts/suliko-setup.ps1'
   workflow_dispatch:

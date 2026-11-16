@@ -6,6 +6,7 @@ on:
   push:
     branches: [feat/d202-uninstall-after-d230, feat/d058-macos-win-stage-preview, fix/d109-portable-stage-ownership, feat/d158-private-sarif-codeql, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - scripts/d058-stage-portable.mjs
       - scripts/d058-stage-portable.test.mjs
       - scripts/suliko-setup.sh
