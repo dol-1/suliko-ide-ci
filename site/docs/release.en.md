@@ -26,6 +26,6 @@ These are **reviewer examples, not instructions to run on personal/production co
 | macOS BB arm64 DMG | `5bebb0b635c1c8b14e549fe3799152d8a6375bb2e8259be328897e1906f63e17` |
 | Windows BB x64 installer | `201b38136c30f37d17ee5fea88c7a91dde64e00ca4e583dfd5b3650e65c6aa2f` |
 
-Public reproducible two-builder [D166 proof on the tag's exact source commit, run on main](https://github.com/dol-1/suliko-ide-ci/actions/runs/43776957679) had matching candidate bytes and test-only OIDC provenance. This **is not yet a D166 workflow run on the tag ref**. Owner phase: Pages live → tag-specific review and candidate approval → separate opt-in pilot share. No GitHub release object is created by this note.
+The original independent [D166 proof on the same source commit, run on main](https://github.com/dol-1/suliko-ide-ci/actions/runs/43776957679) was followed by an **actual D166 workflow run on the immutable tag ref**: [GitHub 43787354480](https://github.com/dol-1/suliko-ide-ci/actions/runs/43787354480), head `suliko-hello/v0.1.0-rc.1`, exact SHA `1c7470934ab694ce69ac92e70de300d6f6c50743`, two independent builders+verify/OIDC `completed/success`, candidate SHA256 `8ca5634595b0ed8d3f26719163dc63126a2aea92dff59f529bcd55b712f8af6a`. These are CI source/artifact proofs, **not a GitHub release object, approved end-user installer or public beta**. Owner phase Pages and separate `EXPECTED_SHA` approval remain controlled.
 
 [Installation](install.en.md) · [Troubleshooting](troubleshooting.en.md) · [ქართული](release.ka.md)
