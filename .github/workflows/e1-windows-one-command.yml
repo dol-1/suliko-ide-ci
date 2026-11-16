@@ -1,6 +1,7 @@
 name: D-141 Windows one-command user install + official installed Hello and SEC02 (PARTIAL)
 concurrency:
-  group: e1-user-windows-${{ github.ref }}
+  # D202 premerge: direct push and workflow_call share ref but must not cancel each other's real tests.
+  group: e1-user-windows-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
   workflow_call:

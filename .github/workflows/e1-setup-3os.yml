@@ -1,6 +1,7 @@
 name: D-149 E1 3OS user one-entry official GUI staged with SEC02 fixture (PARTIAL, NO beta)
 concurrency:
-  group: e1-3os-parent-${{ github.ref }}
+  # D202 premerge: direct push and workflow_call share ref but must not cancel each other's real tests.
+  group: e1-3os-parent-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
   workflow_call:

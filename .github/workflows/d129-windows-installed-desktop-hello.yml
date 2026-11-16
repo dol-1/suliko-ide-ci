@@ -1,6 +1,7 @@
 name: D-129 official installed Windows Desktop Hello own-panel + stock SEC02 (NO release)
 concurrency:
-  group: d144-windows-installed-${{ github.ref }}
+  # D202 premerge: direct push and workflow_call share ref but must not cancel each other's real tests.
+  group: d144-windows-installed-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
   workflow_call:

@@ -26,6 +26,18 @@ assert.match(d217,/D217_BLOCKED_AFFECTED_NOT_RUNNABLE=/);
 assert.match(d217,/process\.exitCode=1/);
 const d081=read('.github/workflows/d081-ports.yml');
 assert.match(d081,/node scripts\/d202-exact-head-gate\.mjs/);
+// D202 actual double invocation prevention: independent direct-push/reusable run IDs.
+for (const file of [
+  '.github/workflows/d129-windows-installed-desktop-hello.yml',
+  '.github/workflows/e1-windows-one-command.yml',
+  '.github/workflows/e1-setup-3os.yml'
+]) {
+  const code=read(file);
+  assert.match(code,/github\.run_id/);
+  assert.match(code,/github\.ref/);
+  assert.match(code,/cancel-in-progress: true/);
+}
+
 console.log('D202 exact-head review: hash-before-execute, D217 fail-closed, and branch regression verified');
 
 console.log('D202 source audit: SHA-bound owner, tamper/v1 refusal, synthetic user data preservation and public hosted CI present');
