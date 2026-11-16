@@ -31,7 +31,8 @@ on:
       - 'docs/pilot/D230-FIRST-15-MIN-KA-EN.md'
   workflow_dispatch:
 concurrency:
-  group: d165-native-one-command-${{ github.ref }}
+  # D236: separate exact source SHAs so a later same-ref push cannot cancel a prior native 3OS attempt.
+  group: d165-native-one-command-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 permissions: read-all
 jobs:
