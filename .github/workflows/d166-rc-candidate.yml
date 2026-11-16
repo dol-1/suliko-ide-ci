@@ -1,8 +1,9 @@
 name: D-166 two independent Hello RC candidate builds, SPDX and attestation (NO release)
 on:
   push:
-    branches: [fix/d215-rc-pin-d117-icon-main-green, feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
+    branches: [feat/d221-native-node24-after-d220, fix/d215-rc-pin-d117-icon-main-green, feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
     paths:
+      - 'scripts/d221-node24-pin.test.mjs'
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d166-package-candidate.mjs'
       - 'plugins/suliko-hello/**'
@@ -33,10 +34,10 @@ jobs:
     env:
       D176_BUILD_VARIANT: ${{ matrix.build }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: '22.19.0'
           package-manager-cache: false
@@ -87,7 +88,7 @@ jobs:
           test "$(wc -c < "$out/candidate.sha256")" = 65
           echo 'D166 own-only candidate locally packaged on independent disposable GitHub runner; not a tag/release.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload ephemeral independent candidate for strict comparison
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: d166-candidate-${{ matrix.build }}
           path: |
@@ -108,7 +109,7 @@ jobs:
     outputs:
       sha: ${{ steps.compare.outputs.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
       - name: Require BOTH independent builder jobs succeeded
@@ -118,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$BUILD_RESULT" = success || { echo 'D166_FAIL_CLOSED: independent builder matrix did not fully pass' >&2; exit 1; }
-      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           pattern: d166-candidate-*
           path: ${{ runner.temp }}/d166-downloaded
@@ -208,7 +209,7 @@ jobs:
           NODE
           echo 'D166 candidate is NOT approved/tagged or publicly shipped; source-only CI attestation.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload verified SHA-pinned reviewer candidate and SPDX (ephemeral)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: d166-verified-candidate
           path: |
