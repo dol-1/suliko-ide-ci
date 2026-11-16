@@ -18,7 +18,8 @@ function validateSource(yaml,owner,en,ka){
   assert(target.includes(form),'D219_MISSING_PUBLIC_FORM_REFERENCE');
   assert(!/(?:mailto:|sign up by email)/i.test(target),'D219_ALTERNATIVE_CONTACT_NOT_ALLOWED');
  }
- assert(owner.includes(base),'D219_LIVE_SITE_REFERENCE_MISSING');
+ // Exact absolute public Pages URL with a required path boundary; never trust a substring of a hostile host.
+ assert(/https:\/\/dol-1\.github\.io\/suliko-ide-ci\/(?:\s|\)|$)/m.test(owner),'D219_LIVE_SITE_REFERENCE_MISSING');
  assert(owner.includes('NOT SENT'),'D219_NOT_SENT_SCOPE_MISSING');
  assert(en.includes('GitHub issues are public')||en.includes('GitHub issue'),'D219_EN_PRIVACY_MISSING');
  assert(ka.includes('Issue საჯაროა')||ka.includes('GitHub-ის საჯარო'),'D219_KA_PRIVACY_MISSING');
@@ -65,9 +66,23 @@ else{
  const yml=Buffer.from(obj.content.replace(/\s/g,''),'base64').toString('utf8');
  validateSource(yml,fs.readFileSync('docs/owner-pack/SHARE-LINK.md','utf8'),
    fs.readFileSync('site/docs/pilot.en.md','utf8'),fs.readFileSync('site/docs/pilot.ka.md','utf8'));
- // Direct public issue-form URL: do not treat login/redirect page as a working form.
- const page=await get(form,'text/html');
- assert(page.ct.includes('text/html')&&page.data.includes('pilot-signup.yml')&&
-   page.data.includes('Suliko IDE'),'D219_ISSUE_FORM_UNAVAILABLE_ANONYMOUSLY');
- console.log('D219_PUBLIC_PAGES_3_HTTP200_GITHUB_FORM_HTML_HTTP200_AND_REVIEWED_NONPII_FIELDS=PASS_NOT_SENT');
+ // GitHub requires authentication to create issues: an unauthenticated
+ // 302 to GitHub's OWN login is recorded honestly, never mislabeled HTTP200.
+ const res=await fetch(form,{redirect:'manual',signal:AbortSignal.timeout(15000),
+   headers:{accept:'text/html','user-agent':'Suliko-D219-CI-read-only'}});
+ if(res.status===302){
+   const loc=new URL(res.headers.get('location')||'',form);
+   assert(loc.origin==='https://github.com'&&loc.pathname==='/login'&&
+     loc.searchParams.get('return_to')?.includes('pilot-signup.yml'),
+     'D219_UNEXPECTED_FORM_REDIRECT');
+   console.log('D219_GITHUB_ISSUE_FORM=AUTH_LOGIN_302_NOT_ANONYMOUS_HTTP200');
+ }else if(res.status===200){
+   assert(res.url===form&&(res.headers.get('content-type')||'').includes('text/html'),
+     'D219_FORM_PAGE_NOT_ORIGINAL_URL');
+   const html=await res.text();
+   assert(html.includes('pilot-signup.yml')&&html.includes('Suliko IDE'),
+     'D219_FORM_VISIBLE_FIELDS_NOT_VERIFIED');
+   console.log('D219_GITHUB_ISSUE_FORM=ANONYMOUS_HTTP200');
+ }else assert.fail('D219_FORM_LINK_UNAVAILABLE: HTTP'+res.status);
+ console.log('D219_PUBLIC_PAGES_3_HTTP200_FORM_TEMPLATE_API_HTTP200_AND_REVIEWED_NONPII_FIELDS=PASS_NOT_SENT');
 }
