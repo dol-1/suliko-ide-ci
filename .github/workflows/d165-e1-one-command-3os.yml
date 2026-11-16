@@ -8,6 +8,7 @@ on:
       - 'scripts/d165-setup-args.mjs'
       - 'scripts/d165-setup-args.test.mjs'
       - 'scripts/d165-user-provision.mjs'
+      - '.gitattributes'
       - 'scripts/d197-bb-cli-lock/**'
       - 'scripts/d165-native-one-command.mjs'
       - 'tests/parity/d174-windows-gui-no-cli-project.mjs'
