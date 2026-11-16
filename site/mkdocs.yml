@@ -13,6 +13,7 @@ nav:
   - Home: index.md
   - English:
       - Installation: install.en.md
+      - Windows NotSigned trust guide: windows-trust.en.md
       - RC1 source candidate notes: release.en.md
       - Changelog (source-only): changelog.en.md
       - First steps: first-steps.en.md
@@ -28,6 +29,7 @@ nav:
   - ქართული:
       - დასაწყისი: index.ka.md
       - ინსტალაცია: install.ka.md
+      - Windows NotSigned უსაფრთხოება: windows-trust.ka.md
       - RC1-ის წყაროს ჩანაწერები: release.ka.md
       - ცვლილებების ისტორია: changelog.ka.md
       - პირველი ნაბიჯები: first-steps.ka.md

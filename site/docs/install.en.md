@@ -71,3 +71,6 @@ pwsh -NoProfile -NonInteractive -File scripts/suliko-setup.ps1 -Uninstall
 ```
 
 The D218 regression compares these exact KA/EN commands with the immutable tag's own `scripts/d165-native-one-command.mjs` argv, then actually runs the tag's installer and safe uninstall on all three native runners; the result is NOT a published signed installer, access to Remote, or pilot invitation.
+
+
+[Windows NotSigned and safe SHA-256 verification (no security bypass)](windows-trust.en.md).

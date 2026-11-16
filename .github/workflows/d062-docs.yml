@@ -4,9 +4,10 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d229-main-completeness-after-d210, feat/d214-support-runbook-after-d224, feat/d223-changelog-after-d206-main, feat/d206-rc1-notes-after-d208, feat/d208-pilot-kit-after-d220, feat/d220-pages-v501-after-d225, feat/d218-tag-install-docs-after-d217, fix/d215-rc-pin-d117-icon-main-green, feat/d204-live-pages-check, fix/d203-pages-api-response-ownerlint, feat/d203-pages-api-only-gate, feat/d198-doctor-after-d197, feat/d190-docs-as-test-3os, feat/d185-e1-integrated-ci-docs, feat/d179-pilot-self-service, feat/d178-windows-gui-wsl2-caveat, feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, feat/d147-pilot-metrics-ka-en, feat/d141-docs-3os-singleentry-scope, feat/d168-pages-preflight-main, main]
+    branches: [feat/d233-windows-trust-ka-en-after-d229, feat/d229-main-completeness-after-d210, feat/d214-support-runbook-after-d224, feat/d223-changelog-after-d206-main, feat/d206-rc1-notes-after-d208, feat/d208-pilot-kit-after-d220, feat/d220-pages-v501-after-d225, feat/d218-tag-install-docs-after-d217, fix/d215-rc-pin-d117-icon-main-green, feat/d204-live-pages-check, fix/d203-pages-api-response-ownerlint, feat/d203-pages-api-only-gate, feat/d198-doctor-after-d197, feat/d190-docs-as-test-3os, feat/d185-e1-integrated-ci-docs, feat/d179-pilot-self-service, feat/d178-windows-gui-wsl2-caveat, feat/d062-doc-site, feat/d062-public-docs-links-hardening, fix/d086-pages-preflight, feat/d095-public-docs-readiness, fix/d107-macos-user-docs-actual-evidence, fix/d115-windows-caveat, feat/d132-docs-windows-gui-proof, feat/d136-docs-installed-gui-matrix, feat/d147-pilot-metrics-ka-en, feat/d141-docs-3os-singleentry-scope, feat/d168-pages-preflight-main, main]
     paths:
       - 'site/**'
+      - 'scripts/d233-windows-trust-lint.mjs'
       - 'docs/ops/PILOT-SUPPORT-RUNBOOK.md'
       - 'scripts/d214-pilot-support-lint.mjs'
       - '.github/workflows/d062-docs.yml'
@@ -57,6 +58,8 @@ jobs:
         run: node scripts/d220-deploy-pages-pin.test.mjs
       - name: D214 pilot support draft, privacy and non-bypass negative tests
         run: node scripts/d214-pilot-support-lint.mjs
+      - name: D233 bilingual Windows unsigned SHA256 SmartScreen and WSL2 non-bypass negatives
+        run: node scripts/d233-windows-trust-lint.mjs
       - name: D208 KA EN 15-minute pilot kit and privacy lint
         run: python3 scripts/d208-pilot-kit-parity.test.py
       - name: D206 immutable-tag RC1 KA EN source SHA and release safety parity
@@ -80,6 +83,8 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/suliko-docs-venv/bin/mkdocs" build --strict --config-file site/mkdocs.yml --site-dir "$RUNNER_TEMP/suliko-docs-built"
           test -s "$RUNNER_TEMP/suliko-docs-built/index.html"
+          test -s "$RUNNER_TEMP/suliko-docs-built/windows-trust.en/index.html"
+          test -s "$RUNNER_TEMP/suliko-docs-built/windows-trust.ka/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot.en/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot.ka/index.html"
           test -s "$RUNNER_TEMP/suliko-docs-built/pilot-start.en/index.html"

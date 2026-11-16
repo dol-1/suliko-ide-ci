@@ -1,5 +1,5 @@
 // D204 immutable public Github Pages external check. No private URLs or user data.
-// The only network destinations are eight fixed GitHub Pages paths (no redirects).
+// The only network destinations are ten fixed GitHub Pages paths (no redirects).
 import assert from 'node:assert/strict';
 const root='https://dol-1.github.io/suliko-ide-ci/';
 const pages=[
@@ -7,6 +7,8 @@ const pages=[
   ['index.ka/','მომხმარებლის გზამკვლევი','remote.ka/'],
   ['install.en/','NotSigned','first-steps.en/'],
   ['install.ka/','NotSigned','first-steps.ka/'],
+  ['windows-trust.en/','SmartScreen','install.en/'],
+  ['windows-trust.ka/','SmartScreen','install.ka/'],
   ['remote.en/','synthetic/mock','privacy.en/'],
   ['remote.ka/','სინთეტიკურ','privacy.ka/'],
   ['pilot.en/','pilot','troubleshooting.en/'],
@@ -53,4 +55,4 @@ for(const [page,word,link] of pages){
  const html=await read(page);
  validate(html,page,word,link);
 }
-console.log('D204_OFFICIAL_LIVE_GITHUB_PAGES_8_URLS_KA_EN_LINKS_REMOTE_DEMO=PASS');
+console.log('D204_OFFICIAL_LIVE_GITHUB_PAGES_10_URLS_KA_EN_LINKS_REMOTE_DEMO=PASS');
