@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
+    branches: [fix/d236-d165-ref-sha-concurrency, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
     paths:
       - 'scripts/d230-first15-metrics.mjs'
       - .github/workflows/d173-sdk-0144.yml
