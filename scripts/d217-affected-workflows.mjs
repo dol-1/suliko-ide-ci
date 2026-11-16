@@ -50,9 +50,10 @@ export function globRegex(pattern){
    if(source[i+1]==='*'){
     if(source[i+2]==='/'){out+='(?:.*/)?';i+=2}
     else{out+='.*';i++}
-  else out+=('\\^$+?.()|[]{}'.includes(c)?'\\\\'+c:c);
+   }else out+='[^/]*';
   }else if(c==='?')out+='[^/]';
-  else out+=/[\\^$+?.()|[\]{}]/.test(c)?'\\'+c:c;
+  else if(['\\','^','$','+','?','.','(',')','|','[',']','{','}'].includes(c))out+='\\'+c;
+  else out+=c;
  }
  return new RegExp(out+'$');
 }
