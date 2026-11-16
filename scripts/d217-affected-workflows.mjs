@@ -5,7 +5,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 export const parseItems = raw => {
  const t=raw.trim();
- if(!t)return [];
+ if(!t)return null; // An empty YAML field starts an indented list, not an empty inline []
  if(t.startsWith('[')&&t.endsWith(']'))
   return t.slice(1,-1).split(',').map(x=>x.trim().replace(/^['"]|['"]$/g,'')).filter(Boolean);
  return null;
