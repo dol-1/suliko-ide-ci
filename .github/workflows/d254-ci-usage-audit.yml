@@ -1,0 +1,45 @@
+name: D-254 weekly public GH 7d CI workflow elapsed usage audit (NO paid runner)
+# D254 exact D252 source: 14 unweakened public CI observability and native/security evidence.
+on:
+  push:
+    branches: [feat/d254-ci-usage-after-d242, feat/d254-7d-ci-usage-audit]
+    paths:
+      - 'scripts/d254-ci-usage-report.mjs'
+      - 'scripts/d254-ci-usage-report.test.mjs'
+      - '.github/workflows/d254-ci-usage-audit.yml'
+  schedule:
+    - cron: '27 6 * * 1'
+  workflow_dispatch:
+concurrency:
+  group: d254-weekly-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  usage:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: No fake minutes, queue/cancellation and duplicate fixtures
+        run: node --test scripts/d254-ci-usage-report.test.mjs
+      - name: Read actual previous seven days of public workflow events and summarize without identities
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/d254-ci-usage-report.mjs
+      - name: Retain only grouped timing and duplicate candidates; no raw user/API data
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d254-weekly-workflow-walltime-audit
+          path: ${{ runner.temp }}/d254-ci-usage.json
+          retention-days: 1
+          if-no-files-found: error
