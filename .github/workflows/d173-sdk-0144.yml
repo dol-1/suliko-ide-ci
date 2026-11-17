@@ -1,11 +1,13 @@
 name: D-173 pinned 0.6.144 Git source SDK own-plugin compatibility (NO bump)
+# D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
+    branches: [test/d244-doctor-post-d202, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
     paths:
+      - '.github/workflows/d173-sdk-0144.yml'
       - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/d230-first15-metrics.mjs'
       - .github/workflows/d173-sdk-0144.yml

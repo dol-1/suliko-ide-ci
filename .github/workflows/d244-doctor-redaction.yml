@@ -1,7 +1,8 @@
 name: D-244 synthetic doctor 32-format redact and write-once bundle (NO real data)
+# D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 on:
   push:
-    branches: [test/d244-doctor-bundle-redaction-after-d226, main]
+    branches: [test/d244-doctor-post-d202, test/d244-doctor-bundle-redaction-after-d226, main]
     paths:
       - 'scripts/d244-doctor-redaction.test.mjs'
       - 'scripts/suliko-doctor.mjs'
