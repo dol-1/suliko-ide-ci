@@ -76,6 +76,19 @@ jobs:
               echo 'D249_STOCK_FIXTURE_SERVER_ALIVE_HTTP_UNAVAILABLE' >&2
             else
               echo 'D249_STOCK_FIXTURE_SERVER_EXITED_BEFORE_READY' >&2
+              # D249 forensic classification: only fixed labels may leave the disposable CI runner.
+              # Do not publish raw BB daemon output, process args, paths or credential-bearing lines.
+              reason='unknown'
+              log="$RUNNER_TEMP/d066-desktop-server.log"
+              if test -f "$log"; then
+                if grep -Eiq 'EADDRINUSE|address already in use' "$log"; then reason='port-in-use'
+                elif grep -Eiq 'ERR_MODULE_NOT_FOUND|Cannot find module|MODULE_NOT_FOUND' "$log"; then reason='module-unavailable'
+                elif grep -Eiq 'EACCES|EPERM|permission denied' "$log"; then reason='access-denied'
+                elif grep -Eiq 'ENOMEM|JavaScript heap out of memory|Allocation failed' "$log"; then reason='memory-exhaustion'
+                elif grep -Eiq 'SyntaxError|ERR_INVALID_ARG|TypeError|ReferenceError' "$log"; then reason='runtime-exception'
+                fi
+              fi
+              echo "D249_STOCK_FIXTURE_EXIT_CATEGORY=$reason" >&2
             fi
             node scripts/d249-fixture-failure.mjs "$RUNNER_TEMP/d066-desktop-server.log" >&2
           exit 1
