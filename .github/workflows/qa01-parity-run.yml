@@ -1,5 +1,6 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
+# D246 full same-SHA path-filter activation for 15 genuine native QA security and own Windows proof; no skip.
 # D246 post-D242 exact-head Windows strict read-only state proof; retain D242 bilingual no-bypass and D247 generator.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
