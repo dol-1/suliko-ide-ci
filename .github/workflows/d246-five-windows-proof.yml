@@ -4,6 +4,9 @@ on:
     branches:
       - fix/d246-windows-stock-after-d242
       - 'test/d246-winproof-*'
+concurrency:
+  group: d246-windows-proof-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: true
 permissions: read-all
 jobs:
   installed-windows:
