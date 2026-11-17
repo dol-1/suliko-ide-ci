@@ -1,0 +1,66 @@
+name: D-237 exact canonical main-eligible workflow completeness evidence (NO beta)
+on:
+  push:
+    branches: [feat/d237-postmain-completeness-audit]
+    paths:
+      - '.github/workflows/d237-postmain-completeness-audit.yml'
+  workflow_dispatch:
+concurrency:
+  group: d237-completeness-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  main-coverage:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Read exact canonical post-D202 main source, not feature workflow files
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 02544da33f784cc73e4daba09170ece3d30f8cd8
+          path: reviewed-main
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Generate bounded read-only actual main push run evidence, with wrong-SHA fixture
+        shell: bash
+        working-directory: reviewed-main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 02544da33f784cc73e4daba09170ece3d30f8cd8
+          node scripts/d224-main-evidence.mjs --self-test
+          {
+            printf '{"branch":'
+            gh api /repos/dol-1/suliko-ide-ci/branches/main
+            printf ',"runs":'
+            gh api '/repos/dol-1/suliko-ide-ci/actions/runs?branch=main&per_page=100'
+            printf '}'
+          } | node scripts/d224-main-evidence.mjs
+          node scripts/d229-main-completeness.mjs --self-test
+          node scripts/d229-main-completeness.mjs
+      - name: Enforce real MISSING zero RED zero for D237, never count skipped or stale as GREEN
+        shell: bash
+        working-directory: reviewed-main
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync('out/d224/completeness.json','utf8'));
+          if(r.sha!=='02544da33f784cc73e4daba09170ece3d30f8cd8')throw Error('D237_MAIN_ADVANCED_OR_SHA_MISMATCH');
+          const invalid=r.rows.filter(x=>x.conclusion!=='success');
+          console.log('D237_EXACT_MAIN_ELIGIBLE='+r.checked+' MISSING='+r.missing+' NOT_SUCCESS='+invalid.length);
+          if(r.missing!==0||invalid.length)throw Error('D237_MAIN_NOT_COMPLETE_NOT_A_BETA_GO');
+          NODE
+      - name: Preserve actual main-eligible source ledger even on RED, no user data
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d237-exact-main-completeness-snapshot
+          path: reviewed-main/out/d224/
+          retention-days: 7
+          if-no-files-found: error
