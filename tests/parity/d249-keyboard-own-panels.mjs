@@ -33,7 +33,11 @@ export async function verifyOwnPanelKeyboard(page,panel,{kind}){
  if(kind==='hello'){
    // Keyboard Space activates ONLY our own explicit local read-only ping.
    await page.keyboard.press('Space');
-   await panel.getByRole('status').last().waitFor({state:'visible',timeout:15000});
+   // A loading announcement is not success. Require the actual localized
+   // read-only RPC result, then restore tab testing after the button enables.
+   await panel.getByRole('status').filter({hasText:/Connected at|დაკავშირებულია:/})
+     .waitFor({state:'visible',timeout:15000});
+   if(!await control.isEnabled())throw Error('D249_HELLO_PING_DID_NOT_SETTLE');
  }else{
    // This is a read-only, intentionally invalid demo URL, NEVER follow it.
    const href=await control.getAttribute('href');
