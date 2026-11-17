@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d230-first15-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
+    branches: [feat/d247-exact-head-premerge-note, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
     paths: ['.github/workflows/**', 'scripts/d226-d083-policy.mjs', 'scripts/d230-first15-metrics.mjs']
   workflow_dispatch:
 permissions: read-all

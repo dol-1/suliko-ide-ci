@@ -2,6 +2,7 @@ name: D-081 public-only rescue patch regressions
 on:
   push:
     branches:
+      - feat/d247-exact-head-premerge-note
       - fix/d058-cache-ownership
       - fix/d059-version-output
       - fix/d078-qa01-summary-redaction
@@ -75,6 +76,10 @@ jobs:
               ;;
             feat/d230-first15-after-d226)
               node scripts/d230-first15-metrics.mjs --self-test
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            feat/d247-exact-head-premerge-note)
+              node --test scripts/d247-exact-head-premerge-note.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)
