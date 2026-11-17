@@ -1,7 +1,9 @@
 name: D-081 public-only rescue patch regressions
+# D251 exact-head: execute genuine 14-way public source QA, native and scanners, no release.
 on:
   push:
     branches:
+      - feat/d251-cyclonedx-rc1-main-delta
       - feat/d251-cyclonedx-rc1-main-delta
       - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership

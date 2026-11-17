@@ -1,4 +1,5 @@
 name: D-063 redacted full-public-git-history Gitleaks
+# D251 exact-head: execute genuine 14-way public source QA, native and scanners, no release.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

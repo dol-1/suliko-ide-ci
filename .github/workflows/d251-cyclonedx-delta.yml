@@ -1,4 +1,5 @@
 name: D-251 rc.1 versus main CycloneDX own-package immutable delta (NO release)
+# D251 exact-head: execute genuine 14-way public source QA, native and scanners, no release.
 on:
   push:
     branches: [feat/d251-cyclonedx-rc1-main-delta]
