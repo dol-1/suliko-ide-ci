@@ -1,4 +1,5 @@
 name: D-254 weekly public GH 7d CI workflow elapsed usage audit (NO paid runner)
+# D254 full 14-way source gate: actual GH wall clock observability and unweakened native QA/security.
 # D254 exact-head: actual 12-path CI observability source, QA and security with no paid runner.
 on:
   push:

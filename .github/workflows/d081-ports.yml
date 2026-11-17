@@ -1,8 +1,10 @@
 name: D-081 public-only rescue patch regressions
+# D254 full 14-way source gate: actual GH wall clock observability and unweakened native QA/security.
 # D254 exact-head: actual 12-path CI observability source, QA and security with no paid runner.
 on:
   push:
     branches:
+      - feat/d254-7d-ci-usage-audit
       - feat/d254-7d-ci-usage-audit
       - feat/d254-7d-ci-usage-audit
       - feat/d202-uninstall-after-d230

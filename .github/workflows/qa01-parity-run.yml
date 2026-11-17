@@ -1,5 +1,6 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
+# D254 full 14-way source gate: actual GH wall clock observability and unweakened native QA/security.
 # D254 exact-head: actual 12-path CI observability source, QA and security with no paid runner.
 concurrency:
   group: qa01-strict-${{ github.workflow }}-${{ github.ref }}
