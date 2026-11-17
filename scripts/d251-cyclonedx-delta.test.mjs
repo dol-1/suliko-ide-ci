@@ -26,3 +26,5 @@ test('D251 invalid source ref or unreviewed CycloneDX refused',()=>{
 test('D251 duplicate package identity with conflicting license refused',()=>{
  assert.throws(()=>inventory(bom([c('x','1','MIT'),c('x','1','GPL-3.0-only')])),/DUPLICATE_CONFLICTING_LICENSE/);
 });
+
+test('D251 supports the current CycloneDX 1.7 document schema',()=>{const d=bom([c('x','1')]);d.specVersion='1.7';assert.equal(inventory(d).size,1)});

@@ -23,8 +23,8 @@ export function licenses(c){
   return [...new Set(found)].sort();
 }
 export function inventory(bom){
-  if(!/^1\.(?:4|5|6)$/.test(String(bom?.specVersion))||bom?.bomFormat!=='CycloneDX'||
-     !Array.isArray(bom.components)||bom.components.length>20000)throw Error('D251_BAD_CYCLONEDX');
+  if(!/^1\.(?:4|5|6|7)$/.test(String(bom?.specVersion))||bom?.bomFormat!=='CycloneDX'||
+     !Array.isArray(bom.components)||bom.components.length>20000)throw Error('D251_BAD_CYCLONEDX_FORMAT_'+String(bom?.bomFormat).slice(0,16)+'_SPEC_'+String(bom?.specVersion).slice(0,8)+'_COUNT_'+(Array.isArray(bom?.components)?bom.components.length:'missing'));
   const groups=new Map();
   for(const c of bom.components){
     const id=componentId(c),version=safe(c.version)?c.version:'UNKNOWN';
