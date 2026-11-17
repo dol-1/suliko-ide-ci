@@ -1,4 +1,5 @@
 name: D-063 OpenSSF Scorecard public CI repo assessment
+# D249 exact-head: sanitized fail-closed fixture-exit categories, no startup retries or gate relaxation.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D249 new SHA evidence: execute 20 actual native/QA Web/Desktop keyboard and full security gates.
 # D249 D252-main exact-head true 20-workflow a11y, native, security and QA evidence.
