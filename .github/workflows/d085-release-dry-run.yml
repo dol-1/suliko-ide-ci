@@ -1,11 +1,12 @@
 name: D-144 E8 source dry-run gated by 3 installed GUI OS + strict 7x2 QA (NO release)
+# D251 after D252 main 14 true source gates; CycloneDX alone NEVER proves no advisory.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 concurrency:
   group: d144-release-parent-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d085-release-dry-run, feat/d089-sbom-lock-coverage, feat/d104-main-ephemeral-release-dryrun, feat/d144-release-gated-by-3os-qa, feat/d188-qa-concurrency-isolation, main]
+    branches: [feat/d251-cyclonedx-post-d252, feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d085-release-dry-run, feat/d089-sbom-lock-coverage, feat/d104-main-ephemeral-release-dryrun, feat/d144-release-gated-by-3os-qa, feat/d188-qa-concurrency-isolation, main]
     paths: ['.github/workflows/d085-release-dry-run.yml', 'scripts/d089-attestation-subject.mjs', 'scripts/d089-attestation-subject.test.mjs', 'CHANGELOG.md', '.changeset/**', 'marketplace/marketplace.beta-preview.json', 'plugins/**', 'tests/parity/**', 'scripts/qa01-*.mjs', '.github/workflows/d129-windows-installed-desktop-hello.yml', '.github/workflows/d091-linux-installed-profile-hello.yml', '.github/workflows/d091-macos-installed-profile-hello.yml', '.github/workflows/qa01-parity-run.yml', 'scripts/d230-first15-metrics.mjs', 'scripts/d202-exact-head-gate.mjs']
   workflow_dispatch:
 permissions: read-all

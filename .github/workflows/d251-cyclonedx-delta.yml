@@ -1,7 +1,8 @@
 name: D-251 rc.1 versus main CycloneDX own-package immutable delta (NO release)
+# D251 after D252 main 14 true source gates; CycloneDX alone NEVER proves no advisory.
 on:
   push:
-    branches: [feat/d251-cyclonedx-rc1-main-delta]
+    branches: [feat/d251-cyclonedx-post-d252, feat/d251-cyclonedx-rc1-main-delta]
     paths:
       - 'scripts/d251-cyclonedx-delta.mjs'
       - 'scripts/d251-cyclonedx-delta.test.mjs'
