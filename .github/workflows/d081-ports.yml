@@ -1,10 +1,12 @@
 name: D-081 public-only rescue patch regressions
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
+# D246 strict post-D252 public exact-head Windows+3OS and QA; never skip state.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
       - feat/d247-premerge-post-d252
+      - fix/d246-windows-stock-after-d247
       - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
       - feat/d202-uninstall-after-d230
@@ -94,6 +96,9 @@ jobs:
               ;;
             feat/d247-premerge-post-d252)
               node --test scripts/d247-exact-head-premerge-note.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            fix/d246-windows-stock-after-d247)
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)
