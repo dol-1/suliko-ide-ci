@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d128-e3-same-run-mock, feat/d189-e3-mock-after-d196, main]
+    branches: [feat/d249-keyboard-own-panels, feat/d128-e3-same-run-mock, feat/d189-e3-mock-after-d196, main]
     paths:
       - '.github/workflows/d128-e3-same-run-mock.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'

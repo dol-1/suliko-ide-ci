@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d094-remote-web-desktop-same-run]
+    branches: [feat/d249-keyboard-own-panels, feat/d094-remote-web-desktop-same-run]
     paths:
       - '.github/workflows/d094-remote-web-desktop-same-run.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'
