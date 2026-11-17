@@ -1,8 +1,10 @@
 name: D-081 public-only rescue patch regressions
+# D246 strict post-D252 public exact-head Windows+3OS and QA; never skip state.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
+      - fix/d246-windows-stock-post-d252
       - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
       - feat/d202-uninstall-after-d230
@@ -88,6 +90,9 @@ jobs:
               ;;
             feat/d252-ka-en-glossary-lint)
               node --test scripts/d252-glossary-lint.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            fix/d246-windows-stock-post-d252)
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)
