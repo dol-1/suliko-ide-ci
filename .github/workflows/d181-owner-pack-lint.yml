@@ -1,8 +1,9 @@
 name: D-181 owner phase 3-action reference lint (NO launch)
+# D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
-    branches: [feat/d252-ka-en-glossary-lint, feat/d230-first15-after-d226, '**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
+    branches: [feat/d247-premerge-post-d252, feat/d252-ka-en-glossary-lint, feat/d230-first15-after-d226, '**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
     paths:
       - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/d230-first15-metrics.mjs'
