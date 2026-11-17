@@ -1,7 +1,8 @@
 name: D-247 exact-head GitHub premerge evidence generator (NO merge)
+# D247 clean D202 exact-head: 14 real GH native, docs, SDK, QA, security source gates, no auto-merge.
 on:
   push:
-    branches: ['**']
+    branches: [feat/d247-premerge-post-d202, '**']
     paths:
       - 'scripts/d247-exact-head-premerge-note.mjs'
       - 'scripts/d247-exact-head-premerge-note.test.mjs'
