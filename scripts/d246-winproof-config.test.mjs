@@ -5,7 +5,8 @@ const y=readFileSync('.github/workflows/d246-five-windows-proof.yml','utf8');
 test('D246 proof only calls full unchanged official Windows D129 on source or synthetic refs',()=>{
  assert.match(y,/branches:[\s\S]*fix\/d246-windows-stock-after-d242/);
  assert.match(y,/test\/d246-winproof-\*/);
- assert.match(y,/concurrency:\\n  group: d246-windows-proof-\\\$\\\{\\\{ github\\.ref \\}\}/);
+ assert(y.includes('concurrency:'));
+ assert(y.includes(['group: d246-windows-proof-', '$', '{{ github.ref }}'].join('')));
  assert.match(y,/cancel-in-progress: true/);
  assert.match(y,/permissions: read-all/);
  assert.match(y,/github\.repository == 'dol-1\/suliko-ide-ci'/);
