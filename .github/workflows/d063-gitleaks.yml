@@ -1,4 +1,5 @@
 name: D-063 redacted full-public-git-history Gitleaks
+# D253 exact-head: genuine pinned npm registry report plus unweakened 14-way CI source gate.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

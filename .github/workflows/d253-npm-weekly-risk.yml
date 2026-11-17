@@ -1,4 +1,5 @@
 name: D-253 weekly own-plugin pinned npm registry risks (READ ONLY, no bump)
+# D253 exact-head: genuine pinned npm registry report plus unweakened 14-way CI source gate.
 on:
   push:
     branches: [feat/d253-npm-weekly-risk-watch]

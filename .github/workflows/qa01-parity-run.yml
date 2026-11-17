@@ -1,5 +1,6 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
+# D253 exact-head: genuine pinned npm registry report plus unweakened 14-way CI source gate.
 concurrency:
   group: qa01-strict-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

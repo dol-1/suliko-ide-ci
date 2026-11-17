@@ -1,4 +1,5 @@
 name: D-168 E5 KA EN docs parity and guarded Pages preflight
+# D253 exact-head: genuine pinned npm registry report plus unweakened 14-way CI source gate.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

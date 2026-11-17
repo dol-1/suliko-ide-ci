@@ -1,7 +1,9 @@
 name: D-081 public-only rescue patch regressions
+# D253 exact-head: genuine pinned npm registry report plus unweakened 14-way CI source gate.
 on:
   push:
     branches:
+      - feat/d253-npm-weekly-risk-watch
       - feat/d253-npm-weekly-risk-watch
       - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership
