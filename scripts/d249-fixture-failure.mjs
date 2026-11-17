@@ -1,6 +1,6 @@
 // D249: bounded, category-only classifier of a disposable public CI host startup failure.
 // Never print the log, its file path, command lines, environment, or unreviewed tokens.
-import {lstatSync,readFileSync} from 'node:fs';
+import {openSync,fstatSync,readFileSync,closeSync,constants} from 'node:fs';
 import {resolve,join} from 'node:path';
 export function classifyD249Log(value) {
   const text=typeof value==='string'?value:'';
@@ -19,10 +19,14 @@ if(process.argv[1]?.endsWith('d249-fixture-failure.mjs')){
   const wanted=resolve(join(process.env.RUNNER_TEMP,'d066-desktop-server.log'));
   if(resolve(process.argv[2]??'')!==wanted)throw Error('D249_LOG_PATH_REFUSED');
   let category='log-unavailable';
+  let fd;
   try{
-    const st=lstatSync(wanted);
-    if(st.isFile()&&st.size<=262144)category=classifyD249Log(readFileSync(wanted,'utf8'));
+    // O_NOFOLLOW + fstat on the same open descriptor prevents path-swap races.
+    fd=openSync(wanted,constants.O_RDONLY|constants.O_NOFOLLOW);
+    const st=fstatSync(fd);
+    if(st.isFile()&&st.size<=262144)category=classifyD249Log(readFileSync(fd,'utf8'));
     else category='log-not-regular-or-too-large';
   }catch{ category='log-unavailable'; }
+  finally{ if(fd!==undefined)try{closeSync(fd);}catch{} }
   process.stdout.write('D249_STOCK_FIXTURE_LOG_CATEGORY='+category+'\n');
 }
