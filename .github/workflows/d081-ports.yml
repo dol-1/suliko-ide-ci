@@ -1,10 +1,13 @@
 name: D-081 public-only rescue patch regressions
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
+# D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
+# D242 exact D252-main 13-source-gate proof; source-only preview no publication.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
       - feat/d247-premerge-post-d252
+      - feat/d242-trust-after-d247
       - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
       - feat/d202-uninstall-after-d230
@@ -94,6 +97,10 @@ jobs:
               ;;
             feat/d247-premerge-post-d252)
               node --test scripts/d247-exact-head-premerge-note.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            feat/d242-trust-after-d247)
+              python3 scripts/d242-trust-parity.test.py
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)

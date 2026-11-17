@@ -14,6 +14,7 @@ nav:
   - English:
       - Installation: install.en.md
       - Windows trust and SHA-256: windows-trust.en.md
+      - macOS and Linux trust: macos-linux-trust.en.md
       - RC1 source candidate notes: release.en.md
       - Changelog (source-only): changelog.en.md
       - First steps: first-steps.en.md
@@ -30,6 +31,7 @@ nav:
       - დასაწყისი: index.ka.md
       - ინსტალაცია: install.ka.md
       - Windows-ის ნდობა და SHA-256: windows-trust.ka.md
+      - macOS-ისა და Linux-ის ნდობა: macos-linux-trust.ka.md
       - RC1-ის წყაროს ჩანაწერები: release.ka.md
       - ცვლილებების ისტორია: changelog.ka.md
       - პირველი ნაბიჯები: first-steps.ka.md
