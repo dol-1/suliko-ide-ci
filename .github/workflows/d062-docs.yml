@@ -1,4 +1,5 @@
 name: D-168 E5 KA EN docs parity and guarded Pages preflight
+# D242 post-D202 exact-head: 13 genuine QA, preview, native, source-security gates; no Pages publish.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
