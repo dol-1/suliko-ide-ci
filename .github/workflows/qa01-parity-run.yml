@@ -2,8 +2,8 @@
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
 # D249 D252-main exact-head true 20-workflow a11y, native, security and QA evidence.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
+# D249: separate direct push and D085 reusable QA by run ID; strict D152 parser preserves contiguous block.
 concurrency:
-  # D249: direct push and nested D085 workflow_call on same ref have separate run IDs.
   group: qa01-strict-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
