@@ -9,7 +9,7 @@ on:
   schedule:
     - cron: '13 7 * * *' # 1 daily standard free public GitHub Actions main strict 14/14
   push:
-    branches: [feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d234-mock-schema-after-d228, main, feat/d140-qa01-strict-main, feat/d171-daily-qa01-main-v2, feat/d188-qa-concurrency-isolation]
+    branches: [fix/d246-windows-stock-state-readiness, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d234-mock-schema-after-d228, main, feat/d140-qa01-strict-main, feat/d171-daily-qa01-main-v2, feat/d188-qa-concurrency-isolation]
     paths: ['tests/parity/**', 'scripts/qa01-*.mjs', 'scripts/d226-d083-policy.mjs', 'plugins/suliko-hello/**', '.github/workflows/qa01-parity-run.yml', '.github/workflows/d158-codeql-own-source.yml', '.github/workflows/d063-semgrep.yml', '.github/workflows/d063-gitleaks.yml', '.github/workflows/d152-workflow-expression-guard.yml', 'scripts/d230-first15-metrics.mjs']
 permissions: read-all
 jobs:
