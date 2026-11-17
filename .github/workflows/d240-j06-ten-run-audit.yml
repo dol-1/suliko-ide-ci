@@ -1,7 +1,7 @@
 name: D-240 strictly read-only ten DISTINCT same-SHA J06 QA run acceptance (NO retry)
 on:
   push:
-    branches: [test/d240-j06-sequential-exact-head]
+    branches: [test/d240-j06-after-d242]
     paths:
       - 'scripts/d240-qa-ten-run-audit.mjs'
       - 'scripts/d240-qa-ten-run-audit.test.mjs'
