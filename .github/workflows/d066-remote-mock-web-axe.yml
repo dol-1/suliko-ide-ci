@@ -1,10 +1,13 @@
 name: D-066 installed Remote MOCK Web a11y KA/EN axe-core smoke
+# D249 exact-head: sanitized fail-closed fixture-exit categories, no startup retries or gate relaxation.
+# D249 new SHA evidence: execute 20 actual native/QA Web/Desktop keyboard and full security gates.
+# D249 D252-main exact-head true 20-workflow a11y, native, security and QA evidence.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d249-keyboard-own-panels, feat/d227-two-viewport-after-d234, feat/d234-mock-schema-after-d228, feat/d066-remote-mock-web-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
+    branches: [feat/d249-keyboard-after-d242, feat/d249-keyboard-own-panels, feat/d227-two-viewport-after-d234, feat/d234-mock-schema-after-d228, feat/d066-remote-mock-web-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
     paths:
       - '.github/workflows/d066-remote-mock-web-axe.yml'
       - 'tests/parity/remote-mock-a11y.mjs'
