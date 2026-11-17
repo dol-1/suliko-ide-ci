@@ -1,4 +1,5 @@
 name: D-252 own KA EN docs and UI canonical glossary lint
+# D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches: [feat/d252-ka-en-glossary-lint, main]

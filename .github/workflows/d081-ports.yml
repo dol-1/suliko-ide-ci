@@ -1,7 +1,9 @@
 name: D-081 public-only rescue patch regressions
+# D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
+      - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
       - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership

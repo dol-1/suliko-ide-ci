@@ -1,4 +1,5 @@
 name: D-063 OpenSSF Scorecard public CI repo assessment
+# D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
