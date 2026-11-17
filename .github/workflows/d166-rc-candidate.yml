@@ -1,9 +1,12 @@
 name: D-166 two independent Hello RC candidate builds, SPDX and attestation (NO release)
 on:
   push:
-    branches: [feat/d221-node24-after-d223, fix/d215-rc-pin-d117-icon-main-green, feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
+    branches: [feat/d239-rc2-no-tag-dry-run, feat/d221-node24-after-d223, fix/d215-rc-pin-d117-icon-main-green, feat/d205-tag-proof-after-pages-fix, draft/d199-owner-rc-sha-main-1c747093, feat/d199-candidate-main-proof, feat/d166-repro-rc-candidate, feat/d176-repro-builder-env-hardening, main]
     paths:
       - 'scripts/d221-node24-pin.test.mjs'
+      - 'scripts/d239-rc2-dry-run.mjs'
+      - 'scripts/d239-rc2-dry-run.test.mjs'
+      - '.github/workflows/d239-rc2-no-tag.yml'
       - '.github/workflows/d166-rc-candidate.yml'
       - 'scripts/d166-package-candidate.mjs'
       - 'plugins/suliko-hello/**'
@@ -19,7 +22,8 @@ on:
         description: Strict two-builder verified candidate SHA256
         value: ${{ jobs.verify.outputs.sha }}
 concurrency:
-  group: d166-rc-candidate-${{ github.ref }}
+  # D239 isolate direct push from reusable call; strict two-builder checks unchanged.
+  group: d166-rc-candidate-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 permissions: read-all
 jobs:

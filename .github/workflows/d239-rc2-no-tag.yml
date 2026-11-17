@@ -1,0 +1,55 @@
+name: D-239 current-main rc2 no-tag dry-run twin-builder comparison (NO release)
+on:
+  push:
+    branches: [feat/d239-rc2-no-tag-dry-run]
+    paths:
+      - '.github/workflows/d239-rc2-no-tag.yml'
+      - '.github/workflows/d166-rc-candidate.yml'
+      - 'scripts/d239-rc2-dry-run.mjs'
+      - 'scripts/d239-rc2-dry-run.test.mjs'
+      - 'docs/release/D239-RC2-SOURCE-ONLY-KA-EN.md'
+  workflow_dispatch:
+concurrency:
+  group: d239-source-rc2-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+jobs:
+  twin-builders:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    uses: ./.github/workflows/d166-rc-candidate.yml
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+  report:
+    needs: twin-builders
+    if: needs.twin-builders.result == 'success' && github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions: read-all
+    env:
+      D239_CANDIDATE_SHA: ${{ needs.twin-builders.outputs.candidate_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Test wrong digest / no tag / nonapproved candidate negatives
+        run: node --test scripts/d239-rc2-dry-run.test.mjs
+      - name: Compare truly verified two independent builder digest to immutable rc1 and source changes
+        run: node scripts/d239-rc2-dry-run.mjs
+      - name: Retain source-only benign report with no package publication
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d239-rc2-no-tag-source-only
+          path: ${{ runner.temp }}/d239-rc2-source-only.json
+          retention-days: 1
+          if-no-files-found: error
