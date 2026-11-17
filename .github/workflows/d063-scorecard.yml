@@ -1,4 +1,5 @@
 name: D-063 OpenSSF Scorecard public CI repo assessment
+# D254 exact-head: actual 12-path CI observability source, QA and security with no paid runner.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
