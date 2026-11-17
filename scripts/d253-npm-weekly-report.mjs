@@ -23,15 +23,16 @@ export function auditSummary(data){
 }
 export function outdatedSummary(data){
  if(!data||typeof data!=='object')throw Error('D253_OUTDATED_UNAVAILABLE');
+ if(data.error)throw Error('D253_OUTDATED_REGISTRY_ERROR');
  const entries=Array.isArray(data)?data:Object.entries(data).map(([name,v])=>({...v,name}));
  const rows=[];
  if(entries.length>1000)throw Error('D253_OUTDATED_TOO_MANY');
  for(const row of entries){
   const name=row?.name,current=row?.current,latest=row?.latest;
   if(typeof name!=='string'||!/^(?:@[\w.-]+\/)?[\w.-]+$/.test(name)||name.length>160||
-     typeof current!=='string'||typeof latest!=='string'||current.length>100||latest.length>100)
-    throw Error('D253_OUTDATED_SCHEMA');
-  rows.push({name,current,latest,wanted:typeof row.wanted==='string'?row.wanted:'unknown'});
+     (current!=null&&typeof current!=='string')||typeof latest!=='string'||(typeof current==='string'&&current.length>100)||latest.length>100)
+    throw Error('D253_OUTDATED_SCHEMA_KEYS_'+Object.keys(row??{}).filter(k=>/^[a-zA-Z]{1,30}$/.test(k)).slice(0,12).join('_')+'_TYPES_'+typeof current+'_'+typeof latest);
+  rows.push({name,current:typeof current==='string'?current:'UNOBSERVED_NO_NODE_MODULES',latest,wanted:typeof row.wanted==='string'?row.wanted:'unknown'});
  }
  return rows.sort((a,b)=>a.name.localeCompare(b.name));
 }
@@ -54,7 +55,7 @@ export function markdown(result){
   '| --- | ---: | ---: | ---: | ---: | ---: |'];
  for(const p of result.reports){
    lines.push('| '+p.plugin+' | '+p.audit.critical+' | '+p.audit.high+' | '+p.audit.moderate+' | '+p.audit.low+' | '+p.outdated.length+' |');
-   for(const x of p.outdated)lines.push('- '+p.plugin+' / '+x.name+': installed '+x.current+', latest '+x.latest+' (wanted '+x.wanted+'). Bump requires separate MR and exact-source plugin CI.');
+   for(const x of p.outdated)lines.push('- '+p.plugin+' / '+x.name+': CI-current observation '+x.current+', latest '+x.latest+' (wanted '+x.wanted+'). Bump requires separate MR and exact-source plugin CI.');
  }
  lines.push('Security interpretation: no unauthorized version bump. HIGH/CRITICAL findings require a separate category-specific review issue and source applicability, no automatic beta GO. Audit categories are time-bound registry output, not all security sources.');
  return lines.join('\n')+'\n';

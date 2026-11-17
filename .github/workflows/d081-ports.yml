@@ -1,8 +1,10 @@
 name: D-081 public-only rescue patch regressions
+# D253 post-D252 exact source: 14 real no-bump npm audit, strict native QA and scans.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
+      - feat/d253-npm-watch-post-d252
       - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
       - feat/d202-uninstall-after-d230
@@ -88,6 +90,10 @@ jobs:
               ;;
             feat/d252-ka-en-glossary-lint)
               node --test scripts/d252-glossary-lint.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            feat/d253-npm-watch-post-d252)
+              node --test scripts/d253-npm-weekly-report.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)

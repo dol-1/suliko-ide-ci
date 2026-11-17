@@ -1,8 +1,9 @@
 name: D-181 owner phase 3-action reference lint (NO launch)
+# D253 post-D252 exact source: 14 real no-bump npm audit, strict native QA and scans.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
-    branches: [feat/d252-ka-en-glossary-lint, feat/d230-first15-after-d226, '**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
+    branches: [feat/d253-npm-watch-post-d252, feat/d252-ka-en-glossary-lint, feat/d230-first15-after-d226, '**', fix/d225-owner-one-canonical-link-after-d219, fix/d203-pages-api-response-ownerlint, fix/d184-owner-lint-nofollow, feat/d181-owner-phase-preflight, main]
     paths:
       - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/d230-first15-metrics.mjs'

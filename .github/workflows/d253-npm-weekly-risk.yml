@@ -1,7 +1,8 @@
 name: D-253 weekly own-plugin pinned npm registry risks (READ ONLY, no bump)
+# D253 post-D252 exact source: 14 real no-bump npm audit, strict native QA and scans.
 on:
   push:
-    branches: [feat/d253-npm-weekly-risk-watch]
+    branches: [feat/d253-npm-watch-post-d252, feat/d253-npm-weekly-risk-watch]
     paths:
       - 'scripts/d253-npm-weekly-report.mjs'
       - 'scripts/d253-npm-weekly-report.test.mjs'

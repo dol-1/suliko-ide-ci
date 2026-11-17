@@ -21,3 +21,5 @@ test('D253 unknown severity or error cannot be counted as clean',()=>{
 test('D253 bogus registry output fails without upload',()=>{
  assert.throws(()=>outdatedSummary([{name:'private/path/key',current:'1',latest:'2'}]),/OUTDATED_SCHEMA/);
 });
+
+test('D253 registry latest without local node_modules current is explicitly unobserved',()=>{const a=outdatedSummary({'zod':{latest:'4.7.0',wanted:'4.6.7',dependencyType:'dependencies'}});assert.equal(a[0].current,'UNOBSERVED_NO_NODE_MODULES')});
