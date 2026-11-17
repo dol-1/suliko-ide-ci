@@ -1,7 +1,9 @@
 name: D-081 public-only rescue patch regressions
+# D255 full exact-head public docs + unchanged security/QA, no new form or outreach.
 on:
   push:
     branches:
+      - feat/d255-docs-internal-external-link-guard
       - feat/d255-docs-internal-external-link-guard
       - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership

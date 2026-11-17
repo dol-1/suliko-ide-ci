@@ -1,4 +1,5 @@
 name: D-063 redacted full-public-git-history Gitleaks
+# D255 full exact-head public docs + unchanged security/QA, no new form or outreach.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

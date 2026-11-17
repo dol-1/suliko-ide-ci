@@ -1,4 +1,5 @@
 name: D-063 Semgrep pinned plugin and CLI security scan
+# D255 full exact-head public docs + unchanged security/QA, no new form or outreach.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

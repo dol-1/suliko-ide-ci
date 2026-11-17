@@ -1,4 +1,5 @@
 name: D-255 own KA EN static docs links and scheduled safe public external check
+# D255 full exact-head public docs + unchanged security/QA, no new form or outreach.
 on:
   push:
     branches: [feat/d255-docs-internal-external-link-guard, main]
