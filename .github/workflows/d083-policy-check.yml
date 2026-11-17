@@ -1,4 +1,5 @@
 name: D-083 public workflow minimum-security static gates
+# D254 seven-day CI wall-time only, NOT billed minutes; native/QA/source security unchanged.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
@@ -8,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d247-premerge-post-d252, feat/d242-trust-after-d247, feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
+    branches: [feat/d254-walltime-after-d242, feat/d247-premerge-post-d252, feat/d242-trust-after-d247, feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
     paths: ['.github/workflows/**', 'scripts/d226-d083-policy.mjs', 'scripts/d230-first15-metrics.mjs', 'scripts/d202-exact-head-gate.mjs']
   workflow_dispatch:
 permissions: read-all

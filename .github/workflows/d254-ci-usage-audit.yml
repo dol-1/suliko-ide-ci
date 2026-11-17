@@ -1,7 +1,7 @@
 name: D-254 weekly public GH 7d CI workflow elapsed usage audit (NO paid runner)
 on:
   push:
-    branches: [feat/d254-7d-ci-usage-audit]
+    branches: [feat/d254-walltime-after-d242, feat/d254-7d-ci-usage-audit]
     paths:
       - 'scripts/d254-ci-usage-report.mjs'
       - 'scripts/d254-ci-usage-report.test.mjs'
