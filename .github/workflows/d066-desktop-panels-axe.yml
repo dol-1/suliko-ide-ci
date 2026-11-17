@@ -4,10 +4,12 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d227-two-viewport-after-d234, feat/d234-mock-schema-after-d228, feat/d066-desktop-panels-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
+    branches: [feat/d249-keyboard-own-panels, feat/d227-two-viewport-after-d234, feat/d234-mock-schema-after-d228, feat/d066-desktop-panels-axe, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, main]
     paths:
       - '.github/workflows/d066-desktop-panels-axe.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'
+      - 'tests/parity/d249-keyboard-own-panels.mjs'
+      - 'tests/parity/d249-keyboard-own-panels.test.mjs'
       - 'plugins/suliko-remote-panel/**'
   workflow_dispatch:
 permissions:
@@ -85,6 +87,7 @@ jobs:
           chmod +x "$appimage"
           export BB_DESKTOP_BINARY="$GITHUB_WORKSPACE/$appimage"
           export BB_DATA_DIR="$RUNNER_TEMP/d066-desktop-data"
+          node --test tests/parity/d249-keyboard-own-panels.test.mjs
           xvfb-run -a node tests/parity/d066-desktop-a11y.mjs
           echo 'D066 only packaged Linux Desktop own panels; not actual Remote or cross-platform beta.' >> "$GITHUB_STEP_SUMMARY"
       - name: Retain D088 four baseline plus D227 eight 2-viewport Desktop own-panel PNGs for 1 day
