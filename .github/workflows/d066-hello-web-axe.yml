@@ -4,10 +4,12 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d227-two-viewport-after-d234, feat/d066-hello-web-axe, main]
+    branches: [feat/d249-keyboard-own-panels, feat/d227-two-viewport-after-d234, feat/d066-hello-web-axe, main]
     paths:
       - '.github/workflows/d066-hello-web-axe.yml'
       - 'tests/parity/hello-a11y.mjs'
+      - 'tests/parity/d249-keyboard-own-panels.mjs'
+      - 'tests/parity/d249-keyboard-own-panels.test.mjs'
       - 'plugins/suliko-hello/**'
   workflow_dispatch:
 permissions:
@@ -97,6 +99,7 @@ jobs:
         env:
           BB_A11Y_URL: 'http://127.0.0.1:38887'
         run: |
+          node --test tests/parity/d249-keyboard-own-panels.test.mjs
           node tests/parity/hello-a11y.mjs
           echo 'D066 checked real installed own Hello Web panel English and Georgian; not Desktop or Remote.' >> "$GITHUB_STEP_SUMMARY"
       - name: Retain D227 two Web viewport localized own-panel screenshots for 1 day
