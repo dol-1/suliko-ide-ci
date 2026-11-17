@@ -1,9 +1,11 @@
 name: D-081 public-only rescue patch regressions
+# D246 exact D247-main native Windows strict readonly snapshot gate; no security/QA bypass.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
+      - fix/d246-readiness-after-d247
       - feat/d247-premerge-post-d252
       - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
@@ -90,6 +92,9 @@ jobs:
               ;;
             feat/d252-ka-en-glossary-lint)
               node --test scripts/d252-glossary-lint.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            fix/d246-readiness-after-d247)
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             feat/d247-premerge-post-d252)
