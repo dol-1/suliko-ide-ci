@@ -21,3 +21,13 @@ test('D255 scheduled results separate public 404 candidate from uncertain 403',a
  assert.equal(r[0].result,'MISSING_CANDIDATE');assert.equal(r[1].result,'REVIEW');
  assert.equal(summary(evaluateDocs(files),r).externalMissingCandidates.length,1);
 });
+
+test('D255 permits ONLY pre-existing public issue-template query (not any token or custom form)',()=>{
+ const existing='https://github.com/dol-1/suliko-ide-ci/issues/new?template=pilot-signup.yml';
+ const v=evaluateDocs({...files,'site/docs/index.en.md':'[existing public template]('+existing+')'});
+ assert.equal(v.unreviewed.length,0);assert(v.external.includes(existing));
+ for(const other of ['https://github.com/dol-1/suliko-ide-ci/issues/new?template=other.yml','https://github.com/dol-1/suliko-ide-ci/issues/new?token=x','https://evil.test/external']){
+   const audit=evaluateDocs({...files,'site/docs/index.en.md':'[not allowed]('+other+')'});
+   assert.equal(audit.unreviewed.length,1);
+ }
+});

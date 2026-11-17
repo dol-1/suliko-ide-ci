@@ -1,7 +1,8 @@
 name: D-255 own KA EN static docs links and scheduled safe public external check
+# D255 D252 exact-source: 14 full public docs/QA/security/native checks, no new signup or external redirect.
 on:
   push:
-    branches: [feat/d255-docs-internal-external-link-guard, main]
+    branches: [feat/d255-docs-links-post-d252, feat/d255-docs-internal-external-link-guard, main]
     paths:
       - 'site/docs/**'
       - 'scripts/d255-docs-links.mjs'
