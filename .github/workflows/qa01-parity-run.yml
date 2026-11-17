@@ -1,5 +1,6 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
+# D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 concurrency:

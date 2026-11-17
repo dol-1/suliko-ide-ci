@@ -1,4 +1,5 @@
 name: D-081 public-only rescue patch regressions
+# D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
