@@ -2,6 +2,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 const docsRoot='site/docs',allowedHosts=new Set(['github.com','gitlab.com','dol-1.github.io']);
+// Only two existing no-outreach docs link to the reviewed public signup issue template.
+// Do not generalize to arbitrary query strings, token parameters or redirects.
+function reviewedQuery(u){return u.search==='' || (u.hostname==='github.com' &&
+ u.pathname==='/dol-1/suliko-ide-ci/issues/new' && u.search==='?template=pilot-signup.yml');}
 export const pages=[
  '','index.ka/','install.en/','install.ka/','troubleshooting.en/','troubleshooting.ka/',
  'pilot.en/','pilot.ka/','windows-trust.en/','windows-trust.ka/'
@@ -24,9 +28,9 @@ export function evaluateDocs(files){
    if(/^https:\/\//i.test(link)){
     try{
      const url=new URL(link);
-     if(!allowedHosts.has(url.hostname)||url.username||url.password||url.search||url.port||url.pathname.length>650)
+     if(!allowedHosts.has(url.hostname)||url.username||url.password||!reviewedQuery(url)||url.hash||url.port||url.pathname.length>650)
        unreviewed.push(name+': unreviewed external URL');
-     else external.add(url.origin+url.pathname);
+     else external.add(url.origin+url.pathname+url.search);
     }catch{unreviewed.push(name+': malformed https link')}
    }else if(/^[A-Za-z][A-Za-z0-9+.-]*:/.test(link)||link.startsWith('//')){
     unreviewed.push(name+': non-HTTPS or non-link external scheme');
@@ -45,7 +49,7 @@ export async function checkExternal(urls,{fetchImpl=fetch}={}){
  const results=[];
  for(const raw of urls){
   const u=new URL(raw);
-  if(u.protocol!=='https:'||!allowedHosts.has(u.hostname)||u.username||u.password||u.search||u.port)
+  if(u.protocol!=='https:'||!allowedHosts.has(u.hostname)||u.username||u.password||!reviewedQuery(u)||u.hash||u.port)
    throw Error('D255_EXTERNAL_NOT_ALLOWLISTED');
   let status=0;
   try {
