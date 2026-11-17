@@ -1,4 +1,5 @@
 name: D-081 public-only rescue patch regressions
+# D244 new D242-main exact-source 32 synthetic doctor secret redaction and all 3OS/QA/security gates.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
@@ -6,6 +7,7 @@ name: D-081 public-only rescue patch regressions
 on:
   push:
     branches:
+      - test/d244-doctor-after-d242
       - feat/d247-premerge-post-d252
       - feat/d242-trust-after-d247
       - feat/d252-ka-en-glossary-lint
@@ -93,6 +95,10 @@ jobs:
               ;;
             feat/d252-ka-en-glossary-lint)
               node --test scripts/d252-glossary-lint.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            test/d244-doctor-after-d242)
+              node --test scripts/d244-doctor-redaction.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             feat/d247-premerge-post-d252)
