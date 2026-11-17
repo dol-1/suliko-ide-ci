@@ -1,10 +1,11 @@
 name: D-094 same-run installed Remote MOCK Web plus packaged Desktop state/axe (NOT live Remote)
+# D249 D252-main exact-head true 20-workflow a11y, native, security and QA evidence.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d094-remote-web-desktop-same-run]
+    branches: [feat/d249-keyboard-post-d252, feat/d094-remote-web-desktop-same-run]
     paths:
       - '.github/workflows/d094-remote-web-desktop-same-run.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'

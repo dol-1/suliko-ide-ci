@@ -1,10 +1,11 @@
 name: D-128 same-run installed Remote MOCK Web Desktop + localhost UI-state tests (NO Remote)
+# D249 D252-main exact-head true 20-workflow a11y, native, security and QA evidence.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d128-e3-same-run-mock, feat/d189-e3-mock-after-d196, main]
+    branches: [feat/d249-keyboard-post-d252, feat/d128-e3-same-run-mock, feat/d189-e3-mock-after-d196, main]
     paths:
       - '.github/workflows/d128-e3-same-run-mock.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'

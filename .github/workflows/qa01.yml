@@ -1,4 +1,5 @@
 name: QA-01 parity fixture validation
+# D249 D252-main exact-head true 20-workflow a11y, native, security and QA evidence.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
