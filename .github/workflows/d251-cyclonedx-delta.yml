@@ -1,0 +1,76 @@
+name: D-251 rc.1 versus D242-main CycloneDX own-package immutable delta (NO release)
+# D251 after D252 main 14 true source gates; CycloneDX alone NEVER proves no advisory.
+on:
+  push:
+    branches: [feat/d251-cyclonedx-after-d242, feat/d251-cyclonedx-rc1-main-delta]
+    paths:
+      - 'scripts/d251-cyclonedx-delta.mjs'
+      - 'scripts/d251-cyclonedx-delta.test.mjs'
+      - '.github/workflows/d251-cyclonedx-delta.yml'
+  workflow_dispatch:
+concurrency:
+  group: d251-cyclonedx-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  compare:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 1c7470934ab694ce69ac92e70de300d6f6c50743
+          path: tagged-source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 9efe94fed06774bc292ba71020eaded7292e9a28
+          path: reviewed-main
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Run immutable BOM delta negative fixtures
+        run: node --test scripts/d251-cyclonedx-delta.test.mjs
+      - name: Obtain official digest-verified Syft v1.57.1 into ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C tagged-source rev-parse HEAD)" = 1c7470934ab694ce69ac92e70de300d6f6c50743
+          test "$(git -C reviewed-main rev-parse HEAD)" = 9efe94fed06774bc292ba71020eaded7292e9a28
+          mkdir -m 700 -p "$RUNNER_TEMP/d251"
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --silent --show-error --output "$RUNNER_TEMP/d251/syft.tar.gz" 'https://github.com/anchore/syft/releases/download/v1.57.1/syft_1.57.1_linux_amd64.tar.gz'
+          printf '%s  %s\n' 'bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c' "$RUNNER_TEMP/d251/syft.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/d251/syft.tar.gz" -C "$RUNNER_TEMP/d251" syft
+          chmod 700 "$RUNNER_TEMP/d251/syft"
+      - name: Generate actual CycloneDX BOMs per own plugin at both immutable refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SYFT_CHECK_FOR_APP_UPDATE=false SYFT_LOG_LEVEL=error
+          for plugin in suliko-hello suliko-remote-panel; do
+            for side in tagged-source reviewed-main; do
+              test -d "$side/plugins/$plugin"
+              "$RUNNER_TEMP/d251/syft" "dir:$side/plugins/$plugin" -o "cyclonedx-json=$RUNNER_TEMP/d251/$side-$plugin.cdx.json" >/dev/null
+              test -s "$RUNNER_TEMP/d251/$side-$plugin.cdx.json"
+            done
+          done
+      - name: Emit full source-bounded per-plugin BOM delta, no advisory-clearance claim
+        shell: bash
+        run: |
+          set -euo pipefail
+          for plugin in suliko-hello suliko-remote-panel; do
+            node scripts/d251-cyclonedx-delta.mjs "$RUNNER_TEMP/d251/tagged-source-$plugin.cdx.json" "$RUNNER_TEMP/d251/reviewed-main-$plugin.cdx.json" 1c7470934ab694ce69ac92e70de300d6f6c50743 9efe94fed06774bc292ba71020eaded7292e9a28 "$RUNNER_TEMP/d251/$plugin.delta.json" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Retain only generated sanitized own-package delta (no paths, raw BOM or credentials)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d251-rc1-main-cyclonedx-own-plugin-delta
+          path: ${{ runner.temp }}/d251/*.delta.json
+          if-no-files-found: error
+          retention-days: 1
