@@ -23,6 +23,7 @@ export function auditSummary(data){
 }
 export function outdatedSummary(data){
  if(!data||typeof data!=='object')throw Error('D253_OUTDATED_UNAVAILABLE');
+ if(data.error)throw Error('D253_OUTDATED_REGISTRY_ERROR');
  const entries=Array.isArray(data)?data:Object.entries(data).map(([name,v])=>({...v,name}));
  const rows=[];
  if(entries.length>1000)throw Error('D253_OUTDATED_TOO_MANY');
@@ -30,7 +31,7 @@ export function outdatedSummary(data){
   const name=row?.name,current=row?.current,latest=row?.latest;
   if(typeof name!=='string'||!/^(?:@[\w.-]+\/)?[\w.-]+$/.test(name)||name.length>160||
      typeof current!=='string'||typeof latest!=='string'||current.length>100||latest.length>100)
-    throw Error('D253_OUTDATED_SCHEMA');
+    throw Error('D253_OUTDATED_SCHEMA_KEYS_'+Object.keys(row??{}).filter(k=>/^[a-zA-Z]{1,30}$/.test(k)).slice(0,12).join('_')+'_TYPES_'+typeof current+'_'+typeof latest);
   rows.push({name,current,latest,wanted:typeof row.wanted==='string'?row.wanted:'unknown'});
  }
  return rows.sort((a,b)=>a.name.localeCompare(b.name));
