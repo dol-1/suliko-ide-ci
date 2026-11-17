@@ -1,8 +1,9 @@
 name: D-221 pin own native and reproducible CI actions on Node24 (NO release)
 on:
   push:
-    branches: [feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d221-node24-after-d223, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d221-node24-after-d223, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/d230-first15-metrics.mjs'
       - '.github/workflows/d165-e1-one-command-3os.yml'
       - '.github/workflows/d166-rc-candidate.yml'

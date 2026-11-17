@@ -1,8 +1,9 @@
 name: D-159 native installed official GUI plus real published CLI same host (NO E1 release)
 on:
   push:
-    branches: [feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d159-native-gui-published-same-runtime, fix/d160-native-mac-strict-state, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d159-installed-gui-published-native.yml'
       - 'scripts/d159-installed-gui-published-native.mjs'
       - 'scripts/d159-installed-gui-published-native.test.mjs'

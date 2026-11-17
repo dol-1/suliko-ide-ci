@@ -1,12 +1,14 @@
 name: D-141 Windows one-command user install + official installed Hello and SEC02 (PARTIAL)
 concurrency:
-  group: e1-user-windows-${{ github.ref }}
+  # D202 premerge: direct push and workflow_call share ref but must not cancel each other's real tests.
+  group: e1-user-windows-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
   workflow_call:
   push:
-    branches: [feat/d141-windows-one-command-stage]
+    branches: [feat/d202-uninstall-after-d230, feat/d141-windows-one-command-stage]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/e1-windows-one-command.yml'
       - 'tests/parity/d129-windows-installed-desktop.mjs'
       - 'scripts/suliko-setup.ps1'

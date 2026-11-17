@@ -1,12 +1,14 @@
 name: D-129 official installed Windows Desktop Hello own-panel + stock SEC02 (NO release)
 concurrency:
-  group: d144-windows-installed-${{ github.ref }}
+  # D202 premerge: direct push and workflow_call share ref but must not cancel each other's real tests.
+  group: d144-windows-installed-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
   workflow_call:
   push:
-    branches: [main, feat/d133-win2025-installed-hello-gyp13, feat/d137-win2025-installed-hello-main-gate]
+    branches: [feat/d202-uninstall-after-d230, main, feat/d133-win2025-installed-hello-gyp13, feat/d137-win2025-installed-hello-main-gate]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d129-windows-installed-desktop-hello.yml'
       - 'tests/parity/d129-windows-installed-desktop.mjs'
       - 'scripts/suliko-setup.ps1'

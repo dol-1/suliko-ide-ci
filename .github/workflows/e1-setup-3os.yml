@@ -1,12 +1,14 @@
 name: D-149 E1 3OS user one-entry official GUI staged with SEC02 fixture (PARTIAL, NO beta)
 concurrency:
-  group: e1-3os-parent-${{ github.ref }}
+  # D202 premerge: direct push and workflow_call share ref but must not cancel each other's real tests.
+  group: e1-3os-parent-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 on:
   workflow_call:
   push:
-    branches: [feat/d149-e1-three-os-one-entry-matrix, main]
+    branches: [feat/d202-uninstall-after-d230, feat/d149-e1-three-os-one-entry-matrix, main]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/e1-setup-3os.yml'
       - '.github/workflows/e1-windows-one-command.yml'
       - '.github/workflows/e1-linux-one-command.yml'

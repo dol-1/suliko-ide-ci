@@ -4,8 +4,9 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [main, feat/d084-e1-portable-stage, feat/d106-portable-verified-staging-main-gate]
+    branches: [feat/d202-uninstall-after-d230, main, feat/d084-e1-portable-stage, feat/d106-portable-verified-staging-main-gate]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d084-e1-portable-stage.yml'
       - 'scripts/suliko-setup.sh'
       - 'scripts/suliko-setup.ps1'

@@ -4,8 +4,9 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d090-windows-signature-diagnostics]
+    branches: [feat/d202-uninstall-after-d230, feat/d090-windows-signature-diagnostics]
     paths:
+      - 'scripts/d202-exact-head-gate.mjs'
       - '.github/workflows/d090-windows-signature-diagnostics.yml'
       - 'scripts/suliko-setup.ps1'
       - 'site/docs/install.en.md'
