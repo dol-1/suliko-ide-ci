@@ -64,12 +64,21 @@ jobs:
           export BB_DATA_DIR="$RUNNER_TEMP/d066-desktop-data"
           mkdir -p "$BB_DATA_DIR"
           node stock-bb/packages/bb-app/dist/bb-app.js start --data-dir "$BB_DATA_DIR" --server-bind-host 127.0.0.1 --server-port 38888 --host-daemon-port 38890 --no-in-app-updates >"$RUNNER_TEMP/d066-desktop-server.log" 2>&1 &
+          d249_server_pid=$!
           ready=0
           for i in $(seq 1 45); do
             if curl --silent --fail --max-time 2 --output /dev/null http://127.0.0.1:38888/ 2>/dev/null; then ready=1; break; fi
             sleep 2
           done
-          test "$ready" = 1 || { echo 'D066 isolated Desktop fixture not ready' >&2; exit 1; }
+          if test "$ready" != 1; then
+            # D249 no raw daemon logs; fixed category only, no wait/mutation/test retry.
+            if kill -0 "$d249_server_pid" 2>/dev/null; then
+              echo 'D249_STOCK_FIXTURE_SERVER_ALIVE_HTTP_UNAVAILABLE' >&2
+            else
+              echo 'D249_STOCK_FIXTURE_SERVER_EXITED_BEFORE_READY' >&2
+            fi
+            exit 1
+          fi
           node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-hello --yes >/dev/null
           node stock-bb/packages/bb-app/dist/bb.js plugin install ./plugins/suliko-remote-panel --yes >/dev/null
           folder="$RUNNER_TEMP/d066-desktop-synthetic"
