@@ -1,8 +1,9 @@
 name: D-252 own KA EN docs and UI canonical glossary lint
+# D242 docs trust source must also run the unchanged D252 canonical glossary gate.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
-    branches: [feat/d252-ka-en-glossary-lint, main]
+    branches: [feat/d242-trust-post-d252, feat/d252-ka-en-glossary-lint, main]
     paths:
       - 'docs/terms/d252-ka-en-glossary.json'
       - 'scripts/d252-glossary-lint.mjs'
