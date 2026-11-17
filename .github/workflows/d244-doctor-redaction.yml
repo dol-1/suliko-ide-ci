@@ -1,0 +1,36 @@
+name: D-244 synthetic doctor 32-format redact and write-once bundle (NO real data)
+on:
+  push:
+    branches: [test/d244-doctor-bundle-redaction-after-d226, main]
+    paths:
+      - 'scripts/d244-doctor-redaction.test.mjs'
+      - 'scripts/suliko-doctor.mjs'
+      - 'scripts/d198-doctor-live.mjs'
+      - '.github/workflows/d244-doctor-redaction.yml'
+  workflow_dispatch:
+concurrency:
+  group: d244-synthetic-redaction-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  doctor-synthetic:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Actual CLI 32 secret-shaped fixtures + live fail-closed and exclusive private bundle
+        run: node --test scripts/d244-doctor-redaction.test.mjs
+      - name: Bound claims to synthetic redaction and no public support exports
+        shell: bash
+        run: echo 'D244_SYNTHETIC_DOCTOR_32_FORMAT_ZERO_LEAK_OWN_BUNDLE=PASS; no live-owned BB/privacy audit, no real secret, no public beta' >> "$GITHUB_STEP_SUMMARY"
