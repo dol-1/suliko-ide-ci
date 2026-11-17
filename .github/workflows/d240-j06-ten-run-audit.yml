@@ -1,0 +1,44 @@
+name: D-240 strictly read-only ten DISTINCT same-SHA J06 QA run acceptance (NO retry)
+on:
+  push:
+    branches: [test/d240-j06-sequential-exact-head]
+    paths:
+      - 'scripts/d240-qa-ten-run-audit.mjs'
+      - 'scripts/d240-qa-ten-run-audit.test.mjs'
+      - '.github/workflows/d240-j06-ten-run-audit.yml'
+  schedule:
+    - cron: '37 8 * * *'
+  workflow_dispatch:
+concurrency:
+  group: d240-j06-proof-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  strict-evidence:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Reject stale main, duplicate, cancelled or failed attempts, or missing run
+        run: node --test scripts/d240-qa-ten-run-audit.test.mjs
+      - name: Audit only real source GH QA runs with strict historical J06 selector and no retry guard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/d240-qa-ten-run-audit.mjs
+      - name: Retain only bounded real run ID/SHA/conclusion evidence, even when RED
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d240-ten-actual-source-qa-history
+          path: ${{ runner.temp }}/d240-qa-ten-real-runs.json
+          retention-days: 7
+          if-no-files-found: ignore
