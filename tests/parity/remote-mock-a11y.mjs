@@ -1,3 +1,4 @@
+import {openOwnPanelByKeyboard,verifyOwnPanelKeyboard} from './d249-keyboard-own-panels.mjs';
 import {mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 // E9 D066 installed own Remote MOCK panel, no Remote service/network/token.
@@ -33,11 +34,12 @@ try {
       // The panel reads documentElement.lang during mount; stock BB hydrates first.
       await page.evaluate(language=>{document.documentElement.lang=language;},lang);
       if(await page.evaluate(()=>document.documentElement.lang)!==lang)throw Error("Synthetic locale not applied");
-      await nav.click();
+      await openOwnPanelByKeyboard(page,nav);
       const panel=page.locator("section[aria-label]").filter({has:page.locator("h2")}).first();
       await panel.waitFor({state:"visible",timeout:10000});
       const actual=await panel.getAttribute("aria-label");
       if(actual!==panelLabel)throw Error("Wrong Remote MOCK panel locale label: "+lang);
+      await verifyOwnPanelKeyboard(page,panel,{kind:'remote'});
       const link=panel.getByRole("link",{name:/approval|თანხმობის/i}).first();
       await link.waitFor({state:"visible",timeout:10000});
       const href=await link.getAttribute("href");

@@ -1,3 +1,4 @@
+import {openOwnPanelByKeyboard,verifyOwnPanelKeyboard} from './d249-keyboard-own-panels.mjs';
 import {mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 // D066 Web-only accessibility audit against installed own Hello panel on stock BB.
@@ -39,11 +40,12 @@ try {
       await page.evaluate(language=>{document.documentElement.lang=language;},lang);
       if(await page.evaluate(()=>document.documentElement.lang)!==lang)
         throw Error("D066 synthetic browser locale could not be applied");
-      await nav.click();
+      await openOwnPanelByKeyboard(page,nav);
       const panel=page.locator("section[aria-label]").filter({has:page.locator("h2")}).first();
       await panel.waitFor({state:"visible",timeout:10000});
       const actual=await panel.getAttribute("aria-label");
       if(actual!==label)throw Error("Wrong panel locale/accessible label for "+lang);
+      await verifyOwnPanelKeyboard(page,panel,{kind:'hello'});
       const outcome=await new AxeBuilder({page}).include("section[aria-label]")
         .withTags(["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]).analyze();
       const critical=outcome.violations.filter(v=>v.impact==="critical");
