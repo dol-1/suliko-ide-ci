@@ -1,0 +1,65 @@
+{
+  "schema": "suliko-d252-ka-en-glossary-v1",
+  "entries": [
+    {
+      "id": "remote.pendingApprovals",
+      "uiFile": "plugins/suliko-remote-panel/i18n.ts",
+      "uiKey": "pendingApprovals",
+      "en": "Pending approvals",
+      "ka": "მოლოდინში მყოფი თანხმობები",
+      "docsEn": "site/docs/remote.en.md",
+      "docsKa": "site/docs/remote.ka.md",
+      "docsEnPhrase": "pending approvals",
+      "docsKaPhrase": "მოლოდინში მყოფი თანხმობები",
+      "forbiddenKa": [
+        "მოლოდინში მყოფ დამტკიცებებს"
+      ]
+    },
+    {
+      "id": "remote.panelLabel",
+      "uiFile": "plugins/suliko-remote-panel/i18n.ts",
+      "uiKey": "panelLabel",
+      "en": "Suliko Remote panel",
+      "ka": "სულიკო Remote პანელი"
+    },
+    {
+      "id": "hello.panelLabel",
+      "uiFile": "plugins/suliko-hello/i18n.ts",
+      "uiKey": "panelLabel",
+      "en": "Suliko Hello panel",
+      "ka": "სულიკო ჰელოს პანელი"
+    },
+    {
+      "id": "docs.privacy",
+      "docsEn": "site/docs/remote.en.md",
+      "docsKa": "site/docs/remote.ka.md",
+      "docsEnPhrase": "[Privacy](privacy.en.md)",
+      "docsKaPhrase": "[კონფიდენციალურობა](privacy.ka.md)"
+    },
+    {
+      "id": "docs.troubleshooting",
+      "docsEn": "site/docs/remote.en.md",
+      "docsKa": "site/docs/remote.ka.md",
+      "docsEnPhrase": "[Troubleshooting](troubleshooting.en.md)",
+      "docsKaPhrase": "[პრობლემების მოგვარება](troubleshooting.ka.md)",
+      "forbiddenKa": [
+        "[პრობლემები](troubleshooting.ka.md)"
+      ]
+    },
+    {
+      "id": "docs.token",
+      "docsKa": "site/docs/remote.ka.md",
+      "docsKaPhrase": "ტოკენს",
+      "forbiddenKa": [
+        "token-ს"
+      ]
+    },
+    {
+      "id": "docs.sha256",
+      "docsEn": "site/docs/install.en.md",
+      "docsKa": "site/docs/install.ka.md",
+      "docsEnPhrase": "SHA-256",
+      "docsKaPhrase": "SHA-256"
+    }
+  ]
+}
