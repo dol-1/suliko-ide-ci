@@ -1,4 +1,5 @@
 name: D-081 public-only rescue patch regressions
+# D251 exact current D242-main rc1 CycloneDX diff, 13 source native/QA/security paths and no vulnerability clearance.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
@@ -6,6 +7,7 @@ name: D-081 public-only rescue patch regressions
 on:
   push:
     branches:
+      - feat/d251-cyclonedx-after-d242
       - feat/d247-premerge-post-d252
       - feat/d242-trust-after-d247
       - feat/d252-ka-en-glossary-lint
@@ -97,6 +99,10 @@ jobs:
               ;;
             feat/d247-premerge-post-d252)
               node --test scripts/d247-exact-head-premerge-note.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            feat/d251-cyclonedx-after-d242)
+              node --test scripts/d251-cyclonedx-delta.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             feat/d242-trust-after-d247)
