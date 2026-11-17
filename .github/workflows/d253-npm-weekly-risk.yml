@@ -1,0 +1,57 @@
+name: D-253 weekly own-plugin pinned npm registry risks (READ ONLY, no bump)
+on:
+  push:
+    branches: [feat/d253-npm-weekly-risk-watch]
+    paths:
+      - 'scripts/d253-npm-weekly-report.mjs'
+      - 'scripts/d253-npm-weekly-report.test.mjs'
+      - '.github/workflows/d253-npm-weekly-risk.yml'
+  schedule:
+    - cron: '17 6 * * 3'
+  workflow_dispatch:
+concurrency:
+  group: d253-npm-weekly-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  report:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Confirm report fixture parser and pinned package manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/d253-npm-weekly-report.test.mjs
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          test "$(pnpm --version)" = 9.15.0
+      - name: Query only two own locked plugin dependency registries and audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -m 700 -p "$RUNNER_TEMP/d253"
+          for id in hello remote; do
+            if test "$id" = hello; then plugin=suliko-hello; else plugin=suliko-remote-panel; fi
+            test -f "plugins/$plugin/pnpm-lock.yaml"
+            pnpm --dir "plugins/$plugin" audit --json > "$RUNNER_TEMP/d253/$id.audit.json" 2>/dev/null || true
+            pnpm --dir "plugins/$plugin" outdated --format json > "$RUNNER_TEMP/d253/$id.outdated.json" 2>/dev/null || true
+          done
+      - name: Generate bounded advisory severity counts and latest-version deltas, no bump
+        run: node scripts/d253-npm-weekly-report.mjs
+      - name: Retain only bounded own-plugin categories, not raw registry output
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d253-weekly-own-npm-risk
+          path: ${{ runner.temp }}/d253/d253-summary.json
+          retention-days: 1
+          if-no-files-found: error
