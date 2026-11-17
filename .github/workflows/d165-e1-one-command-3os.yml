@@ -1,7 +1,8 @@
 name: D-165 actual one-command user GUI plus published CLI RC in single native 3OS CI run (NO release)
+# D236 verified D252 exact source: strict real 3OS macOS scheduled proof, no job skip.
 on:
   push:
-    branches: ['**', feat/d221-node24-after-d223, fix/d215-rc-pin-d117-icon-main-green, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
+    branches: [fix/d236-native-concurrency-post-d252, '**', feat/d221-node24-after-d223, fix/d215-rc-pin-d117-icon-main-green, feat/d198-doctor-after-d197, feat/d197-locked-cli-after-d199, feat/d165-end-user-one-command, main]
     paths:
       - 'scripts/d202-exact-head-gate.mjs'
       - 'scripts/d217-affected-workflows.mjs'
@@ -34,7 +35,8 @@ on:
       - 'docs/pilot/D230-FIRST-15-MIN-KA-EN.md'
   workflow_dispatch:
 concurrency:
-  group: d165-native-one-command-${{ github.ref }}
+  # D236: SHA segregates old/new feature runs; same exact SHA repeated checks still required.
+  group: d165-native-one-command-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 permissions: read-all
 jobs:
