@@ -1,4 +1,5 @@
 name: D-173 pinned 0.6.144 Git source SDK own-plugin compatibility (NO bump)
+# D244 exact D202-head: real 3OS synthetic-only doctor + native QA security proof.
 # D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

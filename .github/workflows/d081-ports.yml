@@ -1,8 +1,10 @@
 name: D-081 public-only rescue patch regressions
+# D244 exact D202-head: real 3OS synthetic-only doctor + native QA security proof.
 # D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 on:
   push:
     branches:
+      - test/d244-doctor-post-d202
       - test/d244-doctor-post-d202
       - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership
@@ -83,6 +85,10 @@ jobs:
               ;;
             feat/d230-first15-after-d226)
               node scripts/d230-first15-metrics.mjs --self-test
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            test/d244-doctor-post-d202)
+              node --test scripts/d244-doctor-redaction.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             test/d244-doctor-post-d202)

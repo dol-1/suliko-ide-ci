@@ -1,5 +1,6 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
+# D244 exact D202-head: real 3OS synthetic-only doctor + native QA security proof.
 # D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 concurrency:
   group: qa01-strict-${{ github.workflow }}-${{ github.ref }}

@@ -1,4 +1,5 @@
 name: D-168 E5 KA EN docs parity and guarded Pages preflight
+# D244 exact D202-head: real 3OS synthetic-only doctor + native QA security proof.
 # D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

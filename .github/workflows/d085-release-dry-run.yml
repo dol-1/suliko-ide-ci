@@ -1,4 +1,5 @@
 name: D-144 E8 source dry-run gated by 3 installed GUI OS + strict 7x2 QA (NO release)
+# D244 exact D202-head: real 3OS synthetic-only doctor + native QA security proof.
 # D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 concurrency:
   group: d144-release-parent-${{ github.ref }}

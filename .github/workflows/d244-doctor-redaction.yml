@@ -1,4 +1,5 @@
 name: D-244 synthetic doctor 32-format redact and write-once bundle (NO real data)
+# D244 exact D202-head: real 3OS synthetic-only doctor + native QA security proof.
 # D244 clean post-D202: 32 synthetic redaction negatives and strict 14-way native, QA, security source gates.
 on:
   push:
