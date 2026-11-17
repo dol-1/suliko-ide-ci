@@ -1,4 +1,5 @@
 name: D-239 two independent rc2 dry-run candidate artifact builders and contrast (NO tag or release)
+# D239 rebase on D252 main, full source two-builder no-tag reviewer + strict E8/QA/security acceptance.
 on:
   push:
     branches: [feat/d239-rc2-no-tag-dry-run]

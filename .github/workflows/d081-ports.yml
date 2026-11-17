@@ -1,8 +1,10 @@
 name: D-081 public-only rescue patch regressions
+# D239 rebase on D252 main, full source two-builder no-tag reviewer + strict E8/QA/security acceptance.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 on:
   push:
     branches:
+      - feat/d239-rc2-no-tag-dry-run
       - feat/d252-ka-en-glossary-lint
       - feat/d252-ka-en-glossary-lint
       - feat/d202-uninstall-after-d230
@@ -88,6 +90,10 @@ jobs:
               ;;
             feat/d252-ka-en-glossary-lint)
               node --test scripts/d252-glossary-lint.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            feat/d239-rc2-no-tag-dry-run)
+              node --test scripts/d239-rc2-dry-run.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)

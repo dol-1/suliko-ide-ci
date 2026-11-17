@@ -1,5 +1,6 @@
 # QA-01: no test skips/retries; full 7×2 matrix on disposable stock BB.
 name: D-171 QA-01 daily strict 14-of-14 regression (NO beta)
+# D239 rebase on D252 main, full source two-builder no-tag reviewer + strict E8/QA/security acceptance.
 # D252 exact-head: full 14-way own bilingual docs/SDK/QA/security/native evidence, no release.
 concurrency:
   group: qa01-strict-${{ github.workflow }}-${{ github.ref }}
@@ -10,7 +11,7 @@ on:
   schedule:
     - cron: '13 7 * * *' # 1 daily standard free public GitHub Actions main strict 14/14
   push:
-    branches: [feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d234-mock-schema-after-d228, main, feat/d140-qa01-strict-main, feat/d171-daily-qa01-main-v2, feat/d188-qa-concurrency-isolation]
+    branches: [feat/d239-rc2-no-tag-dry-run, feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d234-mock-schema-after-d228, main, feat/d140-qa01-strict-main, feat/d171-daily-qa01-main-v2, feat/d188-qa-concurrency-isolation]
     paths: ['tests/parity/**', 'scripts/qa01-*.mjs', 'scripts/d226-d083-policy.mjs', 'plugins/suliko-hello/**', '.github/workflows/qa01-parity-run.yml', '.github/workflows/d158-codeql-own-source.yml', '.github/workflows/d063-semgrep.yml', '.github/workflows/d063-gitleaks.yml', '.github/workflows/d152-workflow-expression-guard.yml', 'scripts/d230-first15-metrics.mjs', 'scripts/d202-exact-head-gate.mjs']
 permissions: read-all
 jobs:
