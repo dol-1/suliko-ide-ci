@@ -1,10 +1,11 @@
 name: D-088 Remote mock loading error offline empty safe state tests
+# D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d234-mock-schema-after-d228, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, feat/d186-e3-approval-status-integrity, feat/d187-e3-main-push-gate, main]
+    branches: [feat/d249-keyboard-post-d202, feat/d234-mock-schema-after-d228, feat/d088-desktop-visual-and-remote-states, feat/e3-readonly-poll-backoff, feat/d186-e3-approval-status-integrity, feat/d187-e3-main-push-gate, main]
     paths: ['plugins/suliko-remote-panel/**', 'tests/parity/d066-desktop-a11y.mjs', '.github/workflows/d088-remote-state-matrix.yml']
   workflow_dispatch:
 permissions: read-all

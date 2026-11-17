@@ -1,4 +1,5 @@
 name: QA-01 parity fixture validation
+# D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

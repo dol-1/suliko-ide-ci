@@ -1,7 +1,9 @@
 name: D-081 public-only rescue patch regressions
+# D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 on:
   push:
     branches:
+      - feat/d249-keyboard-post-d202
       - feat/d202-uninstall-after-d230
       - fix/d058-cache-ownership
       - fix/d059-version-output

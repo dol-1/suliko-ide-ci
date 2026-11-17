@@ -1,10 +1,11 @@
 name: D-066 installed Hello Web a11y KA/EN axe-core smoke
+# D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d249-keyboard-own-panels, feat/d227-two-viewport-after-d234, feat/d066-hello-web-axe, main]
+    branches: [feat/d249-keyboard-post-d202, feat/d249-keyboard-own-panels, feat/d227-two-viewport-after-d234, feat/d066-hello-web-axe, main]
     paths:
       - '.github/workflows/d066-hello-web-axe.yml'
       - 'tests/parity/hello-a11y.mjs'

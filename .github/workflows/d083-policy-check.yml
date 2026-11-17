@@ -1,10 +1,11 @@
 name: D-083 public workflow minimum-security static gates
+# D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
+    branches: [feat/d249-keyboard-post-d202, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, fix/d083-workflow-concurrency, main]
     paths: ['.github/workflows/**', 'scripts/d226-d083-policy.mjs', 'scripts/d230-first15-metrics.mjs', 'scripts/d202-exact-head-gate.mjs']
   workflow_dispatch:
 permissions: read-all

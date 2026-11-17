@@ -1,10 +1,11 @@
 name: D-094 same-run installed Remote MOCK Web plus packaged Desktop state/axe (NOT live Remote)
+# D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d094-remote-web-desktop-same-run]
+    branches: [feat/d249-keyboard-post-d202, feat/d094-remote-web-desktop-same-run]
     paths:
       - '.github/workflows/d094-remote-web-desktop-same-run.yml'
       - 'tests/parity/d066-desktop-a11y.mjs'
