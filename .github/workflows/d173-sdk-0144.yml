@@ -1,4 +1,5 @@
 name: D-173 pinned 0.6.144 Git source SDK own-plugin compatibility (NO bump)
+# D255 post-D242 exact-head strict docs/QA/3OS and scanner source evidence; no external signup.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
@@ -8,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [feat/d247-premerge-post-d252, feat/d242-trust-after-d247, feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
+    branches: [feat/d255-docs-links-after-d242, feat/d247-premerge-post-d252, feat/d242-trust-after-d247, feat/d252-ka-en-glossary-lint, feat/d202-uninstall-after-d230, feat/d230-first15-after-d226, fix/d226-premerge-after-d227, feat/d173-source-sdk-0144, main]
     paths:
       - '.github/workflows/d173-sdk-0144.yml'
       - 'scripts/d202-exact-head-gate.mjs'
