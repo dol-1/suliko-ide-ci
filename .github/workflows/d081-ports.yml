@@ -1,4 +1,5 @@
 name: D-081 public-only rescue patch regressions
+# D249 exact-head strict repost after observed D081 unsupported-branch failure. All source a11y/QA gates retained.
 # D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 on:
   push:
@@ -83,6 +84,10 @@ jobs:
               ;;
             feat/d230-first15-after-d226)
               node scripts/d230-first15-metrics.mjs --self-test
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            feat/d249-keyboard-post-d202)
+              node --test tests/parity/d249-keyboard-own-panels.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             fix/d226-premerge-after-d227|main)

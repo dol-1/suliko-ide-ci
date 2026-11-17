@@ -1,4 +1,5 @@
 name: D-158 pinned CodeQL JS TS source security gate (SARIF not uploaded)
+# D249 exact-head strict repost after observed D081 unsupported-branch failure. All source a11y/QA gates retained.
 # D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 on:
   push:

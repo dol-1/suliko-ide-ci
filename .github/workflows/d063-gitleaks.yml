@@ -1,4 +1,5 @@
 name: D-063 redacted full-public-git-history Gitleaks
+# D249 exact-head strict repost after observed D081 unsupported-branch failure. All source a11y/QA gates retained.
 # D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

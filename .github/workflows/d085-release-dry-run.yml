@@ -1,4 +1,5 @@
 name: D-144 E8 source dry-run gated by 3 installed GUI OS + strict 7x2 QA (NO release)
+# D249 exact-head strict repost after observed D081 unsupported-branch failure. All source a11y/QA gates retained.
 # D249 post-D202 exact HEAD: execute original own keyboard, installed GUI, QA and security gates.
 concurrency:
   group: d144-release-parent-${{ github.ref }}
