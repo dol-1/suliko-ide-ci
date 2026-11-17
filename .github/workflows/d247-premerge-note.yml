@@ -1,0 +1,64 @@
+name: D-247 exact-head GitHub premerge evidence generator (NO merge)
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'scripts/d247-exact-head-premerge-note.mjs'
+      - 'scripts/d247-exact-head-premerge-note.test.mjs'
+      - '.github/workflows/d247-premerge-note.yml'
+  workflow_dispatch:
+    inputs:
+      d217_run_id:
+        description: 'Completed D217 run ID of this exact head; source inventory artifact'
+        required: true
+        type: string
+concurrency:
+  group: d247-premerge-${{ github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  negative-fixtures:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: D247 GREEN RED MISSING cancelled older-attempt and pending tests
+        run: node --test scripts/d247-exact-head-premerge-note.test.mjs
+  source-evidence:
+    if: github.repository == 'dol-1/suliko-ide-ci' && github.event_name == 'workflow_dispatch'
+    needs: negative-fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Download D217 inventory artifact for same exact current source
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: d217-affected-workflows-premerge
+          run-id: ${{ inputs.d217_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/d247-inventory
+      - name: Generate safe exact-head note or RED MISSING and fail closed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          note="$RUNNER_TEMP/d247-premerge.md"
+          node scripts/d247-exact-head-premerge-note.mjs --inventory "$RUNNER_TEMP/d247-inventory/d217-affected-workflows.json" --live --head "$GITHUB_SHA" --branch "$GITHUB_REF_NAME" > "$note"
+          rc=$?
+          if test -f "$note"; then cat "$note" >> "$GITHUB_STEP_SUMMARY"; fi
+          exit "$rc"
