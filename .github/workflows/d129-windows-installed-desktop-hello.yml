@@ -12,6 +12,7 @@ on:
       - 'tests/parity/d129-windows-installed-desktop.mjs'
       - 'scripts/suliko-setup.ps1'
       - 'scripts/d246-stock-state-readiness.ps1'
+      # # D246 diagnostic source: category only, raw live plugin JSON never emitted
       - 'scripts/d246-stock-state-readiness.test.ps1'
   workflow_dispatch:
 permissions: read-all

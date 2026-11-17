@@ -37,4 +37,11 @@ try { $null = Wait-D246StockPluginState -Read $neverSafe -MaxAttempts 3 -DelayMi
   $timedOut = $_.Exception.Message -match 'D126 unsafe stock plugin state'
 }
 if (-not $timedOut -or $script:d246Calls -ne 3) { throw 'D246 failed to refuse persistent unsafe state at bounded deadline' }
+
+if ((Get-D246PublicStateCategory -Snapshot $pending) -cne 'forbidden-status-not-disabled' -or
+    (Get-D246PublicStateCategory -Snapshot $enabled) -cne 'forbidden-enabled-or-unknown' -or
+    (Get-D246PublicStateCategory -Snapshot $noHello) -cne 'hello-missing-or-duplicate' -or
+    (Get-D246PublicStateCategory -Snapshot $null) -cne 'json-or-cli-unavailable') {
+  throw 'D246 categories must be fixed allowlisted and correct'
+}
 Write-Output 'D246 fixture: strict disabled and Hello predicates, immediate duplicate refusal, two stable observations and bounded fail-closed PASS'
