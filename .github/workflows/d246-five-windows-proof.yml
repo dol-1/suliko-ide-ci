@@ -1,0 +1,11 @@
+name: D246 independent same-SHA official installed Windows E8 proof (public synthetic refs only)
+on:
+  push:
+    branches:
+      - fix/d246-windows-stock-after-d242
+      - 'test/d246-winproof-*'
+permissions: read-all
+jobs:
+  installed-windows:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    uses: ./.github/workflows/d129-windows-installed-desktop-hello.yml

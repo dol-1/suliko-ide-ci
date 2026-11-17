@@ -1,4 +1,5 @@
 name: D-081 public-only rescue patch regressions
+# D246 post-D242 exact-head Windows strict read-only state proof; retain D242 bilingual no-bypass and D247 generator.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
@@ -6,6 +7,7 @@ name: D-081 public-only rescue patch regressions
 on:
   push:
     branches:
+      - fix/d246-windows-stock-after-d242
       - feat/d247-premerge-post-d252
       - feat/d242-trust-after-d247
       - feat/d252-ka-en-glossary-lint
@@ -98,6 +100,10 @@ jobs:
             feat/d247-premerge-post-d252)
               node --test scripts/d247-exact-head-premerge-note.test.mjs
               node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            fix/d246-windows-stock-after-d242)
+              node --test scripts/d217-affected-workflows.test.mjs
+              node --test scripts/d246-winproof-config.test.mjs
               ;;
             feat/d242-trust-after-d247)
               python3 scripts/d242-trust-parity.test.py
