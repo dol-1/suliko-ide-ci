@@ -1,3 +1,4 @@
+import {openOwnPanelByKeyboard,verifyOwnPanelKeyboard} from './d249-keyboard-own-panels.mjs';
 // E9 packaged Desktop isolated Linux smoke. No Remote service, user data, tokens or approvals.
 import { _electron, expect } from "@playwright/test";
 // AxeBuilder's Playwright multi-page helper is unsupported in Electron BrowserContext.
@@ -46,13 +47,14 @@ for(const [lang,helloLabel,remoteLabel] of [
       const nav=page.getByRole("link",{name:pattern}).or(page.getByRole("button",{name:pattern})).first();
       await nav.waitFor({state:"visible",timeout:30000});
       await page.evaluate(value=>{document.documentElement.lang=value;},lang);
-      await nav.click();
+      await openOwnPanelByKeyboard(page,nav);
       const panel=page.locator("section[aria-label]").filter({has:page.locator("h2")}).first();
       await panel.waitFor({state:"visible",timeout:15000});
       // Route navigation mounts panels asynchronously. Assert the exact
       // localized label with Playwright polling instead of sampling a stale
       // previous panel immediately after navigation (no assertion weakening).
       await expect(panel).toHaveAttribute("aria-label",label,{timeout:15000});
+      await verifyOwnPanelKeyboard(page,panel,{kind:id});
       if(id==="remote"){
         const link=panel.getByRole("link",{name:/approval|თანხმობის/i}).first();
         await link.waitFor({state:"visible",timeout:12000});
