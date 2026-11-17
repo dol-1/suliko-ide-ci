@@ -1,0 +1,46 @@
+name: D-243 weekly read-only D228 pinned vs upstream SDK exact SHA report (NO bump)
+on:
+  push:
+    branches: [feat/d243-upstream-matrix-weekly]
+    paths:
+      - 'scripts/d243-weekly-upstream-matrix.mjs'
+      - 'scripts/d243-weekly-upstream-matrix.test.mjs'
+      - '.github/workflows/d243-upstream-matrix-weekly.yml'
+  schedule:
+    - cron: '43 12 * * 2'
+  workflow_dispatch:
+concurrency:
+  group: d243-source-weekly-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    if: github.repository == 'dol-1/suliko-ide-ci'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.19.0'
+          package-manager-cache: false
+      - name: Test source identity, missing artifact RED, and no false live-runtime claims
+        run: node --test scripts/d243-weekly-upstream-matrix.test.mjs
+      - name: Read actual weekly scheduled source matrix D228 artifacts and current upstream SHA (never mutate)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/d243-weekly-upstream-matrix.mjs
+      - name: Retain only bounded typed matrix JSON and UNSENT issue draft, no logs/secrets
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d243-weekly-pinned-upstream-source-matrix
+          path: |
+            ${{ runner.temp }}/d243/weekly.json
+            ${{ runner.temp }}/d243/issue-draft.md
+          if-no-files-found: ignore
+          retention-days: 1
