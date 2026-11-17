@@ -1,4 +1,5 @@
 name: D-081 public-only rescue patch regressions
+# D246 exact post-D242 Windows stock CLI stable safe snapshots; E8 three-OS strict QA unchanged.
 # D247 exact D252 source premerge note: every required real hosted CI path, no auto-merge.
 # D242 new-source SHA complete proof: 14 genuine impacted workflows, including D252 glossary.
 # D242 exact D252-main 13-source-gate proof; source-only preview no publication.
@@ -6,6 +7,7 @@ name: D-081 public-only rescue patch regressions
 on:
   push:
     branches:
+      - fix/d246-readiness-after-d242
       - feat/d247-premerge-post-d252
       - feat/d242-trust-after-d247
       - feat/d252-ka-en-glossary-lint
@@ -93,6 +95,9 @@ jobs:
               ;;
             feat/d252-ka-en-glossary-lint)
               node --test scripts/d252-glossary-lint.test.mjs
+              node --test scripts/d217-affected-workflows.test.mjs
+              ;;
+            fix/d246-readiness-after-d242)
               node --test scripts/d217-affected-workflows.test.mjs
               ;;
             feat/d247-premerge-post-d252)
